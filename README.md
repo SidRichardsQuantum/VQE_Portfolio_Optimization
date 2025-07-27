@@ -1,26 +1,34 @@
 # VQE_Portfolio_Optimization
 
-Optimising asset portfolios using a variational quantum eigensolver in a hybrid quantum-classical algorithm.
+Optimizing asset portfolios using a Variational Quantum Eigensolver (VQE) in a hybrid quantum-classical algorithm.
 
-For an extensive description of the theory behind this project, see [THEORY.md](THEORY.md).
+This repo implements two methods:
 
----
-
-# Overview
-
-Portfolio optimization is achieved by the formulation: Quadratic unconstrained binary optimization (QUBO)
-This minimises a quadratic polynomial over binary variables.
-PennyLane has a QUBO-to-Ising function that translates a QUBO optimisation problem into a molecular eigenvalue problem.
-
-
-## References
-
-- [QUBO](https://en.m.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization)
+- `VQE_Portfolio_BinaryEncoding.ipynb` – a QUBO-style binary encoding using multi-qubit representations.
+- `VQE_Portfolio_Fractional.ipynb` – a fractional ansatz using parameterized RY rotations.
 
 ---
 
-📘 Author: Sid Richards (SidRichardsQuantum)
+## 📚 Documentation
 
-<img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg" width="20" /> LinkedIn: https://www.linkedin.com/in/sid-richards-21374b30b/
+- **Theory**: Full derivation and model design in [`THEORY.md`](THEORY.md)
+- **Results**: Output portfolios, convergence plots and insights in [`RESULTS.md`](RESULTS.md)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+---
+
+## 🧠 Overview
+
+Portfolio optimization is framed as a QUBO problem, then mapped to a quantum Hamiltonian via PennyLane’s tools. The VQE algorithm minimizes the expectation value of the Hamiltonian to find optimal allocations.
+
+---
+
+## 🧾 References
+
+- [QUBO – Wikipedia](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization)
+- PennyLane docs: https://docs.pennylane.ai
+
+---
+
+📘 Author: Sid Richards ([@SidRichardsQuantum](https://www.linkedin.com/in/sid-richards-21374b30b/))
+
+MIT License – see [LICENSE](LICENSE) for details.
