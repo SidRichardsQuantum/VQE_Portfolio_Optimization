@@ -1,30 +1,73 @@
-# Results: VQE Portfolio Optimization
+# Results
 
-## 1. Binary Encoding
+## 1. Binary (Selection) Ansatz
 
-- Final sampled bitstring:
-  `[0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1]`
-- Decoded portfolio:
-  - Asset 1: 50.0%
-  - Asset 2: 8.3%
-  - Asset 3: 0.0%
-  - Asset 4: 41.7%
-- Cost convergence plot
-- Bar and pie charts
+Example run ($n=4$, $K=2$, $λ=1.0$):
+- Most probable bitstring: `|0101⟩`
+- Portfolio decoded: Asset 2 and Asset 4 selected
+
+**Circuit**
+![Binary Circuit](images/Binary_VQE_Circuit.png)
+
+**Convergence (iterations vs cost)**
+![Binary Convergence](images/Binary_VQE_Convergence.png)
+
+**Sampled Bitstrings (Dirac notation)**
+![Binary Portfolio Bitstrings](images/Binary_VQE_Portfolio_Bitstrings.png)
+
+**Marginal Inclusion Probabilities**
+![Binary Probabilities](images/Binary_VQE_Probabilities.png)
 
 ## 2. Fractional Ansatz
 
-- Optimized angles:
-  `[1.23, 0.45, ...]`
-- Final weights:
-  - Asset 1: 35.2%
-  - Asset 2: 20.1%
-  - Asset 3: 10.7%
-  - Asset 4: 34.0%
-- Convergence was much faster due to shallower circuit.
-- Plot screenshots or PNGs embedded.
+Example run ($n=4$, $λ=0.5$). Final weights:
+  ```
+  Asset 1: 0.00%
+  Asset 2: 99.92%
+  Asset 3: 0.07%
+  Asset 4: 0.01%
+  ```
 
-## 3. Comparative Observations
+**Circuit**
+![Fractional Circuit](images/Fractional_VQE_Circuit.png)
 
-- Binary QUBO offers precision, but is slower and noisier.
-- Fractional VQE is efficient, well-suited for real-world fractional allocation.
+**Convergence**
+![Fractional Convergence](images/Fractional_VQE_Convergence.png)
+
+**Allocation (Pie)**
+![Fractional Pie](images/Fractional_VQE_Pie.png)
+
+**Marginal Probabilities**
+![Fractional Probabilities](images/Fractional_VQE_Probabilities.png)
+
+## 3. Real Data Example
+
+Tickers: AAPL, MSFT, GOOGL, AMZN (2023–2024 via Yahoo Finance).  
+Fractional VQE run ($λ=0.5$) produced:
+```
+AAPL: 0.00%
+MSFT: 0.01%
+GOOGL: 0.01%
+AMZN: 99.98%
+```
+
+**Convergence**
+![Real Data Convergence](images/Fractional_Example_Convergence.png)
+
+**Allocation (Pie)**
+![Real Data Pie](images/Fractional_Example_Pie.png)
+
+**Marginal Probabilities**
+![Real Data Probabilities](images/Fractional_Example_Probabilities.png)
+
+## 4. Comparative Observations
+
+- **Binary QUBO**: enforces discrete picks; slower and noisier convergence.  
+- **Fractional VQE**: lighter, faster; suitable for fractional allocation.  
+- **Classical baseline**: Markowitz solution closely matches Fractional VQE.
+
+---
+
+📘 Author: Sid Richards ([@SidRichardsQuantum](https://www.linkedin.com/in/sid-richards-21374b30b/))
+
+MIT License – see [LICENSE](LICENSE) for details.

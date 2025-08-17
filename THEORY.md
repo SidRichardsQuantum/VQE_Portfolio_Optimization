@@ -1,4 +1,4 @@
-# Theory: VQE for Portfolio Optimization
+# Theory
 
 ## 1. Classical Portfolio Optimization
 
@@ -30,3 +30,9 @@
 | Output type    | Discrete    | Continuous        |
 | Encoding       | Bitstring   | Angle rotation    |
 | Performance    | Slower      | Faster            |
+
+---
+
+📘 Author: Sid Richards ([@SidRichardsQuantum](https://www.linkedin.com/in/sid-richards-21374b30b/))
+
+MIT License – see [LICENSE](LICENSE) for details.
