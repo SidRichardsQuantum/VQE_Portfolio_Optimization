@@ -6,21 +6,25 @@ Example run ($n=4$, $K=2$, $λ=1.0$):
 - Most probable bitstring: `|0101⟩`
 - Portfolio decoded: Asset 2 and Asset 4 selected
 
-**Circuit**
-![Binary Circuit](images/Binary_VQE_Circuit.png)
+**Circuit**:
 
-**Convergence (iterations vs cost)**
-![Binary Convergence](images/Binary_VQE_Convergence.png)
+<img src="notebooks/images/Binary_VQE_Circuit.png" alt="Binary Circuit" width="600"/>
 
-**Sampled Bitstrings (Dirac notation)**
-![Binary Portfolio Bitstrings](images/Binary_VQE_Portfolio_Bitstrings.png)
+**Convergence (iterations vs energy)**:
 
-**Marginal Inclusion Probabilities**
-![Binary Probabilities](images/Binary_VQE_Probabilities.png)
+<img src="notebooks/images/Binary_VQE_Convergence.png" alt="Binary Convergence" width="600"/>
+
+**Sampled Bitstrings (Dirac notation)**:
+
+<img src="notebooks/images/Binary_VQE_Portfolio_Bitstrings.png" alt="Binary Portfolio Bitstrings" width="600"/>
+
+**Marginal Inclusion Probabilities**:
+
+<img src="notebooks/images/Binary_VQE_Probabilities.png" alt="Binary Probabilities" width="600"/>
 
 ## 2. Fractional Ansatz
 
-Example run ($n=4$, $λ=0.5$). Final weights:
+Example run ($n=4$, $λ=0.5$):
   ```
   Asset 1: 0.00%
   Asset 2: 99.92%
@@ -28,22 +32,25 @@ Example run ($n=4$, $λ=0.5$). Final weights:
   Asset 4: 0.01%
   ```
 
-**Circuit**
-![Fractional Circuit](images/Fractional_VQE_Circuit.png)
+**Circuit**:
 
-**Convergence**
-![Fractional Convergence](images/Fractional_VQE_Convergence.png)
+<img src="notebooks/images/Fractional_VQE_Circuit.png" alt="Fractional Circuit" width="600"/>
 
-**Allocation (Pie)**
-![Fractional Pie](images/Fractional_VQE_Pie.png)
+**Convergence (iterations vs energy)**:
 
-**Marginal Probabilities**
-![Fractional Probabilities](images/Fractional_VQE_Probabilities.png)
+<img src="notebooks/images/Fractional_VQE_Convergence.png" alt="Fractional Convergence" width="600"/>
+
+**Allocation (Pie)**:
+
+<img src="notebooks/images/Fractional_VQE_Pie.png" alt="Fractional Pie" width="600"/>
+
+**Marginal Probabilities**:
+
+<img src="notebooks/images/Fractional_VQE_Probabilities.png" alt="Fractional Probabilities" width="600"/>
 
 ## 3. Real Data Example
 
-Tickers: AAPL, MSFT, GOOGL, AMZN (2023–2024 via Yahoo Finance).  
-Fractional VQE run ($λ=0.5$) produced:
+Example run (AAPL, MSFT, GOOGL, AMZN; $λ=0.5$):
 ```
 AAPL: 0.00%
 MSFT: 0.01%
@@ -51,14 +58,17 @@ GOOGL: 0.01%
 AMZN: 99.98%
 ```
 
-**Convergence**
-![Real Data Convergence](images/Fractional_Example_Convergence.png)
+**Convergence (iterations vs energy)**:
 
-**Allocation (Pie)**
-![Real Data Pie](images/Fractional_Example_Pie.png)
+<img src="notebooks/images/Fractional_Example_Convergence.png" alt="Real Data Convergence" width="600"/>
 
-**Marginal Probabilities**
-![Real Data Probabilities](images/Fractional_Example_Probabilities.png)
+**Allocation (Pie)**:
+
+<img src="notebooks/images/Fractional_Example_Pie.png" alt="Real Data Pie" width="600"/>
+
+**Marginal Probabilities**:
+
+<img src="notebooks/images/Fractional_Example_Probabilities.png" alt="Real Data Probabilities" width="600"/>
 
 ## 4. Comparative Observations
 
