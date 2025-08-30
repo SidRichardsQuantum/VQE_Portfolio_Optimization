@@ -1,0 +1,16 @@
+# Core scientific stack
+numpy>=1.26,<2.0
+pandas>=2.0,<3.0
+matplotlib>=3.8,<4.0
+
+# Quantum framework
+pennylane>=0.34,<0.36
+
+# Data source
+yfinance>=0.2.40,<0.3.0
+
+# Optional: covariance shrinkage
+scikit-learn>=1.4,<2.0
+
+# Development
+jupyter>=1.0
