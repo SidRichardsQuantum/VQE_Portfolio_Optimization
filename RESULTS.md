@@ -2,13 +2,9 @@
 
 ## 1. Classical Baseline (Markowitz)
 
-**Allocation (Bar)**:
+**Diversification Trend (λ sweep)**:
 
-<img src="notebooks/images/Markowitz_Bar.png" alt="Markowitz Bar" width="600"/>
-
-**Allocation (Pie)**:
-
-<img src="notebooks/images/Markowitz_Pie.png" alt="Markowitz Pie" width="600"/>
+<img src="notebooks/images/Markowitz_Lambda_Sweep.png" alt="Markowitz Lambda Sweep" width="500"/>
 
 ## 2. Binary (Selection) Ansatz
 
