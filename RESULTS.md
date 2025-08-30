@@ -1,6 +1,16 @@
 # Results
 
-## 1. Binary (Selection) Ansatz
+## 1. Classical Baseline (Markowitz)
+
+**Allocation (Bar)**:
+
+<img src="notebooks/images/Markowitz_Bar.png" alt="Markowitz Bar" width="600"/>
+
+**Allocation (Pie)**:
+
+<img src="notebooks/images/Markowitz_Pie.png" alt="Markowitz Pie" width="600"/>
+
+## 2. Binary (Selection) Ansatz
 
 Example run ($n=4$, $K=2$, $λ=1.0$):
 - Most probable bitstring: `|0101⟩`
@@ -22,7 +32,7 @@ Example run ($n=4$, $K=2$, $λ=1.0$):
 
 <img src="notebooks/images/Binary_VQE_Probabilities.png" alt="Binary Probabilities" width="600"/>
 
-## 2. Fractional Ansatz
+## 3. Fractional Ansatz
 
 Example run ($n=4$, $λ=0.5$):
   ```
@@ -48,7 +58,7 @@ Example run ($n=4$, $λ=0.5$):
 
 <img src="notebooks/images/Fractional_VQE_Probabilities.png" alt="Fractional Probabilities" width="600"/>
 
-## 3. Real Data Example
+## 4. Real Data Example
 
 Example run (AAPL, MSFT, GOOGL, AMZN; $λ=0.5$):
 ```
@@ -70,7 +80,7 @@ AMZN: 99.98%
 
 <img src="notebooks/images/Fractional_Example_Probabilities.png" alt="Real Data Probabilities" width="600"/>
 
-## 4. Comparative Observations
+## Comparative Observations
 
 - **Binary QUBO**: enforces discrete picks; slower and noisier convergence.  
 - **Fractional VQE**: lighter, faster; suitable for fractional allocation.  
