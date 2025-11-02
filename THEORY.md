@@ -1,5 +1,13 @@
 # Theory
 
+## Table of Contents
+
+- [1. Classical Portfolio Optimization](#1-classical-portfolio-optimization)
+- [2. Quantum Reformulation via VQE](#2-quantum-reformulation-via-vqe)
+- [3. Binary QUBO Encoding](#3-binary-qubo-encoding)
+- [4. Fractional Ansatz Encoding](#4-fractional-ansatz-encoding)
+- [5. Comparison: Binary vs. Fractional](#5-comparison-binary-vs-fractional)
+
 ## 1. Classical Portfolio Optimization
 
 - Expected return, risk, and the mean-variance framework.
