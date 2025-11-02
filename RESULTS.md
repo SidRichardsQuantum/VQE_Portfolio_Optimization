@@ -1,5 +1,13 @@
 # Results
 
+## Table of Contents
+
+- [1. Classical Baseline (Markowitz)](#1-classical-baseline-markowitz)
+- [2. Binary (Selection) Ansatz](#2-binary-selection-ansatz)
+- [3. Fractional Ansatz](#3-fractional-ansatz)
+- [4. Real Data Example](#4-real-data-example)
+- [Comparative Observations](#comparative-observations)
+
 ## 1. Classical Baseline (Markowitz)
 
 **Diversification Trend (λ sweep)**:
