@@ -1,5 +1,5 @@
 pennylane==0.35.1
-autoray>=0.6.9
+autoray>=0.6.9,<0.7
 autograd>=1.6.2
 numpy>=1.26,<2.0
 pandas>=2.0,<3.0
@@ -7,3 +7,5 @@ matplotlib>=3.8,<4.0
 yfinance>=0.2.40,<0.3.0
 scikit-learn>=1.4,<2.0
 jupyter>=1.0
+cvxpy>=1.4,<2.0
+osqp>=0.6,<1.0
