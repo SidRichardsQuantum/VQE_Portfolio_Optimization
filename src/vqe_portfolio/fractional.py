@@ -7,7 +7,7 @@ from .ansatz import fractional_ry_layer
 from .metrics import symmetrize
 from .optimize import adam_optimize
 from .types import FractionalVQEConfig, FractionalVQEResult, LambdaSweepConfig, OptimizeTrace
-
+from .utils import set_global_seed
 
 def angles_to_weights(expvals_z: np.ndarray) -> np.ndarray:
     """
@@ -26,7 +26,7 @@ def run_fractional_vqe(
     Sigma: np.ndarray,
     cfg: FractionalVQEConfig = FractionalVQEConfig(),
 ) -> FractionalVQEResult:
-    np.random.seed(cfg.seed)
+    set_global_seed(cfg.seed)
 
     mu = np.array(mu, requires_grad=False)
     Sigma = symmetrize(np.array(Sigma, requires_grad=False))
@@ -35,7 +35,7 @@ def run_fractional_vqe(
     dev = qml.device(cfg.device, wires=n, shots=cfg.shots)
 
     def ansatz(thetas: np.ndarray) -> None:
-        return fractional_ry_layer(thetas, n_wires=n)
+        fractional_ry_layer(thetas, n_wires=n)
 
     @qml.qnode(dev, interface="autograd")
     def expvals_z(thetas: np.ndarray):
@@ -71,7 +71,7 @@ def fractional_lambda_sweep(
     """
     Warm-start optional sweep over lambda values.
     """
-    np.random.seed(cfg.seed)
+    set_global_seed(cfg.seed)
 
     mu = np.array(mu, requires_grad=False)
     Sigma = symmetrize(np.array(Sigma, requires_grad=False))
@@ -80,7 +80,7 @@ def fractional_lambda_sweep(
     dev = qml.device(cfg.device, wires=n, shots=cfg.shots)
 
     def ansatz(thetas: np.ndarray) -> None:
-        return fractional_ry_layer(thetas, n_wires=n)
+        fractional_ry_layer(thetas, n_wires=n)
 
     @qml.qnode(dev, interface="autograd")
     def expvals_z(thetas: np.ndarray):
@@ -119,7 +119,9 @@ def fractional_lambda_sweep(
 
     allocs_arr = np.vstack(allocs)
 
-    base = run_fractional_vqe(mu, Sigma, cfg)
+    # If we didn't already compute a base run for warm-start, compute it once now.
+    if not sweep.warm_start:
+        base = run_fractional_vqe(mu, Sigma, cfg)
 
     base_dict = dict(base.__dict__)
     base_dict.pop("lambdas", None)

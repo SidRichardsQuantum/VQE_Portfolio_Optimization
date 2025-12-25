@@ -10,12 +10,42 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [{ name = "Sid Richards" }]
+
 dependencies = [
-  "numpy",
-  "pandas",
-  "yfinance",
-  "pennylane",
-  "matplotlib",
+  "numpy>=1.26,<3.0",
+  "matplotlib>=3.8,<4.0",
+  "pennylane>=0.35,<1.0",
+]
+
+keywords = ["quantum", "vqe", "portfolio-optimization", "pennylane", "finance"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+[project.urls]
+Repository = "https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization"
+Issues = "https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/issues"
+
+[project.optional-dependencies]
+data = [
+  "pandas>=2.0,<3.0",
+  "yfinance>=0.2.40,<0.3.0",
+  "scikit-learn>=1.4,<2.0",
+]
+markowitz = [
+  "cvxpy>=1.4,<2.0",
+  "osqp>=0.6,<1.0",
+]
+notebooks = [
+  "jupyter>=1.0",
+  "jupytext>=1.16,<2.0",
+]
+dev = [
+  "pytest>=8,<9",
+  "ruff>=0.6,<1.0",
 ]
 
 [tool.setuptools]

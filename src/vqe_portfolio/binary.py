@@ -10,6 +10,8 @@ from .ansatz import binary_hwe_ry_cz_ring
 from .metrics import symmetrize
 from .optimize import adam_optimize
 from .types import BinaryVQEConfig, BinaryVQEResult, LambdaSweepConfig, OptimizeTrace
+from .utils import topk_onehot
+from .utils import set_global_seed
 
 
 def build_ising_hamiltonian(
@@ -29,8 +31,10 @@ def build_ising_hamiltonian(
     mu = np.array(mu, requires_grad=False)
     Sigma = np.array(Sigma, requires_grad=False)
     Sigma = symmetrize(Sigma)
-
     n = len(mu)
+
+    if not (1 <= k <= n):
+        raise ValueError(f"k must be in [1, {n}] but got {k}")
 
     # QUBO constants
     const = float(alpha * k**2)
@@ -84,10 +88,8 @@ def selection_prob_from_z(z: np.ndarray) -> np.ndarray:
 
 
 def topk_project(x_prob: np.ndarray, k: int) -> np.ndarray:
-    idx = np.argsort(-np.array(x_prob))[:k]
-    x = np.zeros_like(x_prob, dtype=int)
-    x[idx] = 1
-    return x
+    """Project probabilities to a binary Top-K selection (dtype=int)."""
+    return topk_onehot(x_prob, k).astype(int)
 
 
 def run_binary_vqe(
@@ -102,30 +104,34 @@ def run_binary_vqe(
     - Top-K projection
     - samples + mode + best feasible sampled
     """
-    np.random.seed(cfg.seed)
+ 
+    set_global_seed(cfg.seed)
 
     mu = np.array(mu, requires_grad=False)
     Sigma = np.array(Sigma, requires_grad=False)
     Sigma = symmetrize(Sigma)
     n = len(mu)
 
+    if not (1 <= cfg.k <= n):
+        raise ValueError(f"cfg.k must be in [1, {n}] but got {cfg.k}")
+
     H = build_ising_hamiltonian(mu, Sigma, cfg.lam, cfg.alpha, cfg.k)
 
     dev_train = qml.device(cfg.device, wires=n, shots=cfg.shots_train)
 
     def ansatz(params: np.ndarray) -> None:
-        return binary_hwe_ry_cz_ring(params, depth=cfg.depth, n_wires=n)
+        binary_hwe_ry_cz_ring(params, depth=cfg.depth, n_wires=n)
 
     @qml.qnode(dev_train, interface="autograd")
     def energy(params: np.ndarray):
         ansatz(params)
         return qml.expval(H)
 
-    # Optimize
     init = np.array(np.random.uniform(0, np.pi, size=(cfg.depth, n)), requires_grad=True)
-    opt_res = adam_optimize(energy, init, steps=cfg.steps, stepsize=cfg.stepsize, log_every=cfg.log_every)
+    opt_res = adam_optimize(
+        energy, init, steps=cfg.steps, stepsize=cfg.stepsize, log_every=cfg.log_every
+    )
 
-    # Expectations
     @qml.qnode(dev_train, interface="autograd")
     def exp_z(params: np.ndarray):
         ansatz(params)
@@ -136,7 +142,6 @@ def run_binary_vqe(
     x_round = (x_prob >= 0.5).astype(int)
     x_topk = topk_project(x_prob, cfg.k)
 
-    # Sampling
     dev_samp = qml.device(cfg.device, wires=n, shots=cfg.shots_sample)
 
     @qml.qnode(dev_samp)
@@ -145,7 +150,7 @@ def run_binary_vqe(
         return qml.sample(wires=range(n))
 
     samples = sample_bits(opt_res.params)
-    rows = np.array(samples)  # shape (shots, n) with {0,1}
+    rows = np.array(samples)
     counts: Counter[tuple[int, ...]] = Counter(tuple(map(int, row)) for row in rows)
 
     mode_bitstring = max(counts, key=counts.get)
@@ -185,16 +190,19 @@ def binary_lambda_sweep(
     Re-optimize for each lambda and return probs_by_lambda.
     Matches notebook behavior (fresh init each lambda).
     """
-    np.random.seed(cfg.seed)
+    set_global_seed(cfg.seed)
 
     mu = np.array(mu, requires_grad=False)
     Sigma = symmetrize(np.array(Sigma, requires_grad=False))
     n = len(mu)
 
+    if not (1 <= cfg.k <= n):
+        raise ValueError(f"cfg.k must be in [1, {n}] but got {cfg.k}")
+
     dev = qml.device(cfg.device, wires=n, shots=cfg.shots_train)
 
     def ansatz(params: np.ndarray) -> None:
-        return binary_hwe_ry_cz_ring(params, depth=cfg.depth, n_wires=n)
+        binary_hwe_ry_cz_ring(params, depth=cfg.depth, n_wires=n)
 
     probs = []
     lambdas = np.array(list(sweep.lambdas), dtype=float)
@@ -213,7 +221,7 @@ def binary_lambda_sweep(
             init,
             steps=sweep.steps_per_lambda,
             stepsize=sweep.stepsize,
-            log_every=max(sweep.steps_per_lambda, 1),  # no trace needed
+            log_every=max(sweep.steps_per_lambda, 1),
         )
 
         @qml.qnode(dev, interface="autograd")
@@ -224,10 +232,9 @@ def binary_lambda_sweep(
         z = np.stack(exp_z(opt_res.params))
         probs.append(selection_prob_from_z(z))
 
-    probs_arr = np.vstack(probs)  # (L, n)
+    probs_arr = np.vstack(probs)
 
     base = run_binary_vqe(mu, Sigma, cfg)
-
     base_dict = dict(base.__dict__)
     base_dict.pop("lambdas", None)
     base_dict.pop("probs_by_lambda", None)

@@ -32,3 +32,10 @@ Thumbs.db
 # Cache
 *.pytest_cache/
 .mypy_cache/
+
+# Packaging
+dist/
+build/
+
+# Ruff
+.ruff_cache/
