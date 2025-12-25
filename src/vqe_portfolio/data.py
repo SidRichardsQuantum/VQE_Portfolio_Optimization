@@ -42,7 +42,7 @@ def _to_adj_close(df: pd.DataFrame | pd.Series, tickers: list[str]) -> pd.DataFr
 def _infer_annualization(index: pd.DatetimeIndex) -> Tuple[int, Freq]:
     # Try frequency; fall back to spacing
     freq = pd.infer_freq(index)
-    if freq and freq.startswith("B") or freq == "D":
+    if freq and (freq.startswith("B") or freq == "D"):
         return 252, "D"
     if freq and freq.startswith("W"):
         return 52, "W"

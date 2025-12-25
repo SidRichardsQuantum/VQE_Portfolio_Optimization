@@ -8,23 +8,18 @@ version = "0.0.1"
 description = "VQE-based portfolio optimization with PennyLane"
 readme = "README.md"
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Sid Richards" }]
 dependencies = [
-  "pennylane==0.35.1",
-  "autoray>=0.6.9,<0.7",
-  "autograd>=1.6.2",
-  "numpy>=1.26,<2.0",
-  "pandas>=2.0,<3.0",
-  "matplotlib>=3.8,<4.0",
-  "yfinance>=0.2.40,<0.3.0",
-  "scikit-learn>=1.4,<2.0",
+  "numpy",
+  "pandas",
+  "yfinance",
+  "pennylane",
+  "matplotlib",
 ]
 
-[project.optional-dependencies]
-notebooks = ["jupyter>=1.0", "jupytext>=1.18,<2.0", "nbconvert>=7,<8"]
-bench = ["cvxpy>=1.4,<2.0", "osqp>=0.6,<1.0"]
-
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
