@@ -1,5 +1,10 @@
 # Portfolio Optimization via VQE
 
+[![PyPI](https://img.shields.io/pypi/v/vqe-portfolio.svg)](https://pypi.org/project/vqe-portfolio/)
+[![Python](https://img.shields.io/pypi/pyversions/vqe-portfolio.svg)](https://pypi.org/project/vqe-portfolio/)
+[![License](https://img.shields.io/pypi/l/vqe-portfolio.svg)](LICENSE)
+[![CI](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/actions)
+
 This package implements **portfolio optimization using Variational Quantum Eigensolvers (VQE)** as a clean, testable, and reusable **Python library**, with notebooks acting purely as *clients*.
 
 Two complementary quantum formulations are provided:
@@ -59,6 +64,48 @@ Notebook clients:
 
 * `notebooks/Fractional.ipynb`
 * `notebooks/examples/Real_Example.ipynb`
+
+---
+
+## 🧠 Why Quantum Here?
+
+Classical mean–variance portfolio optimization is well understood and efficiently solvable
+*in its simplest form*. However, many practically relevant extensions introduce
+**combinatorial structure** that scales poorly with problem size.
+
+This project focuses on those regimes.
+
+### What is classically easy
+- Unconstrained or long-only Markowitz optimization
+- Convex quadratic objectives on the simplex
+- Small-scale cardinality constraints via heuristics
+
+### What becomes hard
+- **Exact cardinality constraints** (select exactly *K* assets)
+- Discrete–continuous hybrid decision spaces
+- Exhaustive exploration of correlated asset subsets
+- Non-convex penalty landscapes introduced by constraints
+
+These settings naturally map to **QUBO / Ising formulations**, which are native to
+near-term quantum algorithms.
+
+### Why VQE is a natural research tool
+- VQE directly minimizes ⟨H⟩ for problem-encoded Hamiltonians
+- Constraints can be enforced **structurally** (fractional case) or via penalties (binary case)
+- Hybrid quantum–classical loops align with existing optimization workflows
+- The framework cleanly supports:
+  - Ansatz experimentation
+  - Noise and shot studies
+  - Warm-started parameter sweeps
+
+### What this project does *not* claim
+- Quantum advantage over classical solvers
+- Near-term production readiness
+- Superiority to specialized classical optimizers
+
+Instead, this repository provides a **carefully engineered research baseline**
+for exploring how constrained financial optimization problems behave when expressed
+in quantum-native representations.
 
 ---
 
