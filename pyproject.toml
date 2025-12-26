@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vqe-portfolio"
-version = "0.0.1"
+version = "0.1.0"
 description = "VQE-based portfolio optimization with PennyLane"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Sid Richards" }]
 
 dependencies = [
@@ -21,7 +22,6 @@ keywords = ["quantum", "vqe", "portfolio-optimization", "pennylane", "finance"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
 
@@ -34,7 +34,7 @@ dev = [
   "pytest>=8,<9",
   "ruff>=0.6,<1.0",
   "build>=1.2,<2.0",
-  "twine>=5,<6",
+  "twine>=6,<7",
 ]
 
 markowitz = [
@@ -58,3 +58,6 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/vqe_portfolio/__init__.py" = ["E402"]
