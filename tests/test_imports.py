@@ -1,11 +1,14 @@
+import importlib
+
+
 def test_base_import():
-    import vqe_portfolio
+    importlib.import_module("vqe_portfolio")
 
 
 def test_core_api_imports():
-    from vqe_portfolio import (
-        run_fractional_vqe,
-        run_binary_vqe,
-        BinaryVQEConfig,
-        FractionalVQEConfig,
-    )
+    m = importlib.import_module("vqe_portfolio")
+    # Touch attributes so linting and the test both ensure they exist.
+    assert hasattr(m, "run_fractional_vqe")
+    assert hasattr(m, "run_binary_vqe")
+    assert hasattr(m, "BinaryVQEConfig")
+    assert hasattr(m, "FractionalVQEConfig")

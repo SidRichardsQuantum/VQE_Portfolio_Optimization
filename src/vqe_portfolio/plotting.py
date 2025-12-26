@@ -82,7 +82,7 @@ def plot_lambda_sweep_bars(
     for i in range(n):
         plt.bar(x + i * bw, mat[:, i], bw, label=asset_labels[i])
 
-    plt.xticks(x + bw * (n - 1) / 2, [f"{l:.2f}" for l in lambdas])
+    plt.xticks(x + bw * (n - 1) / 2, [f"{lam:.2f}" for lam in lambdas])
     plt.ylabel(ylabel)
     plt.ylim(0, 1)
     plt.xlabel("Risk-aversion parameter λ")
