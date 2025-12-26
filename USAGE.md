@@ -68,6 +68,8 @@ from vqe_portfolio import fractional_lambda_sweep
 from vqe_portfolio.frontier import fractional_frontier_from_allocs
 from vqe_portfolio.types import LambdaSweepConfig
 
+cfg = FractionalVQEConfig(lam=1.0, steps=80)
+
 sweep = LambdaSweepConfig(
     lambdas=[0.5, 1.0, 2.0, 5.0, 10.0],
     steps_per_lambda=60,

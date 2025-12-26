@@ -18,10 +18,10 @@ All core logic lives in `src/vqe_portfolio/`; notebooks and examples simply call
 Select exactly **K assets** by solving a constrained mean–variance problem:
 
 $$
-\min_{x \in {0,1}^n}
-;\lambda, x^\top \Sigma x
-;-;\mu^\top x
-;+;\alpha(\mathbf{1}^\top x - K)^2
+\min_{x \in \{0,1\}^n}
+\;\lambda\, x^\top \Sigma x
+\;-\;\mu^\top x
+\;+\;\alpha(\mathbf{1}^\top x - K)^2
 $$
 
 **Highlights**
