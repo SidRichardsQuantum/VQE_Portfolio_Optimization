@@ -30,22 +30,27 @@ Repository = "https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization"
 Issues = "https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/issues"
 
 [project.optional-dependencies]
-data = [
-  "pandas>=2.0,<3.0",
-  "yfinance>=0.2.40,<0.3.0",
-  "scikit-learn>=1.4,<2.0",
+dev = [
+  "pytest>=8,<9",
+  "ruff>=0.6,<1.0",
+  "build>=1.2,<2.0",
+  "twine>=5,<6",
 ]
+
 markowitz = [
   "cvxpy>=1.4,<2.0",
   "osqp>=0.6,<1.0",
 ]
+
 notebooks = [
   "jupyter>=1.0",
   "jupytext>=1.16,<2.0",
 ]
-dev = [
-  "pytest>=8,<9",
-  "ruff>=0.6,<1.0",
+
+data = [
+  "pandas>=2.0,<3.0",
+  "yfinance>=0.2.40,<0.3.0",
+  "scikit-learn>=1.4,<2.0",
 ]
 
 [tool.setuptools]
