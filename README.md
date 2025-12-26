@@ -1,13 +1,13 @@
 # Portfolio Optimization via VQE
 
-This repository implements **portfolio optimization using Variational Quantum Eigensolvers (VQE)** in a clean, modular **Python package** with lightweight notebook clients.
+This package implements **portfolio optimization using Variational Quantum Eigensolvers (VQE)** as a clean, testable, and reusable **Python library**, with notebooks acting purely as *clients*.
 
 Two complementary quantum formulations are provided:
 
-- **Binary VQE** — asset *selection* under a cardinality constraint (QUBO → Ising → VQE)
-- **Fractional VQE** — long-only *allocation* on the simplex using a constraint-preserving quantum parameterization
+* **Binary VQE** — asset *selection* under a cardinality constraint (QUBO → Ising → VQE)
+* **Fractional VQE** — long-only *allocation* on the simplex using a constraint-preserving quantum parameterization
 
-All quantum logic lives in `src/vqe_portfolio/`; most notebooks act purely as **clients** for running experiments, generating plots, and reproducing results.
+All core logic lives in `src/vqe_portfolio/`; notebooks and examples simply call the public API.
 
 ---
 
@@ -18,23 +18,22 @@ All quantum logic lives in `src/vqe_portfolio/`; most notebooks act purely as **
 Select exactly **K assets** by solving a constrained mean–variance problem:
 
 $$
-\min_{x \in \{0,1\}^n}
-\;\lambda\, x^\top \Sigma x
-\;-\;\mu^\top x
-\;+\;\alpha(\mathbf{1}^\top x - K)^2
+\min_{x \in {0,1}^n}
+;\lambda, x^\top \Sigma x
+;-;\mu^\top x
+;+;\alpha(\mathbf{1}^\top x - K)^2
 $$
 
-- QUBO formulation mapped to an **Ising Hamiltonian**
-- Hardware-efficient **RY + CZ ring** ansatz
-- VQE minimizes ⟨H⟩
-- Outputs:
-  - Inclusion probabilities
-  - Sampled portfolios
-  - Top-K projections
-  - λ-sweep and efficient frontier
+**Highlights**
+
+* QUBO formulation mapped to an **Ising Hamiltonian**
+* Hardware-efficient **RY + CZ ring** ansatz
+* VQE minimizes ⟨H⟩ directly
+* Outputs include probabilities, samples, Top‑K projections, λ‑sweeps, and efficient frontiers
 
 Notebook client:
-- `notebooks/Binary_VQE.ipynb`
+
+* `notebooks/Binary.ipynb`
 
 ---
 
@@ -44,22 +43,50 @@ Solve the long-only mean–variance problem on the simplex:
 
 $$
 \min_{w \in \Delta}
-\;-\mu^\top w + \lambda\, w^\top \Sigma w
+;-\mu^\top w + \lambda, w^\top \Sigma w
 \quad\text{with}\quad
-\Delta=\{w\ge0,\sum_i w_i=1\}
+\Delta={w\ge0,\sum_i w_i=1}
 $$
 
-- Simplex enforced **by construction**
-- Circuit readout → weights via
-  $$
-  w_i = \frac{(1-\langle Z_i\rangle)/2}{\sum_j (1-\langle Z_j\rangle)/2}
-  $$
-- No penalty tuning required
-- Warm-started λ sweeps
-- Efficient frontier computed from allocations
+**Highlights**
 
-Notebook client:
-- `notebooks/Fractional_VQE.ipynb`
+* Simplex constraint enforced **by construction**
+* No penalty tuning required
+* Smooth λ‑sweeps with optional warm starts
+* Efficient frontier computed from allocations
+
+Notebook clients:
+
+* `notebooks/Fractional.ipynb`
+* `notebooks/examples/Real_Example.ipynb`
+
+---
+
+## 📦 Installation
+
+Base install (quantum algorithms only):
+
+```bash
+pip install vqe-portfolio
+```
+
+With real market data utilities:
+
+```bash
+pip install "vqe-portfolio[data]"
+```
+
+With classical Markowitz baseline:
+
+```bash
+pip install "vqe-portfolio[markowitz]"
+```
+
+For development:
+
+```bash
+pip install -e ".[dev]"
+```
 
 ---
 
@@ -79,50 +106,30 @@ src/
     └── types.py         # Dataclasses for configs & results
 
 notebooks/
-├── Binary_VQE.ipynb
-├── Fractional_VQE.ipynb
-└── images/              # Auto-generated figures
+├── Binary.ipynb
+├── Fractional.ipynb
+├── examples/
+│   └── Real_Example.ipynb
+└── images/
 ```
-
 
 ---
 
-## ▶️ Running the Examples
+## 📖 Usage
 
-### Install dependencies
+See **[USAGE.md](USAGE.md)** for:
 
-```bash
-pip install -r requirements.txt
-```
-
-or editable:
-```bash
-pip install -e .
-```
-
-### Run notebooks
-Open and execute:
-- `notebooks/Binary_VQE.ipynb`
-- `notebooks/Fractional_VQE.ipynb`
-
-All figures are generated automatically in `notebooks/images/`.
+* Minimal API examples
+* Synthetic-data quickstart
+* Real‑data workflows
+* λ‑sweeps and efficient frontiers
 
 ---
 
-## 📚 Documentation
+## 📚 Additional Documentation
 
-- **Theory & derivations**: [`THEORY.md`](THEORY.md)
-- **Results & figures**: [`RESULTS.md`](RESULTS.md)
-
-The theory document derives:
-- QUBO → Ising mappings
-- Constraint handling
-- Quantum measurement → portfolio interpretation
-
-The results document summarizes:
-- Convergence behavior
-- λ sweeps
-- Efficient frontiers
+* **Theory & derivations**: [`THEORY.md`](THEORY.md)
+* **Results & figures**: [`RESULTS.md`](RESULTS.md)
 
 ---
 
@@ -130,29 +137,21 @@ The results document summarizes:
 
 This project demonstrates:
 
-- Translating **financial optimization problems** into quantum Hamiltonians
-- Careful constraint handling (cardinality vs simplex)
-- Clean separation of **research logic** and **experimental notebooks**
-- Reproducible hybrid quantum–classical workflows
-- Production-ready Python packaging for quantum algorithms
-
-The architecture is intentionally extensible to:
-- Alternative ansätze
-- Noise models
-- Classical baselines (e.g. Markowitz)
-- Other QUBO-style optimization problems
+* Mapping **financial optimization problems** to quantum Hamiltonians
+* Clean constraint handling (cardinality vs simplex)
+* A strict separation between **research code** and **experiment clients**
+* Reproducible hybrid quantum–classical workflows
+* Production‑grade packaging and CI for quantum algorithms
 
 ---
 
 ## 🧾 References
 
-- QUBO overview: https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization
-- PennyLane documentation: https://docs.pennylane.ai
+* QUBO overview: [https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization)
+* PennyLane documentation: [https://docs.pennylane.ai](https://docs.pennylane.ai)
 
 ---
 
-**Author**: Sid Richards  
-GitHub: [@SidRichardsQuantum](https://github.com/SidRichardsQuantum)  
-LinkedIn: https://www.linkedin.com/in/sid-richards-21374b30b/
-
+**Author**: Sid Richards
+GitHub: [@SidRichardsQuantum](https://github.com/SidRichardsQuantum)
 MIT License — see [LICENSE](LICENSE)
