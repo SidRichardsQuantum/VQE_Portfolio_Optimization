@@ -59,3 +59,12 @@ def test_cli_fractional_smoke():
     assert p.returncode == 0, p.stderr
     payload = json.loads(p.stdout)
     assert payload["method"] == "fractional"
+
+
+def test_cli_binary_data_help():
+    p = _run(["binary-data", "--help"])
+    assert p.returncode == 0
+
+def test_cli_fractional_data_help():
+    p = _run(["fractional-data", "--help"])
+    assert p.returncode == 0

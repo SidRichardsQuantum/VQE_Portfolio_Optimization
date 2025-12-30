@@ -210,12 +210,8 @@ def get_stock_data(
     use_log: bool = True,
     shrink: Optional[Literal["lw"]] = None,
     scale: Optional[Literal["none", "trace", "max"]] = "none",
+    progress: bool = False,
 ):
-    """
-    Convenience wrapper. Returns (mu, Sigma, prices).
-
-    Requires: vqe-portfolio[data]
-    """
-    prices = fetch_prices(tickers, start, end, auto_adjust=auto_adjust)
+    prices = fetch_prices(tickers, start, end, auto_adjust=auto_adjust, progress=progress)
     mu, Sigma, _ = compute_mu_sigma(prices, use_log=use_log, shrink=shrink, scale=scale)
     return mu, Sigma, prices

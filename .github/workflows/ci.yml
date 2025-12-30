@@ -21,6 +21,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Upgrade packaging tooling
         run: |
@@ -38,13 +39,22 @@ jobs:
         run: |
           pytest -q
 
-      - name: Build sdist/wheel
+      - name: Build sdist/wheel (clean)
         run: |
+          rm -rf dist build *.egg-info
           python -m build
 
       - name: Twine check dist/*
         run: |
           python -m twine check dist/*
+
+      - name: Install built wheel (non-editable) + smoke CLI
+        run: |
+          python -m pip uninstall -y vqe-portfolio || true
+          python -m pip install dist/*.whl
+          vqe-portfolio --help
+          python -m vqe_portfolio --help
+          vqe-portfolio fractional --mu "0.1,0.2" --sigma "0.1,0.0;0.0,0.2" --lam 0.5 --steps 2 --shots 10 --seed 0
 
   test-data-extra:
     name: Tests (data extra) / Python ${{ matrix.python-version }}
@@ -63,6 +73,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Upgrade packaging tooling
         run: |
@@ -93,6 +104,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Upgrade packaging tooling
         run: |
