@@ -164,12 +164,15 @@ notebooks/
 
 ## 📖 Usage
 
+This package can be used **both programmatically (Python API)** and **from the command line (CLI)**.
+
 See **[USAGE.md](USAGE.md)** for:
 
+* Command-line interface (CLI) usage
 * Minimal API examples
 * Synthetic-data quickstart
-* Real‑data workflows
-* λ‑sweeps and efficient frontiers
+* Real-data workflows
+* λ-sweeps and efficient frontiers
 
 ---
 

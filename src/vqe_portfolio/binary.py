@@ -174,7 +174,7 @@ def run_binary_vqe(
         x_prob=np.array(x_prob, requires_grad=False),
         x_round=np.array(x_round, requires_grad=False),
         x_topk=np.array(x_topk, requires_grad=False),
-        sample_counts=dict(counts),
+        sample_counts={"".join(map(str, k)): int(v) for k, v in counts.items()},
         x_mode=np.array(x_mode, requires_grad=False),
         x_best_feasible=x_best_feasible,
     )

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vqe-portfolio"
-version = "0.1.0"
+version = "0.1.1"
 description = "VQE-based portfolio optimization with PennyLane"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -61,3 +61,6 @@ where = ["src"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/vqe_portfolio/__init__.py" = ["E402"]
+
+[project.scripts]
+vqe-portfolio = "vqe_portfolio.cli:main"

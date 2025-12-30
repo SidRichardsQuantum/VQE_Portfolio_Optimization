@@ -5,6 +5,123 @@ Notebooks in this repository are thin clients around the same API.
 
 ---
 
+## 🖥 Command-Line Interface (CLI)
+
+The package provides a first-class CLI for running VQE portfolio optimization **without writing Python code**.
+
+After installation, the CLI is available as:
+
+```bash
+vqe-portfolio --help
+````
+
+You can also invoke it via:
+
+```bash
+python -m vqe_portfolio --help
+```
+
+### Binary VQE (Asset Selection)
+
+Run a binary VQE to select exactly **K assets** under a cardinality constraint.
+
+#### Inline synthetic data
+
+```bash
+vqe-portfolio binary \
+  --mu "0.10,0.12,0.07,0.09" \
+  --sigma "0.02,0.00,0.00,0.00;0.00,0.02,0.00,0.00;0.00,0.00,0.02,0.00;0.00,0.00,0.00,0.02" \
+  --k 2 \
+  --lam 4.0 \
+  --alpha 2.0 \
+  --steps 80 \
+  --out binary_result.json
+```
+
+This produces a JSON file containing:
+
+* optimized circuit parameters
+* inclusion probabilities
+* Top-K selection
+* sampled bitstrings and counts
+* optimization trace
+
+### Fractional VQE (Continuous Allocation)
+
+Solve the long-only mean–variance problem on the simplex.
+
+#### Using an input JSON file
+
+Create `input.json`:
+
+```json
+{
+  "mu": [0.10, 0.12, 0.07],
+  "sigma": [
+    [0.04, 0.01, 0.00],
+    [0.01, 0.09, 0.02],
+    [0.00, 0.02, 0.03]
+  ]
+}
+```
+
+Run:
+
+```bash
+vqe-portfolio fractional \
+  --input input.json \
+  --lam 5.0 \
+  --steps 100 \
+  --out fractional_result.json
+```
+
+The output JSON includes:
+
+* optimized circuit parameters
+* portfolio weights
+* cost trace
+
+### Input formats
+
+You may provide inputs in either form:
+
+**Inline**
+
+```bash
+--mu "0.1,0.2,0.3"
+--sigma "1,0.1;0.1,2"
+```
+
+**JSON**
+
+```json
+{
+  "mu": [...],
+  "sigma": [...]
+}
+```
+
+JSON is recommended for reproducibility and larger problem sizes.
+
+### Reproducibility via CLI
+
+All CLI commands respect the same reproducibility controls as the Python API:
+
+```bash
+--seed 0
+```
+
+### Relationship to the Python API
+
+The CLI is a **thin client** over the same public API used by notebooks and scripts:
+
+* `vqe-portfolio binary` → `run_binary_vqe`
+* `vqe-portfolio fractional` → `run_fractional_vqe`
+
+No logic is duplicated.
+
+---
+
 ## 1️⃣ Minimal Example (Synthetic Data)
 
 ```python
@@ -153,3 +270,8 @@ They contain **no core logic**.
 
 For theory, see `THEORY.md`.
 For experimental results, see `RESULTS.md`.
+
+---
+
+📘 **Author**: Sid Richards  
+MIT License — see [LICENSE](LICENSE)

@@ -181,5 +181,28 @@ comparison of quantum modeling strategies.
 
 ---
 
+## References
+
+The formulations used in this project draw on standard results from
+quantum optimization and portfolio theory:
+
+1. Markowitz, H.  
+   *Portfolio Selection*, Journal of Finance (1952).
+
+2. Farhi et al.  
+   *A Quantum Approximate Optimization Algorithm*, arXiv:1411.4028.
+
+3. McClean et al.  
+   *The theory of variational hybrid quantum-classical algorithms*,  
+   New Journal of Physics 18 (2016).
+
+4. Lucas, A.  
+   *Ising formulations of many NP problems*, Frontiers in Physics (2014).
+
+5. PennyLane documentation  
+   https://docs.pennylane.ai
+
+---
+
 📘 **Author**: Sid Richards  
 MIT License — see [LICENSE](LICENSE)

@@ -6,9 +6,6 @@ from typing import Optional, Sequence
 import numpy as np
 
 
-ArrayLike = np.ndarray
-
-
 @dataclass(frozen=True)
 class BinaryVQEConfig:
     depth: int = 2
@@ -54,8 +51,8 @@ class LambdaSweepConfig:
 
 @dataclass(frozen=True)
 class OptimizeTrace:
-    steps: list[int]
-    values: list[float]
+    steps: Sequence[int]
+    values: Sequence[float]
 
 
 @dataclass(frozen=True)
@@ -68,7 +65,7 @@ class BinaryVQEResult:
     x_topk: np.ndarray
 
     # Sampling outputs
-    sample_counts: dict[tuple[int, ...], int]
+    sample_counts: dict[str, int]
     x_mode: np.ndarray
     x_best_feasible: np.ndarray | None
 
