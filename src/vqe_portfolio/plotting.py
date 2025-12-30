@@ -78,17 +78,48 @@ def plot_lambda_sweep_bars(
     x = np.arange(L)
     bw = 0.8 / max(n, 1)
 
-    fig = plt.figure(figsize=(8, 5))
-    for i in range(n):
-        plt.bar(x + i * bw, mat[:, i], bw, label=asset_labels[i])
+    fig, ax = plt.subplots(figsize=(8, 5))
 
-    plt.xticks(x + bw * (n - 1) / 2, [f"{lam:.2f}" for lam in lambdas])
-    plt.ylabel(ylabel)
-    plt.ylim(0, 1)
-    plt.xlabel("Risk-aversion parameter λ")
-    plt.title(title)
-    plt.legend()
-    plt.grid(axis="y")
+    for i in range(n):
+        ax.bar(x + i * bw, mat[:, i], bw, label=asset_labels[i])
+
+    # Numeric lambda ticks
+    ax.set_xticks(x + bw * (n - 1) / 2)
+    ax.set_xticklabels([f"{lam:.2f}" for lam in lambdas])
+
+    ax.set_ylabel(ylabel)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("Risk-aversion parameter λ")
+    ax.set_title(title)
+    ax.legend()
+    ax.grid(axis="y")
+
+    # Annotations for "risky" and "safe"
+    y_text = -0.12  # below x-axis
+
+    ax.text(
+        x[0] + bw * (n - 1) / 2,
+        y_text,
+        "risky",
+        color="red",
+        ha="center",
+        va="top",
+        transform=ax.get_xaxis_transform(),
+        fontsize=10,
+        fontweight="bold",
+    )
+
+    ax.text(
+        x[-1] + bw * (n - 1) / 2,
+        y_text,
+        "safe",
+        color="green",
+        ha="center",
+        va="top",
+        transform=ax.get_xaxis_transform(),
+        fontsize=10,
+        fontweight="bold",
+    )
 
     if outpath is not None:
         savefig(outpath, dpi=200)
@@ -108,7 +139,7 @@ def plot_frontier(
     plt.plot(risks, returns, alpha=0.6)
     cbar = plt.colorbar(sc)
     cbar.set_label("λ")
-    plt.xlabel("Portfolio risk (σ)")
+    plt.xlabel("Portfolio risk σ")
     plt.ylabel("Expected return")
     plt.title(title)
     plt.grid(True)
