@@ -5,6 +5,7 @@ Variational Quantum Eigensolver (VQE)–based portfolio optimization.
 
 This package provides:
 - Binary VQE for asset selection with cardinality constraints
+- QAOA for binary portfolio optimization with cardinality constraints
 - Fractional VQE for long-only portfolio allocation on the simplex
 - Classical utilities for evaluation (efficient frontiers, metrics)
 - Lightweight helpers for reproducibility and notebook workflows
@@ -29,7 +30,6 @@ def _lazy_data_import(func_name: str):
     try:
         return getattr(data, func_name)
     except AttributeError as e:
-        # Should never happen unless the module is corrupted
         raise RuntimeError(f"Missing expected function data.{func_name}") from e
 
 
@@ -51,9 +51,11 @@ def compute_mu_sigma(*args, **kwargs):
 
 from .types import (
     BinaryVQEConfig,
+    QAOAConfig,
     FractionalVQEConfig,
     LambdaSweepConfig,
     BinaryVQEResult,
+    QAOAResult,
     FractionalVQEResult,
 )
 
@@ -64,6 +66,11 @@ from .types import (
 from .binary import (
     run_binary_vqe,
     binary_lambda_sweep,
+)
+
+from .qaoa import (
+    run_qaoa,
+    qaoa_lambda_sweep,
 )
 
 from .fractional import (
@@ -101,13 +108,17 @@ __all__ = [
     "compute_mu_sigma",
     # --- configs & results ---
     "BinaryVQEConfig",
+    "QAOAConfig",
     "FractionalVQEConfig",
     "LambdaSweepConfig",
     "BinaryVQEResult",
+    "QAOAResult",
     "FractionalVQEResult",
     # --- algorithms ---
     "run_binary_vqe",
     "binary_lambda_sweep",
+    "run_qaoa",
+    "qaoa_lambda_sweep",
     "run_fractional_vqe",
     "fractional_lambda_sweep",
     # --- evaluation ---

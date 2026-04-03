@@ -1,4 +1,3 @@
-# src/vqe_portfolio/cli.py
 from __future__ import annotations
 
 import argparse
@@ -33,7 +32,6 @@ def _read_input_json(path: Path) -> Dict[str, Any]:
 
 
 def _parse_vector_csv(s: str) -> np.ndarray:
-    # "0.1,0.2,0.3"
     vals = [float(x.strip()) for x in s.split(",") if x.strip()]
     if not vals:
         raise ValueError("Empty vector.")
@@ -41,7 +39,6 @@ def _parse_vector_csv(s: str) -> np.ndarray:
 
 
 def _parse_matrix_rows(s: str) -> np.ndarray:
-    # "1,0.1;0.1,2"  (rows separated by ';')
     rows = []
     for row in s.split(";"):
         row = row.strip()
@@ -64,7 +61,6 @@ def _parse_tickers(s: str) -> list[str]:
 
 
 def _load_mu_sigma_from_market(args: argparse.Namespace):
-    # Optional dependency gate: give a clean error message.
     try:
         from vqe_portfolio.data import get_stock_data
     except ModuleNotFoundError as e:
@@ -85,7 +81,6 @@ def _load_mu_sigma_from_market(args: argparse.Namespace):
         progress=args.progress,
     )
 
-    # Return numpy arrays to match VQE API expectations.
     return mu.values, Sigma.values, prices, tickers
 
 
@@ -134,7 +129,6 @@ def _cmd_binary(args: argparse.Namespace) -> int:
         seed=args.seed,
         device=args.device,
         log_every=args.log_every,
-        # required problem params
         lam=args.lam,
         alpha=args.alpha,
         k=args.k,
@@ -144,6 +138,38 @@ def _cmd_binary(args: argparse.Namespace) -> int:
 
     payload = {
         "method": "binary",
+        "config": cfg,
+        "result": res,
+    }
+    _write_output(args.out, payload)
+    return 0
+
+
+def _cmd_qaoa(args: argparse.Namespace) -> int:
+    from vqe_portfolio.qaoa import run_qaoa
+    from vqe_portfolio.types import QAOAConfig
+
+    mu, Sigma = _load_mu_sigma(args)
+
+    cfg = QAOAConfig(
+        p=args.p,
+        steps=args.steps,
+        stepsize=args.stepsize,
+        shots_train=args.shots_train,
+        shots_sample=args.shots_sample,
+        seed=args.seed,
+        device=args.device,
+        log_every=args.log_every,
+        lam=args.lam,
+        alpha=args.alpha,
+        k=args.k,
+        mixer=args.mixer,
+    )
+
+    res = run_qaoa(mu=mu, Sigma=Sigma, cfg=cfg)
+
+    payload = {
+        "method": "qaoa",
         "config": cfg,
         "result": res,
     }
@@ -216,14 +242,63 @@ def _cmd_binary_data(args: argparse.Namespace) -> int:
         "result": res,
     }
 
-    # Optional: include mu/Sigma for reproducibility
     if args.include_mu_sigma:
         payload["mu"] = mu
         payload["sigma"] = Sigma
 
     _write_output(args.out, payload)
 
-    # Optional: persist prices CSV
+    if args.prices_csv:
+        prices.to_csv(args.prices_csv)
+
+    return 0
+
+
+def _cmd_qaoa_data(args: argparse.Namespace) -> int:
+    from vqe_portfolio.qaoa import run_qaoa
+    from vqe_portfolio.types import QAOAConfig
+
+    mu, Sigma, prices, tickers = _load_mu_sigma_from_market(args)
+
+    cfg = QAOAConfig(
+        p=args.p,
+        steps=args.steps,
+        stepsize=args.stepsize,
+        log_every=args.log_every,
+        lam=args.lam,
+        alpha=args.alpha,
+        k=args.k,
+        mixer=args.mixer,
+        device=args.device,
+        shots_train=args.shots_train,
+        shots_sample=args.shots_sample,
+        seed=args.seed,
+    )
+
+    res = run_qaoa(mu=mu, Sigma=Sigma, cfg=cfg)
+
+    payload = {
+        "method": "qaoa",
+        "mode": "market-data",
+        "tickers": tickers,
+        "start": args.start,
+        "end": args.end,
+        "data_options": {
+            "auto_adjust": not args.no_auto_adjust,
+            "use_log": not args.simple_returns,
+            "shrink": args.shrink,
+            "scale": args.scale,
+        },
+        "config": cfg,
+        "result": res,
+    }
+
+    if args.include_mu_sigma:
+        payload["mu"] = mu
+        payload["sigma"] = Sigma
+
+    _write_output(args.out, payload)
+
     if args.prices_csv:
         prices.to_csv(args.prices_csv)
 
@@ -279,7 +354,10 @@ def _cmd_fractional_data(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="vqe-portfolio",
-        description="VQE-based portfolio optimization (binary selection and fractional allocation).",
+        description=(
+            "Quantum portfolio optimization with Binary VQE, QAOA, "
+            "and Fractional VQE."
+        ),
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -301,7 +379,10 @@ def build_parser() -> argparse.ArgumentParser:
             help="Path to JSON containing mu and sigma.",
         )
         g.add_argument(
-            "--mu", type=str, default=None, help="CSV vector, e.g. '0.1,0.2,0.05'."
+            "--mu",
+            type=str,
+            default=None,
+            help="CSV vector, e.g. '0.1,0.2,0.05'.",
         )
         g.add_argument(
             "--sigma",
@@ -322,6 +403,24 @@ def build_parser() -> argparse.ArgumentParser:
         g.add_argument("--shots-sample", type=int, default=2000)
         g.add_argument("--log-every", type=int, default=10)
 
+    def add_common_qaoa(sp: argparse.ArgumentParser) -> None:
+        g = sp.add_argument_group("qaoa")
+        g.add_argument("--p", type=int, default=2)
+        g.add_argument("--steps", type=int, default=100)
+        g.add_argument("--stepsize", type=float, default=0.25)
+        g.add_argument("--seed", type=int, default=0)
+        g.add_argument("--device", type=str, default="default.qubit")
+        g.add_argument("--shots-train", type=int, default=None)
+        g.add_argument("--shots-sample", type=int, default=2000)
+        g.add_argument("--log-every", type=int, default=10)
+        g.add_argument(
+            "--mixer",
+            type=str,
+            default="x",
+            choices=["x", "xy"],
+            help="QAOA mixer type.",
+        )
+
     def add_common_fractional_vqe(sp: argparse.ArgumentParser) -> None:
         g = sp.add_argument_group("fractional-vqe")
         g.add_argument("--steps", type=int, default=100)
@@ -340,10 +439,16 @@ def build_parser() -> argparse.ArgumentParser:
             help='Comma-separated, e.g. "AAPL,MSFT,NVDA".',
         )
         g.add_argument(
-            "--start", type=str, default="2023-01-01", help="Start date YYYY-MM-DD."
+            "--start",
+            type=str,
+            default="2023-01-01",
+            help="Start date YYYY-MM-DD.",
         )
         g.add_argument(
-            "--end", type=str, default="2024-01-01", help="End date YYYY-MM-DD."
+            "--end",
+            type=str,
+            default="2024-01-01",
+            help="End date YYYY-MM-DD.",
         )
         g.add_argument(
             "--no-auto-adjust",
@@ -375,7 +480,9 @@ def build_parser() -> argparse.ArgumentParser:
             help="Include mu/sigma arrays in JSON output.",
         )
         g.add_argument(
-            "--progress", action="store_true", help="Show yfinance download progress."
+            "--progress",
+            action="store_true",
+            help="Show yfinance download progress.",
         )
         g.add_argument(
             "--prices-csv",
@@ -384,41 +491,72 @@ def build_parser() -> argparse.ArgumentParser:
             help="Optional path to save the fetched prices CSV.",
         )
 
-    # -----------------------
-    # binary (synthetic / user-provided mu,sigma)
-    # -----------------------
     sp_b = sub.add_parser(
-        "binary", help="Run Binary VQE (asset selection under cardinality constraint)."
+        "binary",
+        help="Run Binary VQE (asset selection under cardinality constraint).",
     )
     add_common_io(sp_b)
     add_common_binary_vqe(sp_b)
     sp_b.add_argument(
-        "--k", type=int, required=True, help="Cardinality constraint (cfg.k)."
+        "--k",
+        type=int,
+        required=True,
+        help="Cardinality constraint (cfg.k).",
     )
     sp_b.add_argument(
-        "--lam", type=float, required=True, help="Risk aversion parameter (cfg.lam)."
+        "--lam",
+        type=float,
+        required=True,
+        help="Risk aversion parameter (cfg.lam).",
     )
     sp_b.add_argument(
-        "--alpha", type=float, default=10.0, help="Penalty weight (cfg.alpha)."
+        "--alpha",
+        type=float,
+        default=10.0,
+        help="Penalty weight (cfg.alpha).",
     )
     sp_b.set_defaults(func=_cmd_binary)
 
-    # -----------------------
-    # fractional (synthetic / user-provided mu,sigma)
-    # -----------------------
+    sp_q = sub.add_parser(
+        "qaoa",
+        help="Run QAOA (binary selection under cardinality constraint).",
+    )
+    add_common_io(sp_q)
+    add_common_qaoa(sp_q)
+    sp_q.add_argument(
+        "--k",
+        type=int,
+        required=True,
+        help="Cardinality constraint (cfg.k).",
+    )
+    sp_q.add_argument(
+        "--lam",
+        type=float,
+        required=True,
+        help="Risk aversion parameter (cfg.lam).",
+    )
+    sp_q.add_argument(
+        "--alpha",
+        type=float,
+        default=10.0,
+        help="Penalty weight (cfg.alpha).",
+    )
+    sp_q.set_defaults(func=_cmd_qaoa)
+
     sp_f = sub.add_parser(
-        "fractional", help="Run Fractional VQE (long-only allocation on the simplex)."
+        "fractional",
+        help="Run Fractional VQE (long-only allocation on the simplex).",
     )
     add_common_io(sp_f)
     add_common_fractional_vqe(sp_f)
     sp_f.add_argument(
-        "--lam", type=float, required=True, help="Risk aversion parameter (cfg.lam)."
+        "--lam",
+        type=float,
+        required=True,
+        help="Risk aversion parameter (cfg.lam).",
     )
     sp_f.set_defaults(func=_cmd_fractional)
 
-    # -----------------------
-    # market data
-    # -----------------------
     sp_bd = sub.add_parser(
         "binary-data",
         help="Run Binary VQE using real market data (requires vqe-portfolio[data]).",
@@ -430,6 +568,18 @@ def build_parser() -> argparse.ArgumentParser:
     sp_bd.add_argument("--lam", type=float, required=True)
     sp_bd.add_argument("--alpha", type=float, default=10.0)
     sp_bd.set_defaults(func=_cmd_binary_data)
+
+    sp_qd = sub.add_parser(
+        "qaoa-data",
+        help="Run QAOA using real market data (requires vqe-portfolio[data]).",
+    )
+    add_output_only(sp_qd)
+    add_common_qaoa(sp_qd)
+    add_market_data_args(sp_qd)
+    sp_qd.add_argument("--k", type=int, required=True)
+    sp_qd.add_argument("--lam", type=float, required=True)
+    sp_qd.add_argument("--alpha", type=float, default=10.0)
+    sp_qd.set_defaults(func=_cmd_qaoa_data)
 
     sp_fd = sub.add_parser(
         "fractional-data",

@@ -7,10 +7,11 @@
 
 This package implements **portfolio optimization using Variational Quantum Eigensolvers (VQE)** as a clean, testable, and reusable **Python library**, with notebooks acting purely as *clients*.
 
-Two complementary quantum formulations are provided:
+Three complementary quantum formulations are provided:
 
-- **Binary VQE** — asset *selection- under a cardinality constraint (QUBO → Ising → VQE)
-- **Fractional VQE** — long-only *allocation- on the simplex using a constraint-preserving quantum parameterization
+- **Binary VQE** — asset *selection* under a cardinality constraint (QUBO → Ising → VQE)
+- **QAOA** — gate-based combinatorial optimization using alternating cost and mixer Hamiltonians
+- **Fractional VQE** — long-only *allocation* on the simplex using a constraint-preserving quantum parameterization
 
 All core logic lives in `src/vqe_portfolio/`; notebooks and examples simply call the public API.
 
@@ -18,7 +19,7 @@ All core logic lives in `src/vqe_portfolio/`; notebooks and examples simply call
 
 ## 🚀 Implemented Methods
 
-### 1️⃣ Binary VQE (Asset Selection)
+### 1. Binary VQE (Asset Selection)
 
 Select exactly **K assets** by solving a constrained mean–variance problem:
 
@@ -42,7 +43,40 @@ Notebook client:
 
 ---
 
-### 2️⃣ Fractional VQE (Continuous Allocation)
+### 2. QAOA (Binary Asset Selection)
+
+Solve the same constrained mean–variance problem using the **Quantum Approximate Optimization Algorithm (QAOA)**:
+
+$$
+\min_{x \in \{0,1\}^n}
+\;\lambda\, x^\top \Sigma x
+\;-\;\mu^\top x
+\;+\;\alpha(\mathbf{1}^\top x - K)^2
+$$
+
+**Highlights**
+
+- Uses the same QUBO → Ising mapping as Binary VQE
+- Alternating operator ansatz:
+  - cost unitary $e^{-i\gamma H_C}$
+  - mixer unitary $e^{-i\beta H_M}$
+- Supports:
+  - standard **X mixer**
+  - **XY mixer** for improved constraint structure
+- Produces:
+  - bitstring samples
+  - marginal selection probabilities
+  - Top-K projections
+  - feasible candidate solutions
+  - λ-sweeps
+
+Notebook client:
+
+- `notebooks/QAOA.ipynb`
+
+---
+
+### 3. Fractional VQE (Continuous Allocation)
 
 Solve the long-only mean–variance problem on the simplex:
 
@@ -68,9 +102,8 @@ Notebook clients:
 
 ## 🧠 Why Quantum Here?
 
-Classical mean–variance portfolio optimization is well understood and efficiently solvable
-*in its simplest form*. However, many practically relevant extensions introduce
-**combinatorial structure** that scales poorly with problem size.
+Classical mean–variance portfolio optimization is well understood and efficiently solvable *in its simplest form*.
+However, many practically relevant extensions introduce **combinatorial structure** that scales poorly with problem size.
 
 This project focuses on those regimes.
 
@@ -85,8 +118,7 @@ This project focuses on those regimes.
 - Exhaustive exploration of correlated asset subsets
 - Non-convex penalty landscapes introduced by constraints
 
-These settings naturally map to **QUBO / Ising formulations**, which are native to
-near-term quantum algorithms.
+These settings naturally map to **QUBO / Ising formulations**, which are native to near-term quantum algorithms such as **VQE** and **QAOA**.
 
 ### Why VQE is a natural research tool
 - VQE directly minimizes ⟨H⟩ for problem-encoded Hamiltonians
@@ -102,9 +134,7 @@ near-term quantum algorithms.
 - Near-term production readiness
 - Superiority to specialized classical optimizers
 
-Instead, this repository provides a **carefully engineered research baseline**
-for exploring how constrained financial optimization problems behave when expressed
-in quantum-native representations.
+Instead, this repository provides a **carefully engineered research baseline** for exploring how constrained financial optimization problems behave when expressed in quantum-native representations.
 
 ---
 
@@ -142,6 +172,7 @@ pip install -e ".[dev]"
 src/
 └── vqe_portfolio/
     ├── binary.py        # Binary VQE (QUBO / Ising formulation)
+    ├── qaoa.py          # QAOA portfolio optimization
     ├── fractional.py    # Fractional VQE (simplex parameterization)
     ├── frontier.py      # Efficient frontier utilities
     ├── ansatz.py        # Shared circuit ansätze
@@ -153,6 +184,7 @@ src/
 
 notebooks/
 ├── Binary.ipynb
+├── QAOA.ipynb
 ├── Fractional.ipynb
 ├── examples/
 │   └── Real_Example.ipynb

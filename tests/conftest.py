@@ -1,7 +1,11 @@
 import numpy as np
 import pytest
 
-from vqe_portfolio.types import BinaryVQEConfig, FractionalVQEConfig
+from vqe_portfolio.types import (
+    BinaryVQEConfig,
+    FractionalVQEConfig,
+    QAOAConfig,
+)
 
 
 @pytest.fixture
@@ -10,6 +14,7 @@ def toy_problem():
     Small, well-conditioned toy portfolio.
     """
     mu = np.array([0.12, 0.10, 0.07])
+
     Sigma = np.array(
         [
             [0.10, 0.02, 0.01],
@@ -17,6 +22,7 @@ def toy_problem():
             [0.01, 0.01, 0.05],
         ]
     )
+
     return mu, Sigma
 
 
@@ -42,6 +48,46 @@ def binary_cfg():
         lam=4.0,
         alpha=2.0,
         k=2,
+        shots_train=None,
+        shots_sample=200,
+        seed=0,
+    )
+
+
+@pytest.fixture
+def qaoa_cfg():
+    """
+    Lightweight QAOA configuration for fast unit tests.
+    """
+    return QAOAConfig(
+        p=1,
+        steps=5,
+        stepsize=0.2,
+        log_every=5,
+        lam=4.0,
+        alpha=2.0,
+        k=2,
+        mixer="x",
+        shots_train=None,
+        shots_sample=200,
+        seed=0,
+    )
+
+
+@pytest.fixture
+def qaoa_cfg_xy():
+    """
+    XY mixer variant to ensure constrained mixer path is tested.
+    """
+    return QAOAConfig(
+        p=1,
+        steps=5,
+        stepsize=0.2,
+        log_every=5,
+        lam=4.0,
+        alpha=2.0,
+        k=2,
+        mixer="xy",
         shots_train=None,
         shots_sample=200,
         seed=0,

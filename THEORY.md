@@ -1,216 +1,423 @@
 # Theory
 
 This document describes the mathematical formulation and quantum encodings used in the `vqe_portfolio` package.
-It focuses on **how classical portfolio optimization problems are mapped to quantum Hamiltonians** suitable for the Variational Quantum Eigensolver (VQE).
+It focuses on **how classical portfolio optimization problems are mapped to quantum Hamiltonians** suitable for hybrid quantum–classical algorithms such as **VQE** and **QAOA**.
 
 ---
 
-## Table of Contents
+# Table of Contents
 
 1. [Classical Mean–Variance Portfolio Optimization](#1-classical-meanvariance-portfolio-optimization)
 2. [Variational Quantum Eigensolvers (VQE)](#2-variational-quantum-eigensolvers-vqe)
-3. [Binary Portfolio Optimization via QUBO](#3-binary-portfolio-optimization-via-qubo)
-4. [Fractional Portfolio Optimization via Simplex Encoding](#4-fractional-portfolio-optimization-via-simplex-encoding)
-5. [Binary vs Fractional Encodings](#5-binary-vs-fractional-encodings)
+3. [Quantum Approximate Optimization Algorithm (QAOA)](#3-quantum-approximate-optimization-algorithm-qaoa)
+4. [Binary Portfolio Optimization via QUBO](#4-binary-portfolio-optimization-via-qubo)
+5. [Fractional Portfolio Optimization via Simplex Encoding](#5-fractional-portfolio-optimization-via-simplex-encoding)
+6. [Binary vs Fractional Encodings](#6-binary-vs-fractional-encodings)
 
 ---
 
-## 1. Classical Mean–Variance Portfolio Optimization
+# 1. Classical Mean–Variance Portfolio Optimization
 
 Let:
-- $ \mu \in \mathbb{R}^n $ be the vector of expected returns
+
+- $ \mu \in \mathbb{R}^n $ be expected returns
 - $ \Sigma \in \mathbb{R}^{n \times n} $ be the covariance matrix
-- $ w \in \mathbb{R}^n $ be the portfolio weights
+- $ w \in \mathbb{R}^n $ be portfolio weights
 
 The classical mean–variance objective is:
 
 $$
-\min_w \; -\mu^\top w + \lambda\, w^\top \Sigma w
-$$
-
-subject to constraints such as:
-- **Long-only:** $ w_i \ge 0 $
-- **Budget:** $ \sum_i w_i = 1 $
-- **Cardinality:** $ \|w\|_0 = K $
-
-These constraints motivate different quantum encodings.
-
----
-
-## 2. Variational Quantum Eigensolvers (VQE)
-
-VQE minimizes the expectation value of a Hamiltonian $ H $ over a
-parameterized quantum circuit:
-
-$$
-\min_{\theta} \; \langle \psi(\theta) | H | \psi(\theta) \rangle
-$$
-
-Key components:
-- A parameterized ansatz $ |\psi(\theta)\rangle $
-- A classical optimizer updating $ \theta $
-- Measurements estimating expectation values
-
-In this project, **the optimization objective itself is encoded into $ H $**.
-
----
-
-## 3. Binary Portfolio Optimization via QUBO
-
-### 3.1 Problem formulation
-
-Define binary decision variables:
-$$
-x_i \in \{0,1\}
-$$
-indicating whether asset $ i $ is selected.
-
-The constrained objective becomes:
-
-$$
-\min_{x \in \{0,1\}^n}
-\;\lambda\, x^\top \Sigma x
-\;-\;\mu^\top x
-\;+\;\alpha(\mathbf{1}^\top x - K)^2
+\min_w ; -\mu^\top w + \lambda, w^\top \Sigma w
 $$
 
 where:
-- $ \lambda $ controls risk aversion
-- $ \alpha $ penalizes violations of the cardinality constraint
 
-This is a **Quadratic Unconstrained Binary Optimization (QUBO)** problem.
+- $ \lambda > 0 $ controls risk aversion
+
+Typical constraints include:
+
+### Long-only constraint
+
+$$
+w_i \ge 0
+$$
+
+### Budget constraint
+
+$$
+\sum_i w_i = 1
+$$
+
+### Cardinality constraint
+
+$$
+|w|_0 = K
+$$
+
+Cardinality constraints introduce **combinatorial structure**, motivating discrete encodings.
 
 ---
 
-### 3.2 Ising Hamiltonian mapping
+# 2. Variational Quantum Eigensolvers (VQE)
 
-Binary variables are mapped to Pauli-Z operators via:
+VQE solves optimization problems of the form:
+
+$$
+\min_\theta ;
+\langle \psi(\theta) | H | \psi(\theta) \rangle
+$$
+
+where:
+
+- $ H $ is a problem Hamiltonian
+- $ |\psi(\theta)\rangle $ is a parameterized quantum state
+- $ \theta $ are circuit parameters optimized classically
+
+Algorithm structure:
+
+1. prepare ansatz state
+2. measure expectation value
+3. update parameters using classical optimizer
+4. repeat until convergence
+
+VQE is particularly useful when:
+
+- objective functions can be expressed as expectation values
+- constraints can be encoded into Hamiltonians
+- gradients can be estimated efficiently
+
+In this project, the portfolio objective is encoded directly into $ H $.
+
+---
+
+# 3. Quantum Approximate Optimization Algorithm (QAOA)
+
+QAOA is a gate-based algorithm designed for combinatorial optimization problems.
+
+It alternates between:
+
+- cost evolution
+- mixing evolution
+
+The QAOA state is:
+
+$$
+|\psi(\boldsymbol{\gamma},\boldsymbol{\beta})\rangle
+=
+\prod_{\ell=1}^p
+e^{-i\beta_\ell H_M}
+e^{-i\gamma_\ell H_C}
+|+\rangle^{\otimes n}
+$$
+
+where:
+
+- $ H_C $ is the cost Hamiltonian
+- $ H_M $ is the mixer Hamiltonian
+- $ p $ is the circuit depth
+
+Parameters:
+
+- $ \boldsymbol{\gamma} = (\gamma_1,\dots,\gamma_p) $
+- $ \boldsymbol{\beta} = (\beta_1,\dots,\beta_p) $
+
+are optimized using classical optimization.
+
+---
+
+## 3.1 Cost Hamiltonian
+
+Portfolio optimization produces a QUBO objective:
+
+$$
+C(x)
+=
+\lambda x^\top \Sigma x - \mu^\top x + \alpha(\mathbf{1}^\top x - K)^2
+$$
+
+which maps to an Ising Hamiltonian:
+
+$$
+H_C = \sum_i h_i Z_i + \sum_{i<j} J_{ij} Z_i Z_j + \text{const}
+$$
+
+This Hamiltonian is shared with Binary VQE.
+
+---
+
+## 3.2 Mixer Hamiltonians
+
+Two mixers are implemented.
+
+### X mixer
+
+$$
+H_M^{(X)}
+=
+\sum_i X_i
+$$
+
+Promotes exploration across the full computational basis.
+
+### XY mixer
+
+$$
+H_M^{(XY)}
+=
+\sum_{i<j}
+(X_i X_j + Y_i Y_j)
+$$
+
+Preserves approximate Hamming-weight structure, making it useful for:
+
+- cardinality-constrained problems
+- constrained combinatorial search spaces
+
+---
+
+## 3.3 Sampling interpretation
+
+QAOA produces a probability distribution over bitstrings:
+
+$$
+p(x)
+=
+|\langle x|\psi\rangle|^2
+$$
+
+From this distribution we compute:
+
+### Marginal probabilities
+
+$$
+p_i = \mathbb{E}[x_i]
+$$
+
+### Top-K projection
+
+Select the $ K $ largest marginals.
+
+### Mode bitstring
+
+Most frequently sampled bitstring.
+
+### Best feasible candidate
+
+Lowest-cost bitstring satisfying the constraint.
+
+QAOA therefore provides:
+
+- probabilistic solutions
+- candidate discrete portfolios
+- insight into landscape structure
+
+---
+
+# 4. Binary Portfolio Optimization via QUBO
+
+## 4.1 Binary decision variables
+
+Let:
+
+$$
+x_i \in {0,1}
+$$
+
+indicate asset inclusion.
+
+Objective:
+
+$$
+\min_{x \in {0,1}^n}
+\lambda x^\top \Sigma x
+-----------------------
+
+\mu^\top x
++
+\alpha(\mathbf{1}^\top x - K)^2
+$$
+
+This is a Quadratic Unconstrained Binary Optimization (QUBO) problem.
+
+---
+
+## 4.2 Ising mapping
+
+Binary variables are mapped to Pauli-Z operators:
 
 $$
 x_i = \frac{1 - Z_i}{2}
 $$
 
-Substituting into the QUBO yields an Ising Hamiltonian of the form:
+Substitution yields:
 
 $$
-H = \sum_i h_i Z_i + \sum_{i<j} J_{ij} Z_i Z_j + \text{const}
+H
+=
+
+\sum_i h_i Z_i
++
+\sum_{i<j} J_{ij} Z_i Z_j
++
+\text{const}
 $$
 
-This Hamiltonian is implemented in `binary.py` and minimized using VQE.
+This Hamiltonian is minimized via:
+
+- VQE
+- QAOA
 
 ---
 
-### 3.3 Normalization and sampling
+## 4.3 Expectation vs bitstrings
 
-Because expectation values are continuous:
-- Raw probabilities are extracted from measurements
-- Post-processing (Top-K, mode selection) enforces feasibility
+Variational algorithms optimize expectation values:
 
-This reflects the fact that **VQE optimizes expectation values, not bitstrings directly**.
+$$
+\min_\theta
+\langle H \rangle
+$$
+
+but practical portfolios require discrete solutions.
+
+Post-processing extracts:
+
+- deterministic selections
+- feasible bitstrings
+- empirical distributions
 
 ---
 
-## 4. Fractional Portfolio Optimization via Simplex Encoding
+# 5. Fractional Portfolio Optimization via Simplex Encoding
 
-### 4.1 Continuous parameterization
+## 5.1 Continuous parameterization
 
-For fractional allocation, one qubit per asset is used.
-Each qubit is prepared with a rotation:
-
-$$
-|\psi_i\rangle = RY(\theta_i) |0\rangle
-$$
-
-The expectation value of $ Z_i $ defines a nonnegative quantity:
+Each qubit prepares:
 
 $$
-\tilde{w}_i = \frac{1 - \langle Z_i \rangle}{2}
+|\psi_i\rangle = RY(\theta_i)|0\rangle
+$$
+
+Measurement produces:
+
+$$
+\tilde{w}_i
+=
+\frac{1 - \langle Z_i \rangle}{2}
 $$
 
 ---
 
-### 4.2 Simplex enforcement by construction
+## 5.2 Simplex normalization
 
-Portfolio weights are defined as:
+Weights:
 
 $$
-w_i = \frac{\tilde{w}_i}{\sum_j \tilde{w}_j}
+w_i
+=
+\frac{\tilde{w}_i}{\sum_j \tilde{w}_j}
 $$
 
-This guarantees:
+Properties:
+
 - $ w_i \ge 0 $
 - $ \sum_i w_i = 1 $
 
-**No penalty terms are required**.
+Constraints are satisfied by construction.
 
-The VQE objective becomes:
+---
+
+## 5.3 Optimization objective
 
 $$
-\min_\theta \; -\mu^\top w(\theta) + \lambda\, w(\theta)^\top \Sigma w(\theta)
+\min_\theta
+-----------
+
+\mu^\top w(\theta)
++
+\lambda w(\theta)^\top \Sigma w(\theta)
 $$
 
-This encoding is implemented in `fractional.py`.
+Advantages:
+
+- smooth landscape
+- no penalty tuning
+- deterministic feasible solutions
 
 ---
 
-## 5. Binary vs Fractional Encodings
+# 6. Binary vs Fractional Encodings
 
-| Aspect | Binary QUBO | Fractional Simplex |
-|------|-------------|--------------------|
-| Decision type | Discrete selection | Continuous allocation |
-| Constraints | Enforced via penalties | Enforced by construction |
-| Qubits | $ O(n) $ | $ O(n) $ |
-| Output | Probabilistic bitstrings | Deterministic weights |
-| Post-processing | Required | Minimal |
-| Suitable for | Asset selection | Portfolio allocation |
-
----
-
-## Summary
-
-This project demonstrates two distinct quantum encodings of portfolio optimization problems:
-
-- **Binary VQE** emphasizes constraint handling and combinatorial structure
-- **Fractional VQE** emphasizes smooth optimization and feasibility by design
-
-Both are implemented within a unified VQE framework, enabling direct comparison of quantum modeling strategies.
+| aspect              | binary (VQE / QAOA) | fractional VQE |
+| ------------------- | ------------------- | -------------- |
+| decision space      | discrete            | continuous     |
+| constraint handling | penalty             | structural     |
+| objective landscape | non-convex          | smooth         |
+| output              | bitstrings          | weights        |
+| sampling required   | yes                 | no             |
+| post-processing     | required            | minimal        |
+| suitable for        | asset selection     | allocation     |
 
 ---
 
-## References
+# Summary
 
-The formulations used in this project draw on standard results from quantum optimization and portfolio theory:
+This project demonstrates three complementary quantum approaches:
 
-1. Markowitz, H.  
-   *Portfolio Selection*, Journal of Finance (1952).
+### Binary VQE
 
-2. Farhi et al.  
-   *A Quantum Approximate Optimization Algorithm*, arXiv:1411.4028.
+- Hamiltonian expectation minimization
+- flexible ansatz design
+- probabilistic bitstring outputs
 
-3. McClean et al.  
-   *The theory of variational hybrid quantum-classical algorithms*,  
-   New Journal of Physics 18 (2016).
+### QAOA
 
-4. Lucas, A.  
-   *Ising formulations of many NP problems*, Frontiers in Physics (2014).
+- structured alternating operators
+- natural fit for QUBO problems
+- interpretable circuit depth parameter
 
-5. PennyLane documentation  
-   https://docs.pennylane.ai
+### Fractional VQE
+
+- continuous parameterization
+- exact feasibility
+- efficient frontier construction
+
+Together they provide a consistent framework for studying how portfolio optimization behaves under quantum-native representations.
 
 ---
 
-## Author
+# References
 
-**Sid Richards**
+1. Markowitz, H.
+   *Portfolio Selection*, Journal of Finance (1952)
 
-LinkedIn:
+2. Farhi et al.
+   *A Quantum Approximate Optimization Algorithm*, arXiv:1411.4028
+
+3. McClean et al.
+   *The theory of variational hybrid quantum-classical algorithms*,
+   New Journal of Physics 18 (2016)
+
+4. Lucas, A.
+   *Ising formulations of many NP problems*, Frontiers in Physics (2014)
+
+5. PennyLane documentation
+   [https://docs.pennylane.ai](https://docs.pennylane.ai)
+
+---
+
+# Author
+
+Sid Richards
+
+LinkedIn
 [https://www.linkedin.com/in/sid-richards-21374b30b/](https://www.linkedin.com/in/sid-richards-21374b30b/)
 
-GitHub:
+GitHub
 [https://github.com/SidRichardsQuantum](https://github.com/SidRichardsQuantum)
 
 ---
 
-## License
+# License
 
-MIT License — see [LICENSE](LICENSE)
+MIT License — see LICENSE
