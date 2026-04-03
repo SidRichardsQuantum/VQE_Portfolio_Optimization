@@ -75,5 +75,9 @@ where = ["src"]
 [tool.ruff.lint.per-file-ignores]
 "src/vqe_portfolio/__init__.py" = ["E402"]
 
+[tool.black]
+target-version = ["py312"]
+line-length = 88
+
 [project.scripts]
 vqe-portfolio = "vqe_portfolio.cli:main"
