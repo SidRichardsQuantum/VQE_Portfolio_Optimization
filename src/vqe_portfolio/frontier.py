@@ -11,7 +11,7 @@ from .utils import normalize_rows, topk_onehot
 
 @dataclass(frozen=True)
 class Frontier:
-    risks: np.ndarray    # shape (L,)
+    risks: np.ndarray  # shape (L,)
     returns: np.ndarray  # shape (L,)
     lambdas: np.ndarray  # shape (L,) sorted by risk
     weights: np.ndarray  # shape (L, n) weights used to compute points

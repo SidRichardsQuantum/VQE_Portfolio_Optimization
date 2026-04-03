@@ -10,11 +10,13 @@ def test_binary_frontier_shapes():
     mu = np.array([0.1, 0.2, 0.15])
     Sigma = np.eye(3)
     lambdas = np.array([1.0, 2.0, 3.0])
-    probs = np.array([
-        [0.9, 0.1, 0.2],
-        [0.2, 0.8, 0.1],
-        [0.3, 0.2, 0.7],
-    ])
+    probs = np.array(
+        [
+            [0.9, 0.1, 0.2],
+            [0.2, 0.8, 0.1],
+            [0.3, 0.2, 0.7],
+        ]
+    )
 
     frontier = binary_frontier_from_probs(mu, Sigma, lambdas, probs, k=1)
 
@@ -28,10 +30,12 @@ def test_fractional_frontier_shapes():
     mu = np.array([0.1, 0.2, 0.15])
     Sigma = np.eye(3)
     lambdas = np.array([1.0, 2.0])
-    allocs = np.array([
-        [0.5, 0.3, 0.2],
-        [0.2, 0.5, 0.3],
-    ])
+    allocs = np.array(
+        [
+            [0.5, 0.3, 0.2],
+            [0.2, 0.5, 0.3],
+        ]
+    )
 
     frontier = fractional_frontier_from_allocs(mu, Sigma, lambdas, allocs)
 

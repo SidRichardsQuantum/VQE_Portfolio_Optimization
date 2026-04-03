@@ -104,7 +104,7 @@ def run_binary_vqe(
     - Top-K projection
     - samples + mode + best feasible sampled
     """
- 
+
     set_global_seed(cfg.seed)
 
     mu = np.array(mu, requires_grad=False)
@@ -117,7 +117,7 @@ def run_binary_vqe(
 
     H = build_ising_hamiltonian(mu, Sigma, cfg.lam, cfg.alpha, cfg.k)
 
-    dev_train = qml.device(cfg.device, wires=n, shots=cfg.shots_train)
+    dev_train = qml.device(cfg.device, wires=n)
 
     def ansatz(params: np.ndarray) -> None:
         binary_hwe_ry_cz_ring(params, depth=cfg.depth, n_wires=n)
@@ -127,7 +127,11 @@ def run_binary_vqe(
         ansatz(params)
         return qml.expval(H)
 
-    init = np.array(np.random.uniform(0, np.pi, size=(cfg.depth, n)), requires_grad=True)
+    energy = qml.set_shots(energy, cfg.shots_train)
+
+    init = np.array(
+        np.random.uniform(0, np.pi, size=(cfg.depth, n)), requires_grad=True
+    )
     opt_res = adam_optimize(
         energy, init, steps=cfg.steps, stepsize=cfg.stepsize, log_every=cfg.log_every
     )
@@ -137,17 +141,21 @@ def run_binary_vqe(
         ansatz(params)
         return [qml.expval(qml.PauliZ(i)) for i in range(n)]
 
+    exp_z = qml.set_shots(exp_z, cfg.shots_train)
+
     z = np.stack(exp_z(opt_res.params))
     x_prob = selection_prob_from_z(z)
     x_round = (x_prob >= 0.5).astype(int)
     x_topk = topk_project(x_prob, cfg.k)
 
-    dev_samp = qml.device(cfg.device, wires=n, shots=cfg.shots_sample)
+    dev_samp = qml.device(cfg.device, wires=n)
 
     @qml.qnode(dev_samp)
     def sample_bits(params: np.ndarray):
         ansatz(params)
         return qml.sample(wires=range(n))
+
+    sample_bits = qml.set_shots(sample_bits, cfg.shots_sample)
 
     samples = sample_bits(opt_res.params)
     rows = np.array(samples)
@@ -158,7 +166,9 @@ def run_binary_vqe(
 
     def objective_value(x) -> float:
         x = np.array(x, dtype=float)
-        return float(cfg.lam * x @ Sigma @ x - mu @ x + cfg.alpha * (x.sum() - cfg.k) ** 2)
+        return float(
+            cfg.lam * x @ Sigma @ x - mu @ x + cfg.alpha * (x.sum() - cfg.k) ** 2
+        )
 
     feasible = [bs for bs in counts if sum(bs) == cfg.k]
     if feasible:
@@ -199,7 +209,7 @@ def binary_lambda_sweep(
     if not (1 <= cfg.k <= n):
         raise ValueError(f"cfg.k must be in [1, {n}] but got {cfg.k}")
 
-    dev = qml.device(cfg.device, wires=n, shots=cfg.shots_train)
+    dev = qml.device(cfg.device, wires=n)
 
     def ansatz(params: np.ndarray) -> None:
         binary_hwe_ry_cz_ring(params, depth=cfg.depth, n_wires=n)
@@ -215,7 +225,11 @@ def binary_lambda_sweep(
             ansatz(params)
             return qml.expval(H)
 
-        init = np.array(np.random.uniform(0, np.pi, size=(cfg.depth, n)), requires_grad=True)
+        energy = qml.set_shots(energy, cfg.shots_train)
+
+        init = np.array(
+            np.random.uniform(0, np.pi, size=(cfg.depth, n)), requires_grad=True
+        )
         opt_res = adam_optimize(
             energy,
             init,
@@ -228,6 +242,8 @@ def binary_lambda_sweep(
         def exp_z(params: np.ndarray):
             ansatz(params)
             return [qml.expval(qml.PauliZ(i)) for i in range(n)]
+
+        exp_z = qml.set_shots(exp_z, cfg.shots_train)
 
         z = np.stack(exp_z(opt_res.params))
         probs.append(selection_prob_from_z(z))

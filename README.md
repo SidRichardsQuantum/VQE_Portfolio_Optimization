@@ -9,8 +9,8 @@ This package implements **portfolio optimization using Variational Quantum Eigen
 
 Two complementary quantum formulations are provided:
 
-* **Binary VQE** — asset *selection* under a cardinality constraint (QUBO → Ising → VQE)
-* **Fractional VQE** — long-only *allocation* on the simplex using a constraint-preserving quantum parameterization
+- **Binary VQE** — asset *selection- under a cardinality constraint (QUBO → Ising → VQE)
+- **Fractional VQE** — long-only *allocation- on the simplex using a constraint-preserving quantum parameterization
 
 All core logic lives in `src/vqe_portfolio/`; notebooks and examples simply call the public API.
 
@@ -31,14 +31,14 @@ $$
 
 **Highlights**
 
-* QUBO formulation mapped to an **Ising Hamiltonian**
-* Hardware-efficient **RY + CZ ring** ansatz
-* VQE minimizes ⟨H⟩ directly
-* Outputs include probabilities, samples, Top‑K projections, λ‑sweeps, and efficient frontiers
+- QUBO formulation mapped to an **Ising Hamiltonian**
+- Hardware-efficient **RY + CZ ring** ansatz
+- VQE minimizes ⟨H⟩ directly
+- Outputs include probabilities, samples, Top‑K projections, λ‑sweeps, and efficient frontiers
 
 Notebook client:
 
-* `notebooks/Binary.ipynb`
+- `notebooks/Binary.ipynb`
 
 ---
 
@@ -47,23 +47,22 @@ Notebook client:
 Solve the long-only mean–variance problem on the simplex:
 
 $$
-\min_{w \in \Delta}
-;-\mu^\top w + \lambda, w^\top \Sigma w
+\min_{w \in \Delta}\; -\mu^\top w + \lambda\, w^\top \Sigma w
 \quad\text{with}\quad
 \Delta={w\ge0,\sum_i w_i=1}
 $$
 
 **Highlights**
 
-* Simplex constraint enforced **by construction**
-* No penalty tuning required
-* Smooth λ‑sweeps with optional warm starts
-* Efficient frontier computed from allocations
+- Simplex constraint enforced **by construction**
+- No penalty tuning required
+- Smooth λ‑sweeps with optional warm starts
+- Efficient frontier computed from allocations
 
 Notebook clients:
 
-* `notebooks/Fractional.ipynb`
-* `notebooks/examples/Real_Example.ipynb`
+- `notebooks/Fractional.ipynb`
+- `notebooks/examples/Real_Example.ipynb`
 
 ---
 
@@ -81,7 +80,7 @@ This project focuses on those regimes.
 - Small-scale cardinality constraints via heuristics
 
 ### What becomes hard
-- **Exact cardinality constraints** (select exactly *K* assets)
+- **Exact cardinality constraints** (select exactly *K- assets)
 - Discrete–continuous hybrid decision spaces
 - Exhaustive exploration of correlated asset subsets
 - Non-convex penalty landscapes introduced by constraints
@@ -98,7 +97,7 @@ near-term quantum algorithms.
   - Noise and shot studies
   - Warm-started parameter sweeps
 
-### What this project does *not* claim
+### What this project does *not- claim
 - Quantum advantage over classical solvers
 - Near-term production readiness
 - Superiority to specialized classical optimizers
@@ -139,7 +138,7 @@ pip install -e ".[dev]"
 
 ## 🗂 Repository Structure
 
-```text
+```
 src/
 └── vqe_portfolio/
     ├── binary.py        # Binary VQE (QUBO / Ising formulation)
@@ -168,18 +167,17 @@ This package can be used **both programmatically (Python API)** and **from the c
 
 See **[USAGE.md](USAGE.md)** for:
 
-* Command-line interface (CLI) usage
-* Minimal API examples
-* Synthetic-data quickstart
-* Real-data workflows
-* λ-sweeps and efficient frontiers
+- Command-line interface (CLI) usage
+- Minimal API examples
+- Synthetic-data quickstart
+- Real-data workflows
+- λ-sweeps and efficient frontiers
 
 ---
 
 ## 📚 Additional Documentation
 
-* **Theory & derivations**: [`THEORY.md`](THEORY.md)
-* **Results & figures**: [`RESULTS.md`](RESULTS.md)
+- **Theory & derivations**: [`THEORY.md`](THEORY.md)
 
 ---
 
@@ -187,21 +185,33 @@ See **[USAGE.md](USAGE.md)** for:
 
 This project demonstrates:
 
-* Mapping **financial optimization problems** to quantum Hamiltonians
-* Clean constraint handling (cardinality vs simplex)
-* A strict separation between **research code** and **experiment clients**
-* Reproducible hybrid quantum–classical workflows
-* Production‑grade packaging and CI for quantum algorithms
+- Mapping **financial optimization problems** to quantum Hamiltonians
+- Clean constraint handling (cardinality vs simplex)
+- A strict separation between **research code** and **experiment clients**
+- Reproducible hybrid quantum–classical workflows
+- Production‑grade packaging and CI for quantum algorithms
 
 ---
 
 ## 🧾 References
 
-* QUBO overview: [https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization)
-* PennyLane documentation: [https://docs.pennylane.ai](https://docs.pennylane.ai)
+- QUBO overview: [https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization)
+- PennyLane documentation: [https://docs.pennylane.ai](https://docs.pennylane.ai)
 
 ---
 
-**Author**: Sid Richards
-GitHub: [@SidRichardsQuantum](https://github.com/SidRichardsQuantum)
+## Author
+
+**Sid Richards**
+
+LinkedIn:
+[https://www.linkedin.com/in/sid-richards-21374b30b/](https://www.linkedin.com/in/sid-richards-21374b30b/)
+
+GitHub:
+[https://github.com/SidRichardsQuantum](https://github.com/SidRichardsQuantum)
+
+---
+
+## License
+
 MIT License — see [LICENSE](LICENSE)

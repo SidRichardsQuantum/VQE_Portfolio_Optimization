@@ -82,7 +82,7 @@ def _load_mu_sigma_from_market(args: argparse.Namespace):
         use_log=not args.simple_returns,
         shrink=args.shrink,
         scale=args.scale,
-        progress=args.progress
+        progress=args.progress,
     )
 
     # Return numpy arrays to match VQE API expectations.
@@ -105,7 +105,9 @@ def _load_mu_sigma(args: argparse.Namespace) -> Tuple[np.ndarray, np.ndarray]:
     sigma = _parse_matrix_rows(args.sigma)
 
     if sigma.shape[0] != mu.shape[0]:
-        raise ValueError(f"Dimension mismatch: len(mu)={mu.shape[0]} vs sigma={sigma.shape}.")
+        raise ValueError(
+            f"Dimension mismatch: len(mu)={mu.shape[0]} vs sigma={sigma.shape}."
+        )
     return mu, sigma
 
 
@@ -283,12 +285,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     def add_output_only(sp: argparse.ArgumentParser) -> None:
         o = sp.add_argument_group("output")
-        o.add_argument("--out", type=str, default=None, help="Write JSON output to this path (default: stdout).")
+        o.add_argument(
+            "--out",
+            type=str,
+            default=None,
+            help="Write JSON output to this path (default: stdout).",
+        )
 
     def add_common_io(sp: argparse.ArgumentParser) -> None:
         g = sp.add_argument_group("input")
-        g.add_argument("--input", type=str, default=None, help="Path to JSON containing mu and sigma.")
-        g.add_argument("--mu", type=str, default=None, help="CSV vector, e.g. '0.1,0.2,0.05'.")
+        g.add_argument(
+            "--input",
+            type=str,
+            default=None,
+            help="Path to JSON containing mu and sigma.",
+        )
+        g.add_argument(
+            "--mu", type=str, default=None, help="CSV vector, e.g. '0.1,0.2,0.05'."
+        )
         g.add_argument(
             "--sigma",
             type=str,
@@ -319,35 +333,87 @@ def build_parser() -> argparse.ArgumentParser:
 
     def add_market_data_args(sp: argparse.ArgumentParser) -> None:
         g = sp.add_argument_group("market-data")
-        g.add_argument("--tickers", type=str, required=True, help='Comma-separated, e.g. "AAPL,MSFT,NVDA".')
-        g.add_argument("--start", type=str, default="2023-01-01", help="Start date YYYY-MM-DD.")
-        g.add_argument("--end", type=str, default="2024-01-01", help="End date YYYY-MM-DD.")
-        g.add_argument("--no-auto-adjust", action="store_true", help="Disable yfinance auto_adjust.")
-        g.add_argument("--simple-returns", action="store_true", help="Use simple returns instead of log returns.")
-        g.add_argument("--shrink", type=str, default=None, choices=["lw"], help="Covariance shrinkage. Use 'lw' for Ledoit-Wolf; omit for sample covariance.",)
-        g.add_argument("--scale", type=str, default="none", choices=["none", "trace", "max"], help="Covariance scaling.")
-        g.add_argument("--include-mu-sigma", action="store_true", help="Include mu/sigma arrays in JSON output.")
-        g.add_argument("--progress", action="store_true", help="Show yfinance download progress.")
-        g.add_argument("--prices-csv", type=str, default=None, help="Optional path to save the fetched prices CSV.")
+        g.add_argument(
+            "--tickers",
+            type=str,
+            required=True,
+            help='Comma-separated, e.g. "AAPL,MSFT,NVDA".',
+        )
+        g.add_argument(
+            "--start", type=str, default="2023-01-01", help="Start date YYYY-MM-DD."
+        )
+        g.add_argument(
+            "--end", type=str, default="2024-01-01", help="End date YYYY-MM-DD."
+        )
+        g.add_argument(
+            "--no-auto-adjust",
+            action="store_true",
+            help="Disable yfinance auto_adjust.",
+        )
+        g.add_argument(
+            "--simple-returns",
+            action="store_true",
+            help="Use simple returns instead of log returns.",
+        )
+        g.add_argument(
+            "--shrink",
+            type=str,
+            default=None,
+            choices=["lw"],
+            help="Covariance shrinkage. Use 'lw' for Ledoit-Wolf; omit for sample covariance.",
+        )
+        g.add_argument(
+            "--scale",
+            type=str,
+            default="none",
+            choices=["none", "trace", "max"],
+            help="Covariance scaling.",
+        )
+        g.add_argument(
+            "--include-mu-sigma",
+            action="store_true",
+            help="Include mu/sigma arrays in JSON output.",
+        )
+        g.add_argument(
+            "--progress", action="store_true", help="Show yfinance download progress."
+        )
+        g.add_argument(
+            "--prices-csv",
+            type=str,
+            default=None,
+            help="Optional path to save the fetched prices CSV.",
+        )
 
     # -----------------------
     # binary (synthetic / user-provided mu,sigma)
     # -----------------------
-    sp_b = sub.add_parser("binary", help="Run Binary VQE (asset selection under cardinality constraint).")
+    sp_b = sub.add_parser(
+        "binary", help="Run Binary VQE (asset selection under cardinality constraint)."
+    )
     add_common_io(sp_b)
     add_common_binary_vqe(sp_b)
-    sp_b.add_argument("--k", type=int, required=True, help="Cardinality constraint (cfg.k).")
-    sp_b.add_argument("--lam", type=float, required=True, help="Risk aversion parameter (cfg.lam).")
-    sp_b.add_argument("--alpha", type=float, default=10.0, help="Penalty weight (cfg.alpha).")
+    sp_b.add_argument(
+        "--k", type=int, required=True, help="Cardinality constraint (cfg.k)."
+    )
+    sp_b.add_argument(
+        "--lam", type=float, required=True, help="Risk aversion parameter (cfg.lam)."
+    )
+    sp_b.add_argument(
+        "--alpha", type=float, default=10.0, help="Penalty weight (cfg.alpha)."
+    )
     sp_b.set_defaults(func=_cmd_binary)
 
     # -----------------------
     # fractional (synthetic / user-provided mu,sigma)
     # -----------------------
-    sp_f = sub.add_parser("fractional", help="Run Fractional VQE (long-only allocation on the simplex).")
+    sp_f = sub.add_parser(
+        "fractional", help="Run Fractional VQE (long-only allocation on the simplex)."
+    )
     add_common_io(sp_f)
     add_common_fractional_vqe(sp_f)
-    sp_f.add_argument("--lam", type=float, required=True, help="Risk aversion parameter (cfg.lam).")
+    sp_f.add_argument(
+        "--lam", type=float, required=True, help="Risk aversion parameter (cfg.lam)."
+    )
     sp_f.set_defaults(func=_cmd_fractional)
 
     # -----------------------

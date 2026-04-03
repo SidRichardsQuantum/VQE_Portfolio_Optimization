@@ -6,7 +6,9 @@ import sys
 
 
 def _run(args):
-    return subprocess.run([sys.executable, "-m", "vqe_portfolio", *args], capture_output=True, text=True)
+    return subprocess.run(
+        [sys.executable, "-m", "vqe_portfolio", *args], capture_output=True, text=True
+    )
 
 
 def test_cli_help():
@@ -64,6 +66,7 @@ def test_cli_fractional_smoke():
 def test_cli_binary_data_help():
     p = _run(["binary-data", "--help"])
     assert p.returncode == 0
+
 
 def test_cli_fractional_data_help():
     p = _run(["fractional-data", "--help"])

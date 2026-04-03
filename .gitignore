@@ -4,6 +4,7 @@
 __pycache__/
 *.py[cod]
 *.pyd
+*.so
 
 # -----------------------
 # Test / type-check caches
@@ -11,6 +12,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .coverage
+.coverage.*
 htmlcov/
 
 # -----------------------
@@ -20,6 +22,8 @@ build/
 dist/
 *.egg-info/
 *.egg
+.eggs/
+pip-wheel-metadata/
 
 # -----------------------
 # Virtual environments

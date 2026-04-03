@@ -161,7 +161,9 @@ def compute_mu_sigma(
     if use_log:
         # Guard against non-positive prices (log undefined)
         if (prices <= 0).any().any():
-            raise ValueError("Non-positive price encountered; cannot compute log returns.")
+            raise ValueError(
+                "Non-positive price encountered; cannot compute log returns."
+            )
         ret = np.log(prices).diff().dropna()
     else:
         ret = prices.pct_change().dropna()
@@ -212,6 +214,8 @@ def get_stock_data(
     scale: Optional[Literal["none", "trace", "max"]] = "none",
     progress: bool = False,
 ):
-    prices = fetch_prices(tickers, start, end, auto_adjust=auto_adjust, progress=progress)
+    prices = fetch_prices(
+        tickers, start, end, auto_adjust=auto_adjust, progress=progress
+    )
     mu, Sigma, _ = compute_mu_sigma(prices, use_log=use_log, shrink=shrink, scale=scale)
     return mu, Sigma, prices

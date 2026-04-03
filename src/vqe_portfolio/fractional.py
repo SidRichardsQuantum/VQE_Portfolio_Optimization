@@ -6,8 +6,14 @@ from pennylane import numpy as np
 from .ansatz import fractional_ry_layer
 from .metrics import symmetrize
 from .optimize import adam_optimize
-from .types import FractionalVQEConfig, FractionalVQEResult, LambdaSweepConfig, OptimizeTrace
+from .types import (
+    FractionalVQEConfig,
+    FractionalVQEResult,
+    LambdaSweepConfig,
+    OptimizeTrace,
+)
 from .utils import set_global_seed
+
 
 def angles_to_weights(expvals_z: np.ndarray) -> np.ndarray:
     """
@@ -32,7 +38,7 @@ def run_fractional_vqe(
     Sigma = symmetrize(np.array(Sigma, requires_grad=False))
     n = len(mu)
 
-    dev = qml.device(cfg.device, wires=n, shots=cfg.shots)
+    dev = qml.device(cfg.device, wires=n)
 
     def ansatz(thetas: np.ndarray) -> None:
         fractional_ry_layer(thetas, n_wires=n)
@@ -42,6 +48,8 @@ def run_fractional_vqe(
         ansatz(thetas)
         return [qml.expval(qml.PauliZ(i)) for i in range(n)]
 
+    expvals_z = qml.set_shots(expvals_z, cfg.shots)
+
     def objective(thetas: np.ndarray):
         z = qml.math.stack(expvals_z(thetas))
         w = angles_to_weights(z)
@@ -50,7 +58,9 @@ def run_fractional_vqe(
         return -ret + cfg.lam * risk
 
     init = np.array(np.random.uniform(0, np.pi, n), requires_grad=True)
-    opt_res = adam_optimize(objective, init, steps=cfg.steps, stepsize=cfg.stepsize, log_every=cfg.log_every)
+    opt_res = adam_optimize(
+        objective, init, steps=cfg.steps, stepsize=cfg.stepsize, log_every=cfg.log_every
+    )
 
     z = np.array(expvals_z(opt_res.params))
     w = angles_to_weights(z)
@@ -77,7 +87,7 @@ def fractional_lambda_sweep(
     Sigma = symmetrize(np.array(Sigma, requires_grad=False))
     n = len(mu)
 
-    dev = qml.device(cfg.device, wires=n, shots=cfg.shots)
+    dev = qml.device(cfg.device, wires=n)
 
     def ansatz(thetas: np.ndarray) -> None:
         fractional_ry_layer(thetas, n_wires=n)
@@ -86,6 +96,8 @@ def fractional_lambda_sweep(
     def expvals_z(thetas: np.ndarray):
         ansatz(thetas)
         return [qml.expval(qml.PauliZ(i)) for i in range(n)]
+
+    expvals_z = qml.set_shots(expvals_z, cfg.shots)
 
     # Start point for sweep
     thetas = np.array(np.random.uniform(0, np.pi, n), requires_grad=True)
@@ -97,6 +109,7 @@ def fractional_lambda_sweep(
     lambdas = np.array(list(sweep.lambdas), dtype=float)
 
     for lam_val in lambdas:
+
         def objective(t: np.ndarray):
             z = qml.math.stack(expvals_z(t))
             w = angles_to_weights(z)

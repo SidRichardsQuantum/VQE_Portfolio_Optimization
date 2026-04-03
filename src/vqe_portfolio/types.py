@@ -20,7 +20,7 @@ class BinaryVQEConfig:
 
     # Quantum execution
     device: str = "default.qubit"
-    shots_train: Optional[int] = None      # None = exact expectations
+    shots_train: Optional[int] = None  # None = exact expectations
     shots_sample: int = 2000
 
     # Reproducibility

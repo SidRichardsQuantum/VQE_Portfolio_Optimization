@@ -22,7 +22,9 @@ def ensure_dir(path: str | Path) -> Path:
     return p
 
 
-def resolve_notebook_outdir(images_dir: str = "images", notebooks_dir: str = "notebooks") -> Path:
+def resolve_notebook_outdir(
+    images_dir: str = "images", notebooks_dir: str = "notebooks"
+) -> Path:
     """
     Resolve a notebook output directory that works when run from repo root or notebooks/.
     Returns a Path that exists.

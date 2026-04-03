@@ -10,11 +10,13 @@ def toy_problem():
     Small, well-conditioned toy portfolio.
     """
     mu = np.array([0.12, 0.10, 0.07])
-    Sigma = np.array([
-        [0.10, 0.02, 0.01],
-        [0.02, 0.08, 0.01],
-        [0.01, 0.01, 0.05],
-    ])
+    Sigma = np.array(
+        [
+            [0.10, 0.02, 0.01],
+            [0.02, 0.08, 0.01],
+            [0.01, 0.01, 0.05],
+        ]
+    )
     return mu, Sigma
 
 

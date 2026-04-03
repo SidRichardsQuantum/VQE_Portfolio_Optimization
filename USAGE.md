@@ -40,11 +40,11 @@ vqe-portfolio binary \
 
 This produces a JSON file containing:
 
-* optimized circuit parameters
-* inclusion probabilities
-* Top-K selection
-* sampled bitstrings and counts
-* optimization trace
+- optimized circuit parameters
+- inclusion probabilities
+- Top-K selection
+- sampled bitstrings and counts
+- optimization trace
 
 ### Fractional VQE (Continuous Allocation)
 
@@ -77,9 +77,9 @@ vqe-portfolio fractional \
 
 The output JSON includes:
 
-* optimized circuit parameters
-* portfolio weights
-* cost trace
+- optimized circuit parameters
+- portfolio weights
+- cost trace
 
 ### Input formats
 
@@ -90,6 +90,14 @@ You may provide inputs in either form:
 ```bash
 --mu "0.1,0.2,0.3"
 --sigma "1,0.1;0.1,2"
+```
+
+Note: when providing `--sigma` inline, the argument must be quoted because `;` is interpreted by the shell as a command separator.
+
+Example:
+
+```bash
+--sigma "0.1,0.0;0.0,0.2"
 ```
 
 **JSON**
@@ -115,8 +123,8 @@ All CLI commands respect the same reproducibility controls as the Python API:
 
 The CLI is a **thin client** over the same public API used by notebooks and scripts:
 
-* `vqe-portfolio binary` → `run_binary_vqe`
-* `vqe-portfolio fractional` → `run_fractional_vqe`
+- `vqe-portfolio binary` → `run_binary_vqe`
+- `vqe-portfolio fractional` → `run_fractional_vqe`
 
 No logic is duplicated.
 
@@ -158,7 +166,7 @@ import numpy as np
 from vqe_portfolio import run_binary_vqe, BinaryVQEConfig
 
 mu = np.array([0.10, 0.12, 0.07, 0.09])
-Sigma = 0.02 * np.eye(4)
+Sigma = 0.02 - np.eye(4)
 
 cfg = BinaryVQEConfig(
     k=2,
@@ -244,9 +252,9 @@ All optimization loops and random initializations respect the global seed.
 
 All notebooks in `notebooks/` simply:
 
-* import the public API
-* call `run_binary_vqe` / `run_fractional_vqe`
-* generate plots via `vqe_portfolio.plotting`
+- import the public API
+- call `run_binary_vqe` / `run_fractional_vqe`
+- generate plots via `vqe_portfolio.plotting`
 
 They contain **no core logic**.
 
@@ -256,22 +264,34 @@ They contain **no core logic**.
 
 **This package is:**
 
-* A research‑grade quantum optimization toolkit
-* Deterministic, testable, and CI‑validated
-* Designed for experimentation and extension
+- A research‑grade quantum optimization toolkit
+- Deterministic, testable, and CI‑validated
+- Designed for experimentation and extension
 
 **This package is not:**
 
-* A production trading system
-* A performance‑optimized classical solver
-* A claim of quantum advantage
+- A production trading system
+- A performance‑optimized classical solver
+- A claim of quantum advantage
 
 ---
 
 For theory, see `THEORY.md`.
-For experimental results, see `RESULTS.md`.
 
 ---
 
-📘 **Author**: Sid Richards  
+## Author
+
+**Sid Richards**
+
+LinkedIn:
+[https://www.linkedin.com/in/sid-richards-21374b30b/](https://www.linkedin.com/in/sid-richards-21374b30b/)
+
+GitHub:
+[https://github.com/SidRichardsQuantum](https://github.com/SidRichardsQuantum)
+
+---
+
+## License
+
 MIT License — see [LICENSE](LICENSE)

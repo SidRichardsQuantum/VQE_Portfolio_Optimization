@@ -135,7 +135,13 @@ def plot_frontier(
     outpath: str | Path | None = None,
 ):
     fig = plt.figure(figsize=(7, 5))
-    sc = plt.scatter(np.array(risks, dtype=float), np.array(returns, dtype=float), c=np.array(lambdas_sorted, dtype=float), cmap="plasma", s=50)
+    sc = plt.scatter(
+        np.array(risks, dtype=float),
+        np.array(returns, dtype=float),
+        c=np.array(lambdas_sorted, dtype=float),
+        cmap="plasma",
+        s=50,
+    )
     plt.plot(risks, returns, alpha=0.6)
     cbar = plt.colorbar(sc)
     cbar.set_label("λ")

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vqe-portfolio"
-version = "0.1.2"
+version = "0.1.3"
 description = "VQE-based portfolio optimization with PennyLane"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,6 +22,9 @@ keywords = ["quantum", "vqe", "portfolio-optimization", "pennylane", "finance"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "Operating System :: OS Independent",
 ]
 
@@ -48,6 +51,16 @@ notebooks = [
 ]
 
 data = [
+  "pandas>=2.0,<3.0",
+  "yfinance>=0.2.40,<0.3.0",
+  "scikit-learn>=1.4,<2.0",
+]
+
+all = [
+  "cvxpy>=1.4,<2.0",
+  "osqp>=0.6,<1.0",
+  "jupyter>=1.0",
+  "jupytext>=1.16,<2.0",
   "pandas>=2.0,<3.0",
   "yfinance>=0.2.40,<0.3.0",
   "scikit-learn>=1.4,<2.0",

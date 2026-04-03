@@ -99,25 +99,21 @@ __all__ = [
     "get_stock_data",
     "fetch_prices",
     "compute_mu_sigma",
-
     # --- configs & results ---
     "BinaryVQEConfig",
     "FractionalVQEConfig",
     "LambdaSweepConfig",
     "BinaryVQEResult",
     "FractionalVQEResult",
-
     # --- algorithms ---
     "run_binary_vqe",
     "binary_lambda_sweep",
     "run_fractional_vqe",
     "fractional_lambda_sweep",
-
     # --- evaluation ---
     "Frontier",
     "binary_frontier_from_probs",
     "fractional_frontier_from_allocs",
-
     # --- utilities ---
     "set_global_seed",
     "resolve_notebook_outdir",

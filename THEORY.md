@@ -1,9 +1,7 @@
 # Theory
 
-This document describes the mathematical formulation and quantum encodings
-used in the `vqe_portfolio` package. It focuses on **how classical portfolio
-optimization problems are mapped to quantum Hamiltonians** suitable for
-Variational Quantum Eigensolvers (VQE).
+This document describes the mathematical formulation and quantum encodings used in the `vqe_portfolio` package.
+It focuses on **how classical portfolio optimization problems are mapped to quantum Hamiltonians** suitable for the Variational Quantum Eigensolver (VQE).
 
 ---
 
@@ -170,21 +168,18 @@ This encoding is implemented in `fractional.py`.
 
 ## Summary
 
-This project demonstrates two distinct quantum encodings of portfolio
-optimization problems:
+This project demonstrates two distinct quantum encodings of portfolio optimization problems:
 
 - **Binary VQE** emphasizes constraint handling and combinatorial structure
 - **Fractional VQE** emphasizes smooth optimization and feasibility by design
 
-Both are implemented within a unified VQE framework, enabling direct
-comparison of quantum modeling strategies.
+Both are implemented within a unified VQE framework, enabling direct comparison of quantum modeling strategies.
 
 ---
 
 ## References
 
-The formulations used in this project draw on standard results from
-quantum optimization and portfolio theory:
+The formulations used in this project draw on standard results from quantum optimization and portfolio theory:
 
 1. Markowitz, H.  
    *Portfolio Selection*, Journal of Finance (1952).
@@ -204,5 +199,18 @@ quantum optimization and portfolio theory:
 
 ---
 
-📘 **Author**: Sid Richards  
+## Author
+
+**Sid Richards**
+
+LinkedIn:
+[https://www.linkedin.com/in/sid-richards-21374b30b/](https://www.linkedin.com/in/sid-richards-21374b30b/)
+
+GitHub:
+[https://github.com/SidRichardsQuantum](https://github.com/SidRichardsQuantum)
+
+---
+
+## License
+
 MIT License — see [LICENSE](LICENSE)
