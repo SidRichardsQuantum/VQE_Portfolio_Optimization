@@ -230,8 +230,7 @@ Objective:
 $$
 \min_{x \in {0,1}^n}
 \lambda x^\top \Sigma x
------------------------
-
+-
 \mu^\top x
 +
 \alpha(\mathbf{1}^\top x - K)^2
@@ -331,8 +330,7 @@ Constraints are satisfied by construction.
 
 $$
 \min_\theta
------------
-
+-
 \mu^\top w(\theta)
 +
 \lambda w(\theta)^\top \Sigma w(\theta)
