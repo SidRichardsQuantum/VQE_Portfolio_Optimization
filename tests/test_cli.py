@@ -1,11 +1,25 @@
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
 import subprocess
 import sys
 
 
 def _run(args):
+    repo_root = Path(__file__).resolve().parents[1]
+    src_dir = str(repo_root / "src")
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = (
+        [sys.executable, "-m", "vqe_portfolio", *args],
+        capture_output=True,
+        text=True,
+        env=env,
+        if existing_pythonpath
+        else src_dir
+    )
     return subprocess.run(
         [sys.executable, "-m", "vqe_portfolio", *args], capture_output=True, text=True
     )
