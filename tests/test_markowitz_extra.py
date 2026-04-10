@@ -1,23 +1,24 @@
-import importlib
-import pytest
+from __future__ import annotations
+
+import tomllib
+from pathlib import Path
 
 
-def _module_available(name: str) -> bool:
-    spec = importlib.util.find_spec(name)
-    return spec is not None
+def _load_pyproject() -> dict:
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with pyproject.open("rb") as f:
+        return tomllib.load(f)
 
 
-@pytest.mark.skipif(
-    not _module_available("cvxpy"),
-    reason="cvxpy not installed (markowitz extra not enabled)",
-)
-def test_import_cvxpy():
-    import cvxpy  # noqa: F401
+def test_markowitz_extra_declares_cvxpy_dependency():
+    data = _load_pyproject()
+    deps = data["project"]["optional-dependencies"]["markowitz"]
+
+    assert "cvxpy>=1.4,<2.0" in deps
 
 
-@pytest.mark.skipif(
-    not _module_available("osqp"),
-    reason="osqp not installed (markowitz extra not enabled)",
-)
-def test_import_osqp():
-    import osqp  # noqa: F401
+def test_markowitz_extra_declares_osqp_dependency():
+    data = _load_pyproject()
+    deps = data["project"]["optional-dependencies"]["markowitz"]
+
+    assert "osqp>=0.6,<1.0" in deps

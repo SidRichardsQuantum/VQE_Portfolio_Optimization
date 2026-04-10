@@ -136,7 +136,7 @@ def test_cli_qaoa_outfile(tmp_path):
     assert payload["config"]["p"] == 1
 
 
-def test_cli_qaoa_requires_input():
+def test_cli_qaoa_requires_input(capsys):
     argv = [
         "qaoa",
         "--k",
@@ -149,12 +149,12 @@ def test_cli_qaoa_requires_input():
         "1",
     ]
 
-    try:
-        main(argv)
-    except ValueError as e:
-        assert "Provide either --input JSON or both --mu and --sigma." in str(e)
-    else:
-        raise AssertionError("Expected ValueError for missing input.")
+    rc = main(argv)
+    assert rc == 2
+    assert (
+        "Provide either --input JSON or both --mu and --sigma."
+        in capsys.readouterr().err
+    )
 
 
 def test_cli_qaoa_accepts_input_json(tmp_path, capsys):

@@ -40,6 +40,7 @@ $$
 Notebook client:
 
 - `notebooks/Binary.ipynb`
+- `notebooks/examples/02_Real_Example.ipynb`
 
 ---
 
@@ -73,6 +74,7 @@ $$
 Notebook client:
 
 - `notebooks/QAOA.ipynb`
+- `notebooks/examples/03_Real_Example.ipynb`
 
 ---
 
@@ -96,7 +98,7 @@ $$
 Notebook clients:
 
 - `notebooks/Fractional.ipynb`
-- `notebooks/examples/Real_Example.ipynb`
+- `notebooks/examples/01_Real_example.ipynb`
 
 ---
 
@@ -187,7 +189,9 @@ notebooks/
 ├── QAOA.ipynb
 ├── Fractional.ipynb
 ├── examples/
-│   └── Real_Example.ipynb
+│   ├── 01_Real_example.ipynb
+│   ├── 02_Real_Example.ipynb
+│   └── 03_Real_Example.ipynb
 └── images/
 ```
 
