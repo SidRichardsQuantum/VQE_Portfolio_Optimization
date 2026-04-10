@@ -79,5 +79,8 @@ where = ["src"]
 target-version = ["py312"]
 line-length = 88
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
 [project.scripts]
 vqe-portfolio = "vqe_portfolio.cli:main"
