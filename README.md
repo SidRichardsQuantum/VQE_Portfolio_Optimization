@@ -113,7 +113,7 @@ This project focuses on those regimes.
 - Small-scale cardinality constraints via heuristics
 
 ### What becomes hard
-- **Exact cardinality constraints** (select exactly *K- assets)
+- **Exact cardinality constraints** (select exactly *K* assets)
 - Discrete–continuous hybrid decision spaces
 - Exhaustive exploration of correlated asset subsets
 - Non-convex penalty landscapes introduced by constraints
@@ -129,7 +129,7 @@ These settings naturally map to **QUBO / Ising formulations**, which are native 
   - Noise and shot studies
   - Warm-started parameter sweeps
 
-### What this project does *not- claim
+### What this project does *not* claim
 - Quantum advantage over classical solvers
 - Near-term production readiness
 - Superiority to specialized classical optimizers
