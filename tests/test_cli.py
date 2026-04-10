@@ -13,15 +13,15 @@ def _run(args):
     env = os.environ.copy()
     existing_pythonpath = env.get("PYTHONPATH")
     env["PYTHONPATH"] = (
-        [sys.executable, "-m", "vqe_portfolio", *args],
-        capture_output=True,
-        text=True,
-        env=env,
+        f"{src_dir}{os.pathsep}{existing_pythonpath}"
         if existing_pythonpath
         else src_dir
     )
     return subprocess.run(
-        [sys.executable, "-m", "vqe_portfolio", *args], capture_output=True, text=True
+        [sys.executable, "-m", "vqe_portfolio", *args],
+        capture_output=True,
+        text=True,
+        env=env,
     )
 
 
