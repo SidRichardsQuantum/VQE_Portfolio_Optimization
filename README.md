@@ -17,6 +17,36 @@ All core logic lives in `src/vqe_portfolio/`; notebooks and examples simply call
 
 ---
 
+## Table of Contents
+
+- [Implemented Methods](#-implemented-methods)
+
+  - [Binary VQE (Asset Selection)](#1-binary-vqe-asset-selection)
+  - [QAOA (Binary Asset Selection)](#2-qaoa-binary-asset-selection)
+  - [Fractional VQE (Continuous Allocation)](#3-fractional-vqe-continuous-allocation)
+
+- [Why Quantum Here?](#-why-quantum-here)
+
+- [Installation](#-installation)
+
+- [Repository Structure](#-repository-structure)
+
+- [Usage](#-usage)
+
+- [Additional Documentation](#-additional-documentation)
+
+- [Why This Matters](#-why-this-matters)
+
+- [References](#-references)
+
+- [Support development](#support-development)
+
+- [Author](#author)
+
+- [License](#license)
+
+---
+
 ## 🚀 Implemented Methods
 
 ### 1. Binary VQE (Asset Selection)
@@ -236,15 +266,25 @@ This project demonstrates:
 
 ---
 
+## Support development
+
+If this repository is useful for research, learning, or experimentation, you can support continued development via GitHub Sponsors:
+
+[https://github.com/sponsors/SidRichardsQuantum](https://github.com/sponsors/SidRichardsQuantum)
+
+Sponsorship supports continued work on open-source implementations of quantum optimization algorithms, including improvements to documentation, reproducible workflows, example notebooks, and benchmarking utilities.
+
+Support helps maintain accessible reference implementations of VQE and QAOA methods for constrained optimization problems and hybrid quantum–classical experimentation.
+
+---
+
 ## Author
 
 **Sid Richards**
 
-LinkedIn:
-[https://www.linkedin.com/in/sid-richards-21374b30b/](https://www.linkedin.com/in/sid-richards-21374b30b/)
+LinkedIn: [https://www.linkedin.com/in/sid-richards-21374b30b/](https://www.linkedin.com/in/sid-richards-21374b30b/)
 
-GitHub:
-[https://github.com/SidRichardsQuantum](https://github.com/SidRichardsQuantum)
+GitHub: [https://github.com/SidRichardsQuantum](https://github.com/SidRichardsQuantum)
 
 ---
 
