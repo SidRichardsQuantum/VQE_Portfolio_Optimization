@@ -5,7 +5,44 @@ Notebooks in this repository are thin clients around the same API.
 
 ---
 
-# 🖥 Command-Line Interface (CLI)
+## Table of Contents
+
+- [Command-Line Interface (CLI)](#-command-line-interface-cli)
+
+  - [Binary VQE (Asset Selection)](#binary-vqe-asset-selection)
+  - [QAOA (Binary Asset Selection)](#qaoa-binary-asset-selection)
+  - [Fractional VQE (Continuous Allocation)](#fractional-vqe-continuous-allocation)
+
+  - [Input formats](#input-formats)
+  - [Reproducibility via CLI](#reproducibility-via-cli)
+  - [Relationship to the Python API](#relationship-to-the-python-api)
+
+- [Minimal Example (Synthetic Data)](#1-minimal-example-synthetic-data)
+
+- [Binary VQE (Asset Selection)](#2-binary-vqe-asset-selection)
+
+- [QAOA (Binary Asset Selection)](#3-qaoa-binary-asset-selection)
+
+- [λ-Sweeps and Efficient Frontiers](#4-λ-sweeps-and-efficient-frontiers)
+
+  - [Fractional frontier](#fractional-frontier)
+  - [QAOA λ-sweep](#qaoa-λ-sweep)
+
+- [Real Market Data](#5-real-market-data)
+
+- [Reproducibility](#6-reproducibility)
+
+- [Notebooks as Clients](#7-notebooks-as-clients)
+
+- [What This Package Is (and Is Not)](#8-what-this-package-is-and-is-not)
+
+- [Author](#author)
+
+- [License](#license)
+
+---
+
+## 🖥 Command-Line Interface (CLI)
 
 The package provides a first-class CLI for running quantum portfolio optimization **without writing Python code**.
 
@@ -23,11 +60,11 @@ python -m vqe_portfolio --help
 
 ---
 
-## Binary VQE (Asset Selection)
+### Binary VQE (Asset Selection)
 
 Run a binary VQE to select exactly **K assets** under a cardinality constraint.
 
-### Inline synthetic data
+#### Inline synthetic data
 
 ```bash
 vqe-portfolio binary \
@@ -50,11 +87,11 @@ This produces a JSON file containing:
 
 ---
 
-## QAOA (Binary Asset Selection)
+### QAOA (Binary Asset Selection)
 
 Solve the same constrained mean–variance problem using the **Quantum Approximate Optimization Algorithm (QAOA)**.
 
-### Inline synthetic data
+#### Inline synthetic data
 
 ```bash
 vqe-portfolio qaoa \
@@ -89,11 +126,11 @@ Output JSON includes:
 
 ---
 
-## Fractional VQE (Continuous Allocation)
+### Fractional VQE (Continuous Allocation)
 
 Solve the long-only mean–variance problem on the simplex.
 
-### Using an input JSON file
+#### Using an input JSON file
 
 Create `input.json`:
 
@@ -126,11 +163,11 @@ The output JSON includes:
 
 ---
 
-## Input formats
+### Input formats
 
 You may provide inputs in either form:
 
-### Inline
+#### Inline
 
 ```bash
 --mu "0.1,0.2,0.3"
@@ -145,7 +182,7 @@ Example:
 --sigma "0.1,0.0;0.0,0.2"
 ```
 
-### JSON
+#### JSON
 
 ```json
 {
@@ -158,7 +195,7 @@ JSON is recommended for reproducibility and larger problem sizes.
 
 ---
 
-## Reproducibility via CLI
+### Reproducibility via CLI
 
 All CLI commands respect the same reproducibility controls as the Python API:
 
@@ -168,7 +205,7 @@ All CLI commands respect the same reproducibility controls as the Python API:
 
 ---
 
-## Relationship to the Python API
+### Relationship to the Python API
 
 The CLI is a **thin client** over the same public API used by notebooks and scripts:
 
@@ -180,7 +217,7 @@ No logic is duplicated.
 
 ---
 
-# 1. Minimal Example (Synthetic Data)
+## 1. Minimal Example (Synthetic Data)
 
 ```python
 import numpy as np
@@ -210,7 +247,7 @@ This solves the long-only mean–variance problem on the simplex **by constructi
 
 ---
 
-# 2. Binary VQE (Asset Selection)
+## 2. Binary VQE (Asset Selection)
 
 ```python
 import numpy as np
@@ -236,7 +273,7 @@ Binary VQE solves the QUBO → Ising → VQE formulation of the cardinality-cons
 
 ---
 
-# 3. QAOA (Binary Asset Selection)
+## 3. QAOA (Binary Asset Selection)
 
 ```python
 import numpy as np
@@ -293,9 +330,9 @@ Result fields include:
 
 ---
 
-# 4. λ-Sweeps and Efficient Frontiers
+## 4. λ-Sweeps and Efficient Frontiers
 
-## Fractional frontier
+### Fractional frontier
 
 ```python
 from vqe_portfolio import fractional_lambda_sweep
@@ -324,7 +361,7 @@ The resulting `Frontier` object contains risk, return, λ, and portfolio weights
 
 ---
 
-## QAOA λ-sweep
+### QAOA λ-sweep
 
 ```python
 from vqe_portfolio import qaoa_lambda_sweep
@@ -353,7 +390,7 @@ Produces marginal inclusion probabilities across risk-aversion values.
 
 ---
 
-# 5. Real Market Data
+## 5. Real Market Data
 
 Requires:
 
@@ -388,7 +425,7 @@ print(res.weights)
 
 ---
 
-# 6. Reproducibility
+## 6. Reproducibility
 
 ```python
 from vqe_portfolio.utils import set_global_seed
@@ -400,7 +437,7 @@ All optimization loops and random initializations respect the global seed.
 
 ---
 
-# 7. Notebooks as Clients
+## 7. Notebooks as Clients
 
 All notebooks in `notebooks/` simply:
 
@@ -412,7 +449,7 @@ They contain **no core logic**.
 
 ---
 
-# 8. What This Package Is (and Is Not)
+## 8. What This Package Is (and Is Not)
 
 **This package is:**
 
