@@ -5,6 +5,8 @@
 [![License](https://img.shields.io/pypi/l/vqe-portfolio.svg)](LICENSE)
 [![CI](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/actions)
 
+PyPI: [https://pypi.org/project/vqe-portfolio/](https://pypi.org/project/vqe-portfolio/)
+
 This package implements **portfolio optimization using Variational Quantum Eigensolvers (VQE)** as a clean, testable, and reusable **Python library**, with notebooks acting purely as *clients*.
 
 Three complementary quantum formulations are provided:
