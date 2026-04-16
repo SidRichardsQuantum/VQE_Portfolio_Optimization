@@ -7,12 +7,37 @@ It focuses on **how classical portfolio optimization problems are mapped to quan
 
 ## Table of Contents
 
-1. [Classical Mean–Variance Portfolio Optimization](#1-classical-meanvariance-portfolio-optimization)
-2. [Variational Quantum Eigensolvers (VQE)](#2-variational-quantum-eigensolvers-vqe)
-3. [Quantum Approximate Optimization Algorithm (QAOA)](#3-quantum-approximate-optimization-algorithm-qaoa)
-4. [Binary Portfolio Optimization via QUBO](#4-binary-portfolio-optimization-via-qubo)
-5. [Fractional Portfolio Optimization via Simplex Encoding](#5-fractional-portfolio-optimization-via-simplex-encoding)
-6. [Binary vs Fractional Encodings](#6-binary-vs-fractional-encodings)
+- [Classical Mean–Variance Portfolio Optimization](#1-classical-meanvariance-portfolio-optimization)
+
+- [Variational Quantum Eigensolvers (VQE)](#2-variational-quantum-eigensolvers-vqe)
+
+- [Quantum Approximate Optimization Algorithm (QAOA)](#3-quantum-approximate-optimization-algorithm-qaoa)
+
+  - [Cost Hamiltonian](#31-cost-hamiltonian)
+  - [Mixer Hamiltonians](#32-mixer-hamiltonians)
+  - [Sampling interpretation](#33-sampling-interpretation)
+
+- [Binary Portfolio Optimization via QUBO](#4-binary-portfolio-optimization-via-qubo)
+
+  - [Binary decision variables](#41-binary-decision-variables)
+  - [Ising mapping](#42-ising-mapping)
+  - [Expectation vs bitstrings](#43-expectation-vs-bitstrings)
+
+- [Fractional Portfolio Optimization via Simplex Encoding](#5-fractional-portfolio-optimization-via-simplex-encoding)
+
+  - [Continuous parameterization](#51-continuous-parameterization)
+  - [Simplex normalization](#52-simplex-normalization)
+  - [Optimization objective](#53-optimization-objective)
+
+- [Binary vs Fractional Encodings](#6-binary-vs-fractional-encodings)
+
+- [Summary](#summary)
+
+- [References](#references)
+
+- [Author](#author)
+
+- [License](#license)
 
 ---
 
