@@ -1,9 +1,28 @@
 # Portfolio Optimization via VQE
 
-[![PyPI](https://img.shields.io/pypi/v/vqe-portfolio.svg)](https://pypi.org/project/vqe-portfolio/)
-[![Python](https://img.shields.io/pypi/pyversions/vqe-portfolio.svg)](https://pypi.org/project/vqe-portfolio/)
-[![License](https://img.shields.io/pypi/l/vqe-portfolio.svg)](LICENSE)
-[![CI](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/actions)
+<p align="center">
+
+<a href="https://pypi.org/project/vqe-portfolio/">
+<img src="https://img.shields.io/pypi/v/vqe-portfolio?style=flat-square" alt="PyPI Version">
+</a>
+
+<a href="https://pypi.org/project/vqe-portfolio/">
+<img src="https://img.shields.io/pypi/pyversions/vqe-portfolio?style=flat-square" alt="Python Versions">
+</a>
+
+<a href="https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/actions/workflows/ci.yml">
+<img src="https://img.shields.io/github/actions/workflow/status/SidRichardsQuantum/VQE_Portfolio_Optimization/ci.yml?label=tests&style=flat-square" alt="Tests">
+</a>
+
+<a href="LICENSE">
+<img src="https://img.shields.io/github/license/SidRichardsQuantum/VQE_Portfolio_Optimization?style=flat-square" alt="License">
+</a>
+
+<a href="https://github.com/sponsors/SidRichardsQuantum">
+<img src="https://img.shields.io/badge/sponsor-GitHub-ea4aaa?style=flat-square&logo=githubsponsors" alt="Sponsor">
+</a>
+
+</p>
 
 PyPI: [https://pypi.org/project/vqe-portfolio/](https://pypi.org/project/vqe-portfolio/)
 
