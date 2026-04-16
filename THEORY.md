@@ -5,7 +5,7 @@ It focuses on **how classical portfolio optimization problems are mapped to quan
 
 ---
 
-# Table of Contents
+## Table of Contents
 
 1. [Classical Mean–Variance Portfolio Optimization](#1-classical-meanvariance-portfolio-optimization)
 2. [Variational Quantum Eigensolvers (VQE)](#2-variational-quantum-eigensolvers-vqe)
@@ -16,7 +16,7 @@ It focuses on **how classical portfolio optimization problems are mapped to quan
 
 ---
 
-# 1. Classical Mean–Variance Portfolio Optimization
+## 1. Classical Mean–Variance Portfolio Optimization
 
 Let:
 
@@ -36,19 +36,19 @@ where:
 
 Typical constraints include:
 
-### Long-only constraint
+#### Long-only constraint
 
 $$
 w_i \ge 0
 $$
 
-### Budget constraint
+#### Budget constraint
 
 $$
 \sum_i w_i = 1
 $$
 
-### Cardinality constraint
+#### Cardinality constraint
 
 $$
 |w|_0 = K
@@ -58,7 +58,7 @@ Cardinality constraints introduce **combinatorial structure**, motivating discre
 
 ---
 
-# 2. Variational Quantum Eigensolvers (VQE)
+## 2. Variational Quantum Eigensolvers (VQE)
 
 VQE solves optimization problems of the form:
 
@@ -90,7 +90,7 @@ In this project, the portfolio objective is encoded directly into $ H $.
 
 ---
 
-# 3. Quantum Approximate Optimization Algorithm (QAOA)
+## 3. Quantum Approximate Optimization Algorithm (QAOA)
 
 QAOA is a gate-based algorithm designed for combinatorial optimization problems.
 
@@ -125,7 +125,7 @@ are optimized using classical optimization.
 
 ---
 
-## 3.1 Cost Hamiltonian
+### 3.1 Cost Hamiltonian
 
 Portfolio optimization produces a QUBO objective:
 
@@ -145,11 +145,11 @@ This Hamiltonian is shared with Binary VQE.
 
 ---
 
-## 3.2 Mixer Hamiltonians
+### 3.2 Mixer Hamiltonians
 
 Two mixers are implemented.
 
-### X mixer
+#### X mixer
 
 $$
 H_M^{(X)}
@@ -159,7 +159,7 @@ $$
 
 Promotes exploration across the full computational basis.
 
-### XY mixer
+#### XY mixer
 
 $$
 H_M^{(XY)}
@@ -175,7 +175,7 @@ Preserves approximate Hamming-weight structure, making it useful for:
 
 ---
 
-## 3.3 Sampling interpretation
+### 3.3 Sampling interpretation
 
 QAOA produces a probability distribution over bitstrings:
 
@@ -187,21 +187,21 @@ $$
 
 From this distribution we compute:
 
-### Marginal probabilities
+#### Marginal probabilities
 
 $$
 p_i = \mathbb{E}[x_i]
 $$
 
-### Top-K projection
+#### Top-K projection
 
 Select the $ K $ largest marginals.
 
-### Mode bitstring
+#### Mode bitstring
 
 Most frequently sampled bitstring.
 
-### Best feasible candidate
+#### Best feasible candidate
 
 Lowest-cost bitstring satisfying the constraint.
 
@@ -213,9 +213,9 @@ QAOA therefore provides:
 
 ---
 
-# 4. Binary Portfolio Optimization via QUBO
+## 4. Binary Portfolio Optimization via QUBO
 
-## 4.1 Binary decision variables
+### 4.1 Binary decision variables
 
 Let:
 
@@ -240,7 +240,7 @@ This is a Quadratic Unconstrained Binary Optimization (QUBO) problem.
 
 ---
 
-## 4.2 Ising mapping
+### 4.2 Ising mapping
 
 Binary variables are mapped to Pauli-Z operators:
 
@@ -268,7 +268,7 @@ This Hamiltonian is minimized via:
 
 ---
 
-## 4.3 Expectation vs bitstrings
+### 4.3 Expectation vs bitstrings
 
 Variational algorithms optimize expectation values:
 
@@ -287,9 +287,9 @@ Post-processing extracts:
 
 ---
 
-# 5. Fractional Portfolio Optimization via Simplex Encoding
+## 5. Fractional Portfolio Optimization via Simplex Encoding
 
-## 5.1 Continuous parameterization
+### 5.1 Continuous parameterization
 
 Each qubit prepares:
 
@@ -307,7 +307,7 @@ $$
 
 ---
 
-## 5.2 Simplex normalization
+### 5.2 Simplex normalization
 
 Weights:
 
@@ -326,7 +326,7 @@ Constraints are satisfied by construction.
 
 ---
 
-## 5.3 Optimization objective
+### 5.3 Optimization objective
 
 $$
 \min_\theta
@@ -344,7 +344,7 @@ Advantages:
 
 ---
 
-# 6. Binary vs Fractional Encodings
+## 6. Binary vs Fractional Encodings
 
 | aspect              | binary (VQE / QAOA) | fractional VQE |
 | ------------------- | ------------------- | -------------- |
@@ -358,23 +358,23 @@ Advantages:
 
 ---
 
-# Summary
+## Summary
 
 This project demonstrates three complementary quantum approaches:
 
-### Binary VQE
+#### Binary VQE
 
 - Hamiltonian expectation minimization
 - flexible ansatz design
 - probabilistic bitstring outputs
 
-### QAOA
+#### QAOA
 
 - structured alternating operators
 - natural fit for QUBO problems
 - interpretable circuit depth parameter
 
-### Fractional VQE
+#### Fractional VQE
 
 - continuous parameterization
 - exact feasibility
@@ -384,7 +384,7 @@ Together they provide a consistent framework for studying how portfolio optimiza
 
 ---
 
-# References
+## References
 
 1. Markowitz, H.
    *Portfolio Selection*, Journal of Finance (1952)
@@ -404,7 +404,7 @@ Together they provide a consistent framework for studying how portfolio optimiza
 
 ---
 
-# Author
+## Author
 
 Sid Richards
 
@@ -416,6 +416,6 @@ GitHub
 
 ---
 
-# License
+## License
 
-MIT License — see LICENSE
+MIT License — see [LICENSE](LICENSE)
