@@ -26,6 +26,8 @@
 
 PyPI: [https://pypi.org/project/vqe-portfolio/](https://pypi.org/project/vqe-portfolio/)
 
+Website: [https://sidrichardsquantum.github.io/VQE_Portfolio_Optimization/](https://sidrichardsquantum.github.io/VQE_Portfolio_Optimization/)
+
 This package implements **portfolio optimization using Variational Quantum Eigensolvers (VQE)** as a clean, testable, and reusable **Python library**, with notebooks acting purely as *clients*.
 
 Three complementary quantum formulations are provided:

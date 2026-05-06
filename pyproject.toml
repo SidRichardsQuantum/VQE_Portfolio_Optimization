@@ -51,6 +51,12 @@ notebooks = [
   "jupytext>=1.16,<2.0",
 ]
 
+docs = [
+  "sphinx>=8,<9",
+  "furo>=2024.8.6",
+  "myst-parser>=4,<5",
+]
+
 data = [
   "pandas>=2.0,<3.0",
   "yfinance>=0.2.40,<0.3.0",
@@ -60,6 +66,9 @@ data = [
 all = [
   "cvxpy>=1.4,<2.0",
   "osqp>=0.6,<1.0",
+  "sphinx>=8,<9",
+  "furo>=2024.8.6",
+  "myst-parser>=4,<5",
   "jupyter>=1.0",
   "jupytext>=1.16,<2.0",
   "pandas>=2.0,<3.0",

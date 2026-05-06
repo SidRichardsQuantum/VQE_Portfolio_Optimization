@@ -1,0 +1,4 @@
+# Theory
+
+```{include} ../../THEORY.md
+```
