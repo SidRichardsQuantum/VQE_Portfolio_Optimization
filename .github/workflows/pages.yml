@@ -1,0 +1,723 @@
+name: pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install docs renderer
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "markdown>=3.6,<4.0"
+
+      - name: Build Pages site
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import html
+          import re
+          from pathlib import Path
+
+          import markdown
+
+          site = Path("_site")
+          site.mkdir(exist_ok=True)
+
+          md = markdown.Markdown(
+              extensions=[
+                  "extra",
+                  "toc",
+                  "sane_lists",
+              ],
+              extension_configs={
+                  "toc": {
+                      "permalink": True,
+                      "toc_depth": "2-4",
+                  },
+              },
+          )
+
+          docs = [
+              ("README.md", "Overview", "Project overview, implemented methods, installation, and repository structure."),
+              ("USAGE.md", "Usage", "CLI and Python examples for binary VQE, QAOA, fractional VQE, sweeps, and real data."),
+              ("THEORY.md", "Theory", "Mean-variance optimization, QUBO and Ising mappings, VQE, QAOA, and simplex encodings."),
+          ]
+
+          css = """
+          :root {
+            color-scheme: light dark;
+            --bg: #f7f7f4;
+            --surface: #ffffff;
+            --surface-muted: #ededeb;
+            --text: #1d2328;
+            --muted: #5b6670;
+            --line: #d7d9d6;
+            --accent: #126c83;
+            --accent-strong: #0f5364;
+            --accent-soft: #dceff3;
+            --code-bg: #eef2f1;
+            --shadow: 0 18px 45px rgba(34, 41, 47, 0.08);
+            --shadow-soft: 0 10px 30px rgba(34, 41, 47, 0.06);
+          }
+
+          @media (prefers-color-scheme: dark) {
+            :root {
+              --bg: #101416;
+              --surface: #171d20;
+              --surface-muted: #20282b;
+              --text: #edf1f2;
+              --muted: #a9b4b8;
+              --line: #2e393d;
+              --accent: #66c5d7;
+              --accent-strong: #9eddea;
+              --accent-soft: #17333a;
+              --code-bg: #11191c;
+              --shadow: 0 18px 45px rgba(0, 0, 0, 0.25);
+              --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.18);
+            }
+          }
+
+          * { box-sizing: border-box; }
+
+          html { scroll-behavior: smooth; }
+
+          body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.6;
+            text-rendering: optimizeLegibility;
+          }
+
+          a {
+            color: inherit;
+            text-decoration-color: color-mix(in srgb, var(--accent) 65%, transparent);
+            text-underline-offset: 0.2em;
+          }
+
+          a:hover { color: var(--accent-strong); }
+
+          a:focus-visible,
+          main:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 4px;
+          }
+
+          .skip-link {
+            position: fixed;
+            top: 0.75rem;
+            left: 0.75rem;
+            z-index: 20;
+            transform: translateY(-150%);
+            border: 1px solid var(--accent-strong);
+            border-radius: 8px;
+            padding: 0.65rem 0.9rem;
+            background: var(--surface);
+            color: var(--accent-strong);
+            font-weight: 800;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+            transition: transform 160ms ease;
+          }
+
+          .skip-link:focus-visible { transform: translateY(0); }
+
+          .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            padding: 1rem clamp(1rem, 4vw, 3rem);
+            border-bottom: 1px solid var(--line);
+            background: color-mix(in srgb, var(--bg) 88%, transparent);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+          }
+
+          .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+            font-weight: 700;
+            text-decoration: none;
+          }
+
+          .brand-mark {
+            display: inline-grid;
+            width: 2.2rem;
+            height: 2.2rem;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--accent-strong);
+            font-size: 0.82rem;
+          }
+
+          .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 0.35rem 1rem;
+            color: var(--muted);
+            font-size: 0.95rem;
+          }
+
+          .nav-links a {
+            border-radius: 6px;
+            padding: 0.15rem 0;
+            text-decoration: none;
+          }
+
+          .section {
+            width: min(1120px, calc(100% - 2rem));
+            margin: 0 auto;
+            padding: clamp(3rem, 8vw, 6rem) 0;
+            scroll-margin-top: 6rem;
+          }
+
+          .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+            align-items: center;
+            gap: clamp(2rem, 5vw, 4rem);
+            min-height: calc(100vh - 5rem);
+          }
+
+          .hero-copy h1 {
+            max-width: 12ch;
+            margin: 0;
+            font-size: clamp(3.6rem, 11vw, 7.6rem);
+            line-height: 0.9;
+            letter-spacing: 0;
+          }
+
+          .eyebrow {
+            margin: 0 0 0.75rem;
+            color: var(--accent-strong);
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+
+          .hero-text {
+            max-width: 680px;
+            margin: 1.4rem 0 0;
+            color: var(--muted);
+            font-size: clamp(1.08rem, 2vw, 1.3rem);
+          }
+
+          .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 2rem;
+          }
+
+          .button {
+            display: inline-flex;
+            min-height: 2.75rem;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0.72rem 1rem;
+            background: var(--surface);
+            color: var(--text);
+            font-weight: 700;
+            text-decoration: none;
+            transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+          }
+
+          .button.primary {
+            border-color: var(--accent-strong);
+            background: var(--accent-strong);
+            color: #ffffff;
+          }
+
+          .button:hover { transform: translateY(-1px); }
+
+          .hero-side {
+            display: grid;
+            gap: 1rem;
+            align-self: center;
+          }
+
+          .hero-visual,
+          .focus-panel,
+          .doc-card,
+          .package-row,
+          .content {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: var(--shadow-soft);
+          }
+
+          .hero-visual {
+            aspect-ratio: 13 / 9;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+          }
+
+          .hero-visual svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+          }
+
+          .visual-bg { fill: var(--surface); }
+          .visual-grid { opacity: 0.5; }
+          .hero-visual pattern path {
+            fill: none;
+            stroke: var(--line);
+            stroke-width: 1;
+          }
+
+          .visual-circuit {
+            fill: none;
+            stroke: var(--accent-strong);
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 6;
+          }
+
+          .visual-circuit circle,
+          .visual-circuit rect { fill: var(--surface); }
+
+          .visual-labels {
+            fill: var(--muted);
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+            font-size: 16px;
+            font-weight: 800;
+          }
+
+          .focus-panel {
+            padding: 1.4rem;
+            box-shadow: var(--shadow);
+          }
+
+          .focus-panel h2 {
+            margin: 0 0 1rem;
+            font-size: 1rem;
+          }
+
+          .focus-panel ul {
+            display: grid;
+            gap: 0.85rem;
+            margin: 0;
+            padding-left: 1.1rem;
+            color: var(--muted);
+          }
+
+          .section-heading {
+            max-width: 760px;
+            margin-bottom: 1.5rem;
+          }
+
+          .section-heading h2 {
+            margin: 0;
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            line-height: 1.05;
+          }
+
+          .section-heading p { color: var(--muted); }
+
+          .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
+          }
+
+          .doc-card {
+            display: flex;
+            min-height: 250px;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 1.25rem;
+            padding: 1.25rem;
+            transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+          }
+
+          .doc-card:hover,
+          .doc-card:focus-within {
+            border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+            box-shadow: var(--shadow);
+            transform: translateY(-2px);
+          }
+
+          .doc-card h3,
+          .package-row h3 {
+            margin: 0 0 0.6rem;
+            font-size: 1.15rem;
+            line-height: 1.25;
+          }
+
+          .doc-card p,
+          .package-row p { color: var(--muted); }
+
+          .card-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            border-top: 1px solid var(--line);
+            padding-top: 1rem;
+          }
+
+          .card-links a,
+          .package-row a {
+            color: var(--accent-strong);
+            font-weight: 800;
+            text-decoration: none;
+          }
+
+          .card-links a::after,
+          .package-row a::after { content: " ->"; }
+
+          .package-row {
+            display: grid;
+            grid-template-columns: minmax(220px, 1fr) minmax(220px, 0.9fr) auto;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+          }
+
+          .badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+          }
+
+          .badges img {
+            display: block;
+            max-width: 100%;
+            height: 20px;
+          }
+
+          code,
+          pre {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--code-bg);
+            color: var(--text);
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+            font-size: 0.9rem;
+          }
+
+          code {
+            display: inline-block;
+            max-width: 100%;
+            padding: 0.1rem 0.35rem;
+          }
+
+          pre {
+            overflow-x: auto;
+            padding: 1rem;
+          }
+
+          pre code {
+            display: block;
+            border: 0;
+            padding: 0;
+            background: transparent;
+          }
+
+          .content {
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+          }
+
+          .content h1,
+          .content h2,
+          .content h3 { line-height: 1.15; }
+
+          .content h1 { font-size: clamp(2.5rem, 7vw, 4rem); }
+          .content h2 { margin-top: 2.5rem; font-size: clamp(1.8rem, 4vw, 2.5rem); }
+          .content img { max-width: 100%; }
+          .content table { display: block; overflow-x: auto; border-collapse: collapse; }
+          .content th,
+          .content td { border: 1px solid var(--line); padding: 0.5rem 0.7rem; }
+          .content blockquote { border-left: 4px solid var(--accent); margin-left: 0; padding-left: 1rem; color: var(--muted); }
+
+          .site-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 2rem clamp(1rem, 4vw, 3rem);
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+          }
+
+          .site-footer a {
+            font-weight: 700;
+            text-decoration: none;
+          }
+
+          @media (max-width: 880px) {
+            .hero { grid-template-columns: 1fr; min-height: auto; }
+            .hero-side { grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr); }
+            .doc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .package-row { grid-template-columns: 1fr; }
+          }
+
+          @media (max-width: 620px) {
+            .site-header {
+              align-items: flex-start;
+              flex-direction: column;
+              gap: 0.75rem;
+            }
+
+            .nav-links { justify-content: flex-start; }
+            .section { width: min(100% - 1rem, 1120px); padding: clamp(2.5rem, 12vw, 4rem) 0; }
+            .hero-copy h1 { font-size: clamp(3.2rem, 18vw, 4.8rem); }
+            .hero-side,
+            .doc-grid { grid-template-columns: 1fr; }
+            .doc-card { min-height: 0; }
+            .button { width: 100%; }
+            .site-footer { align-items: flex-start; flex-direction: column; }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+              scroll-behavior: auto !important;
+              transition-duration: 0.01ms !important;
+              animation-duration: 0.01ms !important;
+              animation-iteration-count: 1 !important;
+            }
+
+            .button:hover,
+            .doc-card:hover,
+            .doc-card:focus-within { transform: none; }
+          }
+          """
+
+          def shell(title: str, body: str, current: str = "") -> str:
+              nav = "".join(
+                  f'<a href="{href}"{" aria-current=\"page\"" if href == current else ""}>{label}</a>'
+                  for href, label in [
+                      ("index.html", "Home"),
+                      ("overview.html", "Overview"),
+                      ("usage.html", "Usage"),
+                      ("theory.html", "Theory"),
+                      ("https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization", "GitHub"),
+                  ]
+              )
+              return f"""<!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <meta name="description" content="Portfolio optimization with VQE and QAOA using PennyLane.">
+              <meta property="og:type" content="website">
+              <meta property="og:title" content="{html.escape(title)}">
+              <meta property="og:description" content="Quantum portfolio optimization toolkit for VQE, QAOA, QUBO/Ising mappings, and fractional allocation.">
+              <meta name="theme-color" content="#0f5364">
+              <title>{html.escape(title)}</title>
+              <script>
+                window.MathJax = {{ tex: {{ inlineMath: [['$', '$'], ['\\\\(', '\\\\)']] }} }};
+              </script>
+              <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+              <style>{css}</style>
+            </head>
+            <body>
+              <a class="skip-link" href="#top">Skip to main content</a>
+              <header class="site-header">
+                <a class="brand" href="index.html" aria-label="VQE Portfolio Optimization home">
+                  <span class="brand-mark">SR</span>
+                  <span>VQE Portfolio Optimization</span>
+                </a>
+                <nav class="nav-links" aria-label="Primary navigation">{nav}</nav>
+              </header>
+              <main id="top" tabindex="-1">{body}</main>
+              <footer class="site-footer">
+                <span>&copy; 2026 Sid Richards</span>
+                <a href="#top">Back to top</a>
+              </footer>
+            </body>
+          </html>
+          """
+
+          def page_name(source: str) -> str:
+              return "overview.html" if source == "README.md" else f"{Path(source).stem.lower()}.html"
+
+          def render_markdown(source: str, title: str) -> None:
+              raw = Path(source).read_text(encoding="utf-8")
+              rendered = md.reset().convert(raw)
+              body = f'<section class="section"><article class="content">{rendered}</article></section>'
+              (site / page_name(source)).write_text(shell(title, body, page_name(source)), encoding="utf-8")
+
+          for source, title, _description in docs:
+              render_markdown(source, title)
+
+          cards = "\n".join(
+              f"""
+              <article class="doc-card">
+                <div>
+                  <h3>{html.escape(title)}</h3>
+                  <p>{html.escape(description)}</p>
+                </div>
+                <div class="card-links">
+                  <a href="{page_name(source)}">Read {html.escape(title)}</a>
+                </div>
+              </article>
+              """
+              for source, title, description in docs
+          )
+
+          hero_visual = """
+          <div class="hero-visual" aria-hidden="true">
+            <svg viewBox="0 0 520 360" role="presentation" focusable="false">
+              <defs>
+                <pattern id="hero-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M40 0H0V40" />
+                </pattern>
+              </defs>
+              <rect class="visual-bg" width="520" height="360" rx="8" />
+              <rect class="visual-grid" width="520" height="360" rx="8" fill="url(#hero-grid)" />
+              <g class="visual-circuit">
+                <path d="M72 86h344M72 146h344M72 206h344M72 266h344" />
+                <path d="M168 86v120M276 146v120M360 86v180" />
+                <circle cx="168" cy="86" r="13" />
+                <circle cx="168" cy="206" r="13" />
+                <circle cx="276" cy="146" r="13" />
+                <circle cx="276" cy="266" r="13" />
+                <circle cx="360" cy="86" r="13" />
+                <circle cx="360" cy="266" r="13" />
+                <path d="M121 68v36M103 86h36M103 128l36 36M139 128l-36 36M333 188l54 36M387 188l-54 36" />
+                <rect x="218" y="66" width="52" height="40" rx="8" />
+                <rect x="400" y="126" width="52" height="40" rx="8" />
+              </g>
+              <g class="visual-labels">
+                <text x="58" y="322">VQE</text>
+                <text x="142" y="322">QAOA</text>
+                <text x="246" y="322">QUBO</text>
+                <text x="350" y="322">Ising</text>
+                <text x="430" y="322">PyPI</text>
+              </g>
+            </svg>
+          </div>
+          """
+
+          index_body = f"""
+          <section class="hero section">
+            <div class="hero-copy">
+              <p class="eyebrow">Quantum optimization and scientific Python</p>
+              <h1>Portfolio Optimization via VQE</h1>
+              <p class="hero-text">
+                A PennyLane toolkit for binary asset selection, QAOA, QUBO/Ising
+                mappings, and fractional long-only allocation on the simplex.
+              </p>
+              <div class="hero-actions" aria-label="Project links">
+                <a class="button primary" href="overview.html">Read Docs</a>
+                <a class="button" href="https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization">GitHub</a>
+                <a class="button" href="https://pypi.org/project/vqe-portfolio/">PyPI</a>
+              </div>
+            </div>
+            <div class="hero-side">
+              {hero_visual}
+              <aside class="focus-panel" aria-label="Project focus areas">
+                <h2>Focus Areas</h2>
+                <ul>
+                  <li>Binary VQE for cardinality-constrained asset selection</li>
+                  <li>QAOA with standard and constraint-aware mixers</li>
+                  <li>Fractional VQE for simplex-constrained allocations</li>
+                  <li>Lambda sweeps, samples, and efficient frontiers</li>
+                </ul>
+              </aside>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-heading">
+              <p class="eyebrow">Documentation</p>
+              <h2>Project Pages</h2>
+              <p>Reference material generated from the repository docs.</p>
+            </div>
+            <div class="doc-grid">{cards}</div>
+          </section>
+
+          <section class="section">
+            <div class="section-heading">
+              <p class="eyebrow">Package</p>
+              <h2>Install</h2>
+              <p>Use the published package for the standard workflow, or install from source for development.</p>
+            </div>
+            <article class="package-row">
+              <div>
+                <h3>vqe-portfolio</h3>
+                <div class="badges" aria-label="vqe-portfolio package badges">
+                  <img src="https://img.shields.io/pypi/v/vqe-portfolio?label=PyPI" alt="vqe-portfolio PyPI version">
+                  <img src="https://img.shields.io/pypi/pyversions/vqe-portfolio" alt="vqe-portfolio supported Python versions">
+                  <img src="https://img.shields.io/pypi/l/vqe-portfolio" alt="vqe-portfolio license">
+                </div>
+              </div>
+              <code>pip install vqe-portfolio</code>
+              <a href="https://pypi.org/project/vqe-portfolio/">PyPI</a>
+            </article>
+          </section>
+          """
+
+          (site / "index.html").write_text(shell("Portfolio Optimization via VQE", index_body, "index.html"), encoding="utf-8")
+          (site / ".nojekyll").write_text("", encoding="utf-8")
+
+          for path in site.glob("*.html"):
+              text = path.read_text(encoding="utf-8")
+              if re.search(r"<html|</html>", text, re.IGNORECASE) is None:
+                  raise SystemExit(f"{path} is missing an HTML shell")
+          PY
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
