@@ -4,7 +4,27 @@ from pathlib import Path
 from typing import Sequence
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 import numpy as np
+
+METHOD_COLORS = {
+    "Classical exhaustive search": "#1f77b4",
+    "Classical top-return heuristic": "#ff7f0e",
+    "Classical minimum-variance subset": "#2ca02c",
+    "Classical equal weight": "#7f7f7f",
+    "Classical exact Markowitz": "#17becf",
+    "Binary VQE best feasible": "#d62728",
+    "QAOA X best feasible": "#9467bd",
+    "QAOA XY best feasible": "#8c564b",
+    "Fractional VQE": "#e377c2",
+}
+
+
+def _color_for_method(method: str, index: int = 0) -> str:
+    if method in METHOD_COLORS:
+        return METHOD_COLORS[method]
+    cycle = plt.rcParams["axes.prop_cycle"].by_key().get("color", ["#1f77b4"])
+    return cycle[index % len(cycle)]
 
 
 def savefig(path: str | Path, dpi: int = 300) -> None:
@@ -149,6 +169,73 @@ def plot_frontier(
     plt.ylabel("Expected return")
     plt.title(title)
     plt.grid(True)
+
+    if outpath is not None:
+        savefig(outpath, dpi=200)
+
+    return fig
+
+
+def plot_comparison_metric_bars(
+    rows: Sequence[dict[str, str]],
+    metric: str,
+    title: str,
+    ylabel: str | None = None,
+    outpath: str | Path | None = None,
+):
+    labels = [row["method"] for row in rows]
+    values = [float(row[metric]) for row in rows]
+    colors = [_color_for_method(label, i) for i, label in enumerate(labels)]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.bar(labels, values, color=colors)
+    ax.set_ylabel(ylabel or metric)
+    ax.set_title(title)
+    ax.grid(axis="y", alpha=0.35)
+    ax.tick_params(axis="x", rotation=35)
+    ax.set_axisbelow(True)
+    ax.legend(
+        handles=[
+            Patch(facecolor=color, label=label) for label, color in zip(labels, colors)
+        ],
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        fontsize=8,
+        frameon=True,
+    )
+
+    if outpath is not None:
+        savefig(outpath, dpi=200)
+
+    return fig
+
+
+def plot_risk_return_comparison(
+    rows: Sequence[dict[str, str]],
+    title: str,
+    outpath: str | Path | None = None,
+):
+    fig, ax = plt.subplots(figsize=(7, 5))
+    for i, row in enumerate(rows):
+        risk = float(row.get("risk", row.get("mean_risk", 0.0)))
+        ret = float(row.get("return", row.get("mean_return", 0.0)))
+        ax.scatter(
+            risk,
+            ret,
+            s=55,
+            color=_color_for_method(row["method"], i),
+            label=row["method"],
+        )
+    ax.set_xlabel("Portfolio risk σ")
+    ax.set_ylabel("Expected return")
+    ax.set_title(title)
+    ax.grid(True, alpha=0.35)
+    ax.legend(
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        fontsize=8,
+        frameon=True,
+    )
 
     if outpath is not None:
         savefig(outpath, dpi=200)

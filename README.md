@@ -200,6 +200,7 @@ src/
     ├── qaoa.py          # QAOA portfolio optimization
     ├── fractional.py    # Fractional VQE (simplex parameterization)
     ├── frontier.py      # Efficient frontier utilities
+    ├── comparison.py    # Exact baselines and comparison helpers
     ├── ansatz.py        # Shared circuit ansätze
     ├── optimize.py      # Optimizer loops
     ├── metrics.py       # Risk / return utilities
@@ -207,15 +208,30 @@ src/
     ├── data.py          # Market data utilities
     └── types.py         # Dataclasses for configs & results
 
+scripts/
+└── generate_comparison_results.py  # Synthetic baselines and repeatability CSVs
+
+results/
+├── synthetic_comparison.csv
+├── real_data_comparison.csv
+├── generated_comparison_summary.csv
+├── generated_repeatability_trials.csv
+└── real_data_method_comparison.csv
+
 notebooks/
 ├── Binary.ipynb
 ├── QAOA.ipynb
 ├── Fractional.ipynb
+├── Benchmark_Comparison.ipynb
+├── Real_Data_Comparison.ipynb
 ├── examples/
 │   ├── 01_Real_example.ipynb
 │   ├── 02_Real_Example.ipynb
 │   └── 03_Real_Example.ipynb
 └── images/
+
+tests/
+└── test_*.py
 ```
 
 ---
@@ -230,6 +246,7 @@ See **[USAGE.md](USAGE.md)** for:
 - Minimal API examples
 - Synthetic-data quickstart
 - Real-data workflows
+- Benchmark comparison workflows
 - λ-sweeps and efficient frontiers
 
 ---
@@ -237,6 +254,8 @@ See **[USAGE.md](USAGE.md)** for:
 ## Additional Documentation
 
 - **Theory & derivations**: [`THEORY.md`](THEORY.md)
+- **Usage & reproducibility**: [`USAGE.md`](USAGE.md)
+- **Committed benchmark results**: [`RESULTS.md`](RESULTS.md)
 
 ---
 
@@ -246,7 +265,7 @@ This project demonstrates:
 
 - Mapping **financial optimization problems** to quantum Hamiltonians
 - Clean constraint handling (cardinality vs simplex)
-- A strict separation between **research code** and **experiment clients**
+- A strict separation between **research code**, notebook clients, and benchmark scripts
 - Reproducible hybrid quantum–classical workflows
 - Production‑grade packaging and CI for quantum algorithms
 

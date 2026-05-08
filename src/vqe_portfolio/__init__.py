@@ -88,6 +88,17 @@ from .frontier import (
     fractional_frontier_from_allocs,
 )
 
+from .comparison import (
+    binary_objective,
+    fractional_objective,
+    exhaustive_binary_baseline,
+    top_return_baseline,
+    minimum_variance_binary_baseline,
+    equal_weight_baseline,
+    exact_long_only_markowitz_baseline,
+    real_data_comparison_rows,
+)
+
 # ---------------------------------------------------------------------
 # Public utilities
 # ---------------------------------------------------------------------
@@ -125,6 +136,15 @@ __all__ = [
     "Frontier",
     "binary_frontier_from_probs",
     "fractional_frontier_from_allocs",
+    # --- comparison helpers ---
+    "binary_objective",
+    "fractional_objective",
+    "exhaustive_binary_baseline",
+    "top_return_baseline",
+    "minimum_variance_binary_baseline",
+    "equal_weight_baseline",
+    "exact_long_only_markowitz_baseline",
+    "real_data_comparison_rows",
     # --- utilities ---
     "set_global_seed",
     "resolve_notebook_outdir",

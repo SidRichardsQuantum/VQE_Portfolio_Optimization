@@ -166,6 +166,16 @@ All CLI commands respect the same reproducibility controls as the Python API:
 --seed 0
 ```
 
+For repeatable benchmark artifacts, use the committed results-generation script:
+
+```bash
+python scripts/generate_comparison_results.py
+```
+
+It writes a summary CSV and a per-seed trial CSV under `results/`. The defaults are intentionally compact; expand them with `--asset-counts`, `--seeds`, `--steps`, and `--methods`.
+
+`notebooks/Benchmark_Comparison.ipynb` and `notebooks/Real_Data_Comparison.ipynb` are pure-package clients for the same comparison workflows. They display CSV tables and save comparison plots under `notebooks/images/`.
+
 ---
 
 ### Relationship to the Python API
@@ -175,6 +185,7 @@ The CLI is a **thin client** over the same public API used by notebooks and scri
 - `vqe-portfolio binary` → `run_binary_vqe`
 - `vqe-portfolio qaoa` → `run_qaoa`
 - `vqe-portfolio fractional` → `run_fractional_vqe`
+- benchmark notebooks/scripts → `vqe_portfolio.comparison` helpers
 
 No logic is duplicated.
 
@@ -398,6 +409,16 @@ set_global_seed(0)
 
 All optimization loops and random initializations respect the global seed.
 
+For method-level repeatability reports, regenerate:
+
+```bash
+python scripts/generate_comparison_results.py
+```
+
+This records aggregate objective statistics in `results/generated_comparison_summary.csv` and per-seed trial rows in `results/generated_repeatability_trials.csv`.
+
+Comparison CSVs distinguish `objective_family` from `reported_weighting`: binary objectives are true QUBO objectives on bitstrings, while binary risk/return is reported from equal-weight selected portfolios for comparability with simplex allocations.
+
 ---
 
 ## 7. Notebooks as Clients
@@ -407,6 +428,7 @@ All notebooks in `notebooks/` simply:
 - import the public API
 - call `run_binary_vqe`, `run_qaoa`, or `run_fractional_vqe`
 - generate plots via `vqe_portfolio.plotting`
+- regenerate or display comparison CSVs from the package clients
 
 They contain **no core logic**.
 

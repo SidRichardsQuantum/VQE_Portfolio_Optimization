@@ -6,16 +6,61 @@ Machine-readable copies of the comparison tables are committed under `results/`:
 
 - `results/synthetic_comparison.csv`
 - `results/real_data_comparison.csv`
+- `results/generated_comparison_summary.csv`
+- `results/generated_repeatability_trials.csv`
+- `results/real_data_method_comparison.csv`
+
+For repeatable synthetic benchmark summaries, regenerate a compact comparison CSV with:
+
+```bash
+python scripts/generate_comparison_results.py
+```
+
+By default this writes `results/generated_comparison_summary.csv` with classical baselines, multi-seed quantum summaries, feasibility rates, objectives, risk/return metrics, and runtimes. It also writes `results/generated_repeatability_trials.csv` with one row per method/seed trial. Use `--asset-counts`, `--seeds`, `--steps`, and `--methods` to expand or tighten the run.
 
 ## How to Read the Tables
 
-For binary selection methods, lower objective is better for a fixed dataset, risk-aversion value, penalty, and cardinality. Return and risk are reported from the portfolio implied by the selected bitstring. For fractional allocation methods, weights live on the simplex and are compared against the classical Markowitz objective at the same risk-aversion value when a numeric baseline is committed.
+For binary selection methods, lower objective is better for a fixed dataset, risk-aversion value, penalty, and cardinality. For fractional allocation methods, lower simplex objective is better at the same risk-aversion value.
+
+Generated comparison tables include `objective_family` and `reported_weighting` columns because binary QUBO objectives and fractional simplex objectives are different mathematical objectives. In generated comparison rows, binary return and risk are reported from equal-weight selected portfolios (`x / K`) so risk-return plots are comparable with simplex allocations, while the binary objective remains the true QUBO objective evaluated on the raw bitstring `x`.
 
 The real-data tables report values already saved in notebook outputs. Exact real-data classical optimizer rows should be regenerated together with the market-data notebooks because adjusted prices and shrinkage estimates are provider-dependent.
 
 ## Synthetic Results
 
 Synthetic examples use fixed in-notebook arrays and are therefore the best place for deterministic method-to-baseline comparisons.
+
+### Generated Baseline and Repeatability Results
+
+The generated comparison files add baseline rows and repeatability summaries from deterministic synthetic data:
+
+- Binary baselines: exact exhaustive search, top-return subset, and minimum-variance subset
+- Continuous baselines: equal-weight allocation and exact long-only Markowitz
+- Quantum repeatability: Binary VQE, QAOA X, QAOA XY, and Fractional VQE summarized across seeds, with per-seed rows saved separately
+- Objective plots are split by objective family so binary QUBO objectives are not visually mixed with fractional simplex objectives
+
+The committed generated CSVs are lightweight benchmark artifacts. Regenerate them after algorithm changes with:
+
+```bash
+python scripts/generate_comparison_results.py
+```
+
+| Dataset | Method | Objective family | Reported weighting | Seeds | Mean return | Mean risk | Best objective | Mean objective | Std objective | Feasible rate |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Synthetic generated n=4 | Classical exhaustive search | binary QUBO | equal-weight selected | 1 | 0.102055 | 0.174865 | 0.285137 | 0.285137 | 0.000000 | 1.000000 |
+| Synthetic generated n=4 | Classical top-return heuristic | binary QUBO | equal-weight selected | 1 | 0.161566 | 0.209324 | 0.377932 | 0.377932 | 0.000000 | 1.000000 |
+| Synthetic generated n=4 | Classical minimum-variance subset | binary QUBO | equal-weight selected | 1 | 0.102055 | 0.174865 | 0.285137 | 0.285137 | 0.000000 | 1.000000 |
+| Synthetic generated n=4 | Classical equal weight | fractional simplex | simplex weights | 1 | 0.118063 | 0.129968 | -0.050496 | -0.050496 | 0.000000 | 1.000000 |
+| Synthetic generated n=4 | Classical exact Markowitz | fractional simplex | simplex weights | 1 | 0.125046 | 0.133935 | -0.053292 | -0.053292 | 0.000000 | 1.000000 |
+| Synthetic generated n=4 | Binary VQE best feasible | binary QUBO | equal-weight selected | 3 | 0.107872 | 0.177643 | 0.285137 | 0.289414 | 0.006049 | 0.978516 |
+| Synthetic generated n=4 | QAOA X best feasible | binary QUBO | equal-weight selected | 3 | 0.102055 | 0.174865 | 0.285137 | 0.285137 | 0.000000 | 0.699219 |
+| Synthetic generated n=4 | QAOA XY best feasible | binary QUBO | equal-weight selected | 3 | 0.102055 | 0.174865 | 0.285137 | 0.285137 | 0.000000 | 1.000000 |
+| Synthetic generated n=4 | Fractional VQE | fractional simplex | simplex weights | 3 | 0.123596 | 0.132920 | -0.053289 | -0.052921 | 0.000415 | 1.000000 |
+
+![Generated benchmark risk return](notebooks/images/Generated_Benchmark_Risk_Return.png)
+![Generated benchmark binary objective](notebooks/images/Generated_Benchmark_Binary_Objective.png)
+![Generated benchmark fractional objective](notebooks/images/Generated_Benchmark_Fractional_Objective.png)
+![Generated benchmark feasibility](notebooks/images/Generated_Benchmark_Feasibility.png)
 
 ### Synthetic Discrete Selection
 
@@ -109,6 +154,16 @@ Real-data notebooks use market data for a fixed 2024-01-01 to 2025-01-01 window.
 | Real QAOA example | QAOA X best feasible | Quantum | 2024-01-01 to 2025-01-01 | AAPL, NVDA | not printed | not printed | -0.205323 | yes |
 | Real QAOA example | QAOA XY best feasible | Quantum | 2024-01-01 to 2025-01-01 | AAPL, NVDA | not printed | not printed | -0.205323 | yes |
 
+### Real-Data Method Comparison
+
+`notebooks/Real_Data_Comparison.ipynb` writes `results/real_data_method_comparison.csv` and plots the same-method comparison from those rows.
+Binary rows use equal-weight selected portfolios for reported return and risk, while objective values remain true binary QUBO objectives. Fractional rows use simplex weights and simplex objectives.
+
+![Real data method comparison risk return](notebooks/images/Real_Data_Method_Comparison_Risk_Return.png)
+![Real data method comparison binary objective](notebooks/images/Real_Data_Method_Comparison_Binary_Objective.png)
+![Real data method comparison fractional objective](notebooks/images/Real_Data_Method_Comparison_Fractional_Objective.png)
+![Real data method comparison feasibility](notebooks/images/Real_Data_Method_Comparison_Feasibility.png)
+
 ### Real Fractional Frontier
 
 | Method | λ | Return | Risk |
@@ -167,6 +222,8 @@ Then open the notebook clients:
 - `notebooks/Binary.ipynb`
 - `notebooks/QAOA.ipynb`
 - `notebooks/Fractional.ipynb`
+- `notebooks/Benchmark_Comparison.ipynb`
+- `notebooks/Real_Data_Comparison.ipynb`
 - `notebooks/Classical_Markowitz.ipynb`
 - `notebooks/examples/01_Real_example.ipynb`
 - `notebooks/examples/02_Real_Example.ipynb`
