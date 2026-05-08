@@ -78,6 +78,11 @@ from .fractional import (
     fractional_lambda_sweep,
 )
 
+from .ansatz import (
+    BINARY_ANSATZES,
+    FRACTIONAL_ANSATZES,
+)
+
 # ---------------------------------------------------------------------
 # Evaluation utilities
 # ---------------------------------------------------------------------
@@ -132,6 +137,8 @@ __all__ = [
     "qaoa_lambda_sweep",
     "run_fractional_vqe",
     "fractional_lambda_sweep",
+    "BINARY_ANSATZES",
+    "FRACTIONAL_ANSATZES",
     # --- evaluation ---
     "Frontier",
     "binary_frontier_from_probs",

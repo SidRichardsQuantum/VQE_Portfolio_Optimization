@@ -3,7 +3,7 @@ from __future__ import annotations
 import pennylane as qml
 from pennylane import numpy as np
 
-from .ansatz import fractional_ry_layer
+from .ansatz import apply_fractional_ansatz, fractional_ansatz_shape
 from .metrics import symmetrize
 from .optimize import adam_optimize
 from .types import (
@@ -37,11 +37,12 @@ def run_fractional_vqe(
     mu = np.array(mu, requires_grad=False)
     Sigma = symmetrize(np.array(Sigma, requires_grad=False))
     n = len(mu)
+    param_shape = fractional_ansatz_shape(cfg.ansatz, cfg.depth, n)
 
     dev = qml.device(cfg.device, wires=n)
 
     def ansatz(thetas: np.ndarray) -> None:
-        fractional_ry_layer(thetas, n_wires=n)
+        apply_fractional_ansatz(cfg.ansatz, thetas, depth=cfg.depth, n_wires=n)
 
     @qml.qnode(dev, interface="autograd")
     def expvals_z(thetas: np.ndarray):
@@ -57,7 +58,7 @@ def run_fractional_vqe(
         risk = qml.math.dot(w, qml.math.dot(Sigma, w))
         return -ret + cfg.lam * risk
 
-    init = np.array(np.random.uniform(0, np.pi, n), requires_grad=True)
+    init = np.array(np.random.uniform(0, np.pi, size=param_shape), requires_grad=True)
     opt_res = adam_optimize(
         objective, init, steps=cfg.steps, stepsize=cfg.stepsize, log_every=cfg.log_every
     )
@@ -86,11 +87,12 @@ def fractional_lambda_sweep(
     mu = np.array(mu, requires_grad=False)
     Sigma = symmetrize(np.array(Sigma, requires_grad=False))
     n = len(mu)
+    param_shape = fractional_ansatz_shape(cfg.ansatz, cfg.depth, n)
 
     dev = qml.device(cfg.device, wires=n)
 
     def ansatz(thetas: np.ndarray) -> None:
-        fractional_ry_layer(thetas, n_wires=n)
+        apply_fractional_ansatz(cfg.ansatz, thetas, depth=cfg.depth, n_wires=n)
 
     @qml.qnode(dev, interface="autograd")
     def expvals_z(thetas: np.ndarray):
@@ -100,7 +102,7 @@ def fractional_lambda_sweep(
     expvals_z = qml.set_shots(expvals_z, cfg.shots)
 
     # Start point for sweep
-    thetas = np.array(np.random.uniform(0, np.pi, n), requires_grad=True)
+    thetas = np.array(np.random.uniform(0, np.pi, size=param_shape), requires_grad=True)
     if sweep.warm_start:
         base = run_fractional_vqe(mu, Sigma, cfg)
         thetas = np.array(base.thetas, requires_grad=True)

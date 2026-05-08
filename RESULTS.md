@@ -9,6 +9,7 @@ Machine-readable copies of the comparison tables are committed under `results/`:
 - `results/generated_comparison_summary.csv`
 - `results/generated_repeatability_trials.csv`
 - `results/real_data_method_comparison.csv`
+- `results/ansatz_comparison.csv`
 
 For repeatable synthetic benchmark summaries, regenerate a compact comparison CSV with:
 
@@ -61,6 +62,21 @@ python scripts/generate_comparison_results.py
 ![Generated benchmark binary objective](notebooks/images/Generated_Benchmark_Binary_Objective.png)
 ![Generated benchmark fractional objective](notebooks/images/Generated_Benchmark_Fractional_Objective.png)
 ![Generated benchmark feasibility](notebooks/images/Generated_Benchmark_Feasibility.png)
+
+### Ansatz Comparison Results
+
+The ansatz comparison notebook is a compact pure-package client for the Binary VQE and Fractional VQE ansatz options. It writes `results/ansatz_comparison.csv` and keeps method/ansatz colors consistent across its risk-return, objective, and feasibility plots.
+
+Regenerate it with:
+
+```bash
+python scripts/generate_ansatz_comparison.py
+```
+
+![Ansatz comparison risk return](notebooks/images/Ansatz_Comparison_Risk_Return.png)
+![Ansatz comparison binary objective](notebooks/images/Ansatz_Comparison_Binary_Objective.png)
+![Ansatz comparison fractional objective](notebooks/images/Ansatz_Comparison_Fractional_Objective.png)
+![Ansatz comparison feasibility](notebooks/images/Ansatz_Comparison_Feasibility.png)
 
 ### Synthetic Discrete Selection
 
@@ -224,6 +240,7 @@ Then open the notebook clients:
 - `notebooks/Fractional.ipynb`
 - `notebooks/Benchmark_Comparison.ipynb`
 - `notebooks/Real_Data_Comparison.ipynb`
+- `notebooks/Ansatz_Comparison.ipynb`
 - `notebooks/Classical_Markowitz.ipynb`
 - `notebooks/examples/01_Real_example.ipynb`
 - `notebooks/examples/02_Real_Example.ipynb`

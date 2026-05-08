@@ -36,6 +36,7 @@ vqe-portfolio binary \
   --k 2 \
   --lam 4.0 \
   --alpha 2.0 \
+  --ansatz ry_cz \
   --steps 80 \
   --out binary_result.json
 ```
@@ -47,6 +48,8 @@ This produces a JSON file containing:
 - Top-K selection
 - sampled bitstrings and counts
 - optimization trace
+
+Supported Binary VQE ansatz values are `ry_cz`, `ry_rz_cz`, and `strongly_entangling`.
 
 ---
 
@@ -114,6 +117,8 @@ Run:
 vqe-portfolio fractional \
   --input input.json \
   --lam 5.0 \
+  --ansatz ry \
+  --depth 1 \
   --steps 100 \
   --out fractional_result.json
 ```
@@ -123,6 +128,8 @@ The output JSON includes:
 - optimized circuit parameters
 - portfolio weights
 - cost trace
+
+Supported Fractional VQE ansatz values are `ry`, `ry_cz`, and `ry_rz_cz`.
 
 ---
 
@@ -174,7 +181,7 @@ python scripts/generate_comparison_results.py
 
 It writes a summary CSV and a per-seed trial CSV under `results/`. The defaults are intentionally compact; expand them with `--asset-counts`, `--seeds`, `--steps`, and `--methods`.
 
-`notebooks/Benchmark_Comparison.ipynb` and `notebooks/Real_Data_Comparison.ipynb` are pure-package clients for the same comparison workflows. They display CSV tables and save comparison plots under `notebooks/images/`.
+`notebooks/Benchmark_Comparison.ipynb`, `notebooks/Real_Data_Comparison.ipynb`, and `notebooks/Ansatz_Comparison.ipynb` are pure-package clients for the same comparison workflows. They display CSV tables and save comparison plots under `notebooks/images/`.
 
 ---
 
@@ -185,7 +192,7 @@ The CLI is a **thin client** over the same public API used by notebooks and scri
 - `vqe-portfolio binary` → `run_binary_vqe`
 - `vqe-portfolio qaoa` → `run_qaoa`
 - `vqe-portfolio fractional` → `run_fractional_vqe`
-- benchmark notebooks/scripts → `vqe_portfolio.comparison` helpers
+- benchmark notebooks/scripts → `vqe_portfolio.comparison` helpers and public ansatz config options
 
 No logic is duplicated.
 
@@ -207,6 +214,8 @@ Sigma = np.array([
 
 cfg = FractionalVQEConfig(
     lam=5.0,
+    ansatz="ry",
+    depth=1,
     steps=100,
     stepsize=0.25,
     shots=None,
@@ -234,6 +243,8 @@ cfg = BinaryVQEConfig(
     k=2,
     lam=4.0,
     alpha=2.0,
+    ansatz="ry_cz",
+    depth=2,
     steps=80,
 )
 
@@ -244,6 +255,7 @@ print("Probabilities:", res.x_prob)
 ```
 
 Binary VQE solves the QUBO → Ising → VQE formulation of the cardinality-constrained problem.
+Use `ansatz="ry_cz"`, `ansatz="ry_rz_cz"`, or `ansatz="strongly_entangling"` to compare circuit families.
 
 ---
 

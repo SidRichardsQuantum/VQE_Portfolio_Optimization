@@ -123,6 +123,7 @@ def _cmd_binary(args: argparse.Namespace) -> int:
 
     cfg = BinaryVQEConfig(
         depth=args.depth,
+        ansatz=args.ansatz,
         steps=args.steps,
         stepsize=args.stepsize,
         shots_train=args.shots_train,
@@ -185,6 +186,8 @@ def _cmd_fractional(args: argparse.Namespace) -> int:
     mu, Sigma = _load_mu_sigma(args)
 
     cfg = FractionalVQEConfig(
+        depth=args.depth,
+        ansatz=args.ansatz,
         steps=args.steps,
         stepsize=args.stepsize,
         seed=args.seed,
@@ -213,6 +216,7 @@ def _cmd_binary_data(args: argparse.Namespace) -> int:
 
     cfg = BinaryVQEConfig(
         depth=args.depth,
+        ansatz=args.ansatz,
         steps=args.steps,
         stepsize=args.stepsize,
         log_every=args.log_every,
@@ -313,6 +317,8 @@ def _cmd_fractional_data(args: argparse.Namespace) -> int:
     mu, Sigma, prices, tickers = _load_mu_sigma_from_market(args)
 
     cfg = FractionalVQEConfig(
+        depth=args.depth,
+        ansatz=args.ansatz,
         steps=args.steps,
         stepsize=args.stepsize,
         log_every=args.log_every,
@@ -394,8 +400,17 @@ def build_parser() -> argparse.ArgumentParser:
         add_output_only(sp)
 
     def add_common_binary_vqe(sp: argparse.ArgumentParser) -> None:
+        from vqe_portfolio.ansatz import BINARY_ANSATZES
+
         g = sp.add_argument_group("binary-vqe")
         g.add_argument("--depth", type=int, default=2)
+        g.add_argument(
+            "--ansatz",
+            type=str,
+            default="ry_cz",
+            choices=BINARY_ANSATZES,
+            help="Binary VQE circuit ansatz.",
+        )
         g.add_argument("--steps", type=int, default=100)
         g.add_argument("--stepsize", type=float, default=0.25)
         g.add_argument("--seed", type=int, default=0)
@@ -423,7 +438,17 @@ def build_parser() -> argparse.ArgumentParser:
         )
 
     def add_common_fractional_vqe(sp: argparse.ArgumentParser) -> None:
+        from vqe_portfolio.ansatz import FRACTIONAL_ANSATZES
+
         g = sp.add_argument_group("fractional-vqe")
+        g.add_argument("--depth", type=int, default=1)
+        g.add_argument(
+            "--ansatz",
+            type=str,
+            default="ry",
+            choices=FRACTIONAL_ANSATZES,
+            help="Fractional VQE circuit ansatz.",
+        )
         g.add_argument("--steps", type=int, default=100)
         g.add_argument("--stepsize", type=float, default=0.25)
         g.add_argument("--seed", type=int, default=0)

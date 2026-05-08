@@ -56,6 +56,33 @@ def test_cli_binary_smoke():
     assert payload["method"] == "binary"
 
 
+def test_cli_binary_accepts_ansatz():
+    p = _run(
+        [
+            "binary",
+            "--mu",
+            "0.1,0.2",
+            "--sigma",
+            "0.1,0.0;0.0,0.2",
+            "--k",
+            "1",
+            "--lam",
+            "0.5",
+            "--steps",
+            "2",
+            "--depth",
+            "1",
+            "--ansatz",
+            "ry_rz_cz",
+            "--shots-sample",
+            "50",
+        ]
+    )
+    assert p.returncode == 0, p.stderr
+    payload = json.loads(p.stdout)
+    assert payload["config"]["ansatz"] == "ry_rz_cz"
+
+
 def test_cli_fractional_smoke():
     p = _run(
         [
@@ -75,6 +102,32 @@ def test_cli_fractional_smoke():
     assert p.returncode == 0, p.stderr
     payload = json.loads(p.stdout)
     assert payload["method"] == "fractional"
+
+
+def test_cli_fractional_accepts_ansatz_and_depth():
+    p = _run(
+        [
+            "fractional",
+            "--mu",
+            "0.1,0.2",
+            "--sigma",
+            "0.1,0.0;0.0,0.2",
+            "--lam",
+            "0.5",
+            "--steps",
+            "2",
+            "--depth",
+            "1",
+            "--ansatz",
+            "ry_cz",
+            "--shots",
+            "50",
+        ]
+    )
+    assert p.returncode == 0, p.stderr
+    payload = json.loads(p.stdout)
+    assert payload["config"]["ansatz"] == "ry_cz"
+    assert payload["config"]["depth"] == 1
 
 
 def test_cli_binary_data_help():

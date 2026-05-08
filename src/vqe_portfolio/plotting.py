@@ -14,15 +14,28 @@ METHOD_COLORS = {
     "Classical equal weight": "#7f7f7f",
     "Classical exact Markowitz": "#17becf",
     "Binary VQE best feasible": "#d62728",
+    "Binary VQE (ry_cz)": "#d62728",
+    "Binary VQE (ry_rz_cz)": "#ff9896",
+    "Binary VQE (strongly_entangling)": "#8c564b",
     "QAOA X best feasible": "#9467bd",
     "QAOA XY best feasible": "#8c564b",
     "Fractional VQE": "#e377c2",
+    "Fractional VQE (ry)": "#e377c2",
+    "Fractional VQE (ry_cz)": "#f7b6d2",
+    "Fractional VQE (ry_rz_cz)": "#bcbd22",
 }
 
 
-def _color_for_method(method: str, index: int = 0) -> str:
-    if method in METHOD_COLORS:
-        return METHOD_COLORS[method]
+def _comparison_label(row: dict[str, str]) -> str:
+    ansatz = row.get("ansatz", "")
+    if ansatz and ansatz != "-":
+        return f"{row['method']} ({ansatz})"
+    return row["method"]
+
+
+def _color_for_label(label: str, index: int = 0) -> str:
+    if label in METHOD_COLORS:
+        return METHOD_COLORS[label]
     cycle = plt.rcParams["axes.prop_cycle"].by_key().get("color", ["#1f77b4"])
     return cycle[index % len(cycle)]
 
@@ -183,9 +196,9 @@ def plot_comparison_metric_bars(
     ylabel: str | None = None,
     outpath: str | Path | None = None,
 ):
-    labels = [row["method"] for row in rows]
+    labels = [_comparison_label(row) for row in rows]
     values = [float(row[metric]) for row in rows]
-    colors = [_color_for_method(label, i) for i, label in enumerate(labels)]
+    colors = [_color_for_label(label, i) for i, label in enumerate(labels)]
 
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.bar(labels, values, color=colors)
@@ -219,12 +232,13 @@ def plot_risk_return_comparison(
     for i, row in enumerate(rows):
         risk = float(row.get("risk", row.get("mean_risk", 0.0)))
         ret = float(row.get("return", row.get("mean_return", 0.0)))
+        label = _comparison_label(row)
         ax.scatter(
             risk,
             ret,
             s=55,
-            color=_color_for_method(row["method"], i),
-            label=row["method"],
+            color=_color_for_label(label, i),
+            label=label,
         )
     ax.set_xlabel("Portfolio risk σ")
     ax.set_ylabel("Expected return")

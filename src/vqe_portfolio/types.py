@@ -9,6 +9,7 @@ import numpy as np
 @dataclass(frozen=True)
 class BinaryVQEConfig:
     depth: int = 2
+    ansatz: str = "ry_cz"
     steps: int = 75
     stepsize: float = 0.3
     log_every: int = 5
@@ -53,6 +54,8 @@ class QAOAConfig:
 
 @dataclass(frozen=True)
 class FractionalVQEConfig:
+    depth: int = 1
+    ansatz: str = "ry"
     steps: int = 75
     stepsize: float = 0.3
     log_every: int = 5

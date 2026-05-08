@@ -56,7 +56,7 @@ $$
 **Highlights**
 
 - QUBO formulation mapped to an **Ising Hamiltonian**
-- Hardware-efficient **RY + CZ ring** ansatz
+- Configurable ansatz options: **RY + CZ ring**, **RY/RZ + CZ ring**, and PennyLane strongly-entangling layers
 - VQE minimizes ⟨H⟩ directly
 - Outputs include probabilities, samples, Top‑K projections, λ‑sweeps, and efficient frontiers
 
@@ -114,6 +114,7 @@ $$
 **Highlights**
 
 - Simplex constraint enforced **by construction**
+- Configurable ansatz options: **RY**, **RY + CZ ring**, and **RY/RZ + CZ ring**
 - No penalty tuning required
 - Smooth λ‑sweeps with optional warm starts
 - Efficient frontier computed from allocations
@@ -209,14 +210,16 @@ src/
     └── types.py         # Dataclasses for configs & results
 
 scripts/
-└── generate_comparison_results.py  # Synthetic baselines and repeatability CSVs
+├── generate_comparison_results.py  # Synthetic baselines and repeatability CSVs
+└── generate_ansatz_comparison.py   # Compact ansatz comparison CSV
 
 results/
 ├── synthetic_comparison.csv
 ├── real_data_comparison.csv
 ├── generated_comparison_summary.csv
 ├── generated_repeatability_trials.csv
-└── real_data_method_comparison.csv
+├── real_data_method_comparison.csv
+└── ansatz_comparison.csv
 
 notebooks/
 ├── Binary.ipynb
@@ -224,6 +227,7 @@ notebooks/
 ├── Fractional.ipynb
 ├── Benchmark_Comparison.ipynb
 ├── Real_Data_Comparison.ipynb
+├── Ansatz_Comparison.ipynb
 ├── examples/
 │   ├── 01_Real_example.ipynb
 │   ├── 02_Real_Example.ipynb

@@ -6,7 +6,7 @@ from typing import Optional
 import pennylane as qml
 from pennylane import numpy as np
 
-from .ansatz import binary_hwe_ry_cz_ring
+from .ansatz import apply_binary_ansatz, binary_ansatz_shape
 from .metrics import symmetrize
 from .optimize import adam_optimize
 from .types import BinaryVQEConfig, BinaryVQEResult, LambdaSweepConfig, OptimizeTrace
@@ -124,13 +124,14 @@ def run_binary_vqe(
 
     if not (1 <= cfg.k <= n):
         raise ValueError(f"cfg.k must be in [1, {n}] but got {cfg.k}")
+    param_shape = binary_ansatz_shape(cfg.ansatz, cfg.depth, n)
 
     H = build_ising_hamiltonian(mu, Sigma, cfg.lam, cfg.alpha, cfg.k)
 
     dev_train = qml.device(cfg.device, wires=n)
 
     def ansatz(params: np.ndarray) -> None:
-        binary_hwe_ry_cz_ring(params, depth=cfg.depth, n_wires=n)
+        apply_binary_ansatz(cfg.ansatz, params, depth=cfg.depth, n_wires=n)
 
     @qml.qnode(dev_train, interface="autograd")
     def energy(params: np.ndarray):
@@ -139,9 +140,7 @@ def run_binary_vqe(
 
     energy = qml.set_shots(energy, cfg.shots_train)
 
-    init = np.array(
-        np.random.uniform(0, np.pi, size=(cfg.depth, n)), requires_grad=True
-    )
+    init = np.array(np.random.uniform(0, np.pi, size=param_shape), requires_grad=True)
     opt_res = adam_optimize(
         energy, init, steps=cfg.steps, stepsize=cfg.stepsize, log_every=cfg.log_every
     )
@@ -218,11 +217,12 @@ def binary_lambda_sweep(
 
     if not (1 <= cfg.k <= n):
         raise ValueError(f"cfg.k must be in [1, {n}] but got {cfg.k}")
+    param_shape = binary_ansatz_shape(cfg.ansatz, cfg.depth, n)
 
     dev = qml.device(cfg.device, wires=n)
 
     def ansatz(params: np.ndarray) -> None:
-        binary_hwe_ry_cz_ring(params, depth=cfg.depth, n_wires=n)
+        apply_binary_ansatz(cfg.ansatz, params, depth=cfg.depth, n_wires=n)
 
     probs = []
     lambdas = np.array(list(sweep.lambdas), dtype=float)
@@ -238,7 +238,7 @@ def binary_lambda_sweep(
         energy = qml.set_shots(energy, cfg.shots_train)
 
         init = np.array(
-            np.random.uniform(0, np.pi, size=(cfg.depth, n)), requires_grad=True
+            np.random.uniform(0, np.pi, size=param_shape), requires_grad=True
         )
         opt_res = adam_optimize(
             energy,
