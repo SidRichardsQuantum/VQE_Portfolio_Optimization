@@ -26,6 +26,16 @@ def _sample_counts_to_counter(samples: np.ndarray) -> Counter[tuple[int, ...]]:
     return Counter(tuple(map(int, row)) for row in rows)
 
 
+def _ordered_sample_counts(
+    counts: Counter[tuple[int, ...]],
+) -> dict[str, int]:
+    """Return sample counts sorted by computational-basis bitstring order."""
+    return {
+        "".join(map(str, bitstring)): int(count)
+        for bitstring, count in sorted(counts.items())
+    }
+
+
 def _selection_prob_from_probs(probs: np.ndarray, n: int) -> np.ndarray:
     x_prob = np.zeros(n, dtype=float)
     for idx, p in enumerate(np.array(probs, dtype=float)):
@@ -250,7 +260,7 @@ def run_qaoa(
         x_prob=np.array(x_prob, requires_grad=False),
         x_round=np.array(x_round, requires_grad=False),
         x_topk=np.array(x_topk, requires_grad=False),
-        sample_counts={"".join(map(str, k)): int(v) for k, v in counts.items()},
+        sample_counts=_ordered_sample_counts(counts),
         x_mode=np.array(x_mode, requires_grad=False),
         x_best_feasible=x_best_feasible,
     )

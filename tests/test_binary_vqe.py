@@ -19,3 +19,6 @@ def test_binary_topk_constraint(toy_problem, binary_cfg):
 
     assert res.energy_trace.steps
     assert res.energy_trace.values
+
+    bitstrings = list(res.sample_counts)
+    assert bitstrings == sorted(bitstrings)

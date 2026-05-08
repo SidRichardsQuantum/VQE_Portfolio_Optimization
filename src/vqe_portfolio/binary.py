@@ -92,6 +92,16 @@ def topk_project(x_prob: np.ndarray, k: int) -> np.ndarray:
     return topk_onehot(x_prob, k).astype(int)
 
 
+def _ordered_sample_counts(
+    counts: Counter[tuple[int, ...]],
+) -> dict[str, int]:
+    """Return sample counts sorted by computational-basis bitstring order."""
+    return {
+        "".join(map(str, bitstring)): int(count)
+        for bitstring, count in sorted(counts.items())
+    }
+
+
 def run_binary_vqe(
     mu: np.ndarray,
     Sigma: np.ndarray,
@@ -184,7 +194,7 @@ def run_binary_vqe(
         x_prob=np.array(x_prob, requires_grad=False),
         x_round=np.array(x_round, requires_grad=False),
         x_topk=np.array(x_topk, requires_grad=False),
-        sample_counts={"".join(map(str, k)): int(v) for k, v in counts.items()},
+        sample_counts=_ordered_sample_counts(counts),
         x_mode=np.array(x_mode, requires_grad=False),
         x_best_feasible=x_best_feasible,
     )

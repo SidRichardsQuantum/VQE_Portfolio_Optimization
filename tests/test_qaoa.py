@@ -68,6 +68,7 @@ def test_run_qaoa_smoke_x_mixer():
     assert isinstance(res.sample_counts, dict)
     assert len(res.sample_counts) >= 1
     assert sum(res.sample_counts.values()) == cfg.shots_sample
+    assert list(res.sample_counts) == sorted(res.sample_counts)
 
     if res.x_best_feasible is not None:
         assert res.x_best_feasible.shape == (n,)

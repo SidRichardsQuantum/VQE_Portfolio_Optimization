@@ -1,0 +1,10 @@
+dataset,method,baseline_type,date_window,selection_or_frontier,return,risk,variance_or_objective,feasible,source
+Real binary example,Binary VQE Top-K,quantum,2024-01-01 to 2025-01-01,"NVDA, AMZN",0.681501,0.335301,,yes,notebooks/examples/02_Real_Example.ipynb
+Real binary example,Classical equal-weight evaluation,classical evaluation,2024-01-01 to 2025-01-01,"NVDA, AMZN",0.681501,0.335301,,yes,notebooks/examples/02_Real_Example.ipynb
+Real QAOA example,QAOA X best feasible,quantum,2024-01-01 to 2025-01-01,"AAPL, NVDA",,, -0.205323,yes,notebooks/examples/03_Real_Example.ipynb
+Real QAOA example,QAOA XY best feasible,quantum,2024-01-01 to 2025-01-01,"AAPL, NVDA",,, -0.205323,yes,notebooks/examples/03_Real_Example.ipynb
+Real fractional example,Fractional VQE frontier lambda 8.00,quantum,2024-01-01 to 2025-01-01,continuous allocation,0.324008,0.144192,,yes,notebooks/examples/01_Real_example.ipynb
+Real fractional example,Fractional VQE frontier lambda 4.00,quantum,2024-01-01 to 2025-01-01,continuous allocation,0.340232,0.151739,,yes,notebooks/examples/01_Real_example.ipynb
+Real fractional example,Fractional VQE frontier lambda 2.00,quantum,2024-01-01 to 2025-01-01,continuous allocation,0.340300,0.151828,,yes,notebooks/examples/01_Real_example.ipynb
+Real fractional example,Fractional VQE frontier lambda 1.00,quantum,2024-01-01 to 2025-01-01,continuous allocation,0.340450,0.152215,,yes,notebooks/examples/01_Real_example.ipynb
+Real fractional example,Fractional VQE frontier lambda 0.50,quantum,2024-01-01 to 2025-01-01,continuous allocation,0.340788,0.153889,,yes,notebooks/examples/01_Real_example.ipynb

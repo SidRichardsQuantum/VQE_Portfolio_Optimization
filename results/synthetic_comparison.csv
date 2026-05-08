@@ -1,0 +1,8 @@
+dataset,method,baseline_type,lambda,k,selection_or_weights,return,risk,variance,objective,feasible,source
+Synthetic binary toy,Binary VQE Top-K,quantum,5.0,2,0101,0.320000,0.256905,0.066000,0.010000,yes,notebooks/Binary.ipynb
+Synthetic binary toy,Classical exhaustive search,classical,5.0,2,1100,0.300000,0.158114,0.025000,-0.175000,yes,computed from notebook objective
+Synthetic QAOA toy,QAOA X/XY Top-K,quantum,4.0,2,0011,0.220000,0.387298,0.150000,0.380000,yes,notebooks/QAOA.ipynb
+Synthetic QAOA toy,QAOA X/XY best feasible,quantum,4.0,2,1001,0.250000,0.360555,0.130000,0.270000,yes,notebooks/QAOA.ipynb
+Synthetic QAOA toy,Classical exhaustive search,classical,4.0,2,1001,0.250000,0.360555,0.130000,0.270000,yes,computed from notebook objective
+Synthetic fractional toy,Fractional VQE,quantum,5.0,,continuous allocation,0.142792,0.059825,,,-,notebooks/Fractional.ipynb
+Synthetic fractional toy,Classical Markowitz,classical,5.0,,[0.480403 0.355580 0.131539 0.032477],0.142785,0.059812,,-0.124897,yes,computed from notebook objective
