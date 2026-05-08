@@ -1,4 +1,2 @@
-# Usage
-
 ```{include} ../../USAGE.md
 ```

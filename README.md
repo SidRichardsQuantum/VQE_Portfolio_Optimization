@@ -14,7 +14,7 @@
 <img src="https://img.shields.io/github/actions/workflow/status/SidRichardsQuantum/VQE_Portfolio_Optimization/ci.yml?label=tests&style=flat-square" alt="Tests">
 </a>
 
-<a href="LICENSE">
+<a href="https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/blob/main/LICENSE">
 <img src="https://img.shields.io/github/license/SidRichardsQuantum/VQE_Portfolio_Optimization?style=flat-square" alt="License">
 </a>
 
@@ -40,37 +40,7 @@ All core logic lives in `src/vqe_portfolio/`; notebooks and examples simply call
 
 ---
 
-## Table of Contents
-
-- [Implemented Methods](#-implemented-methods)
-
-  - [Binary VQE (Asset Selection)](#1-binary-vqe-asset-selection)
-  - [QAOA (Binary Asset Selection)](#2-qaoa-binary-asset-selection)
-  - [Fractional VQE (Continuous Allocation)](#3-fractional-vqe-continuous-allocation)
-
-- [Why Quantum Here?](#-why-quantum-here)
-
-- [Installation](#-installation)
-
-- [Repository Structure](#-repository-structure)
-
-- [Usage](#-usage)
-
-- [Additional Documentation](#-additional-documentation)
-
-- [Why This Matters](#-why-this-matters)
-
-- [References](#-references)
-
-- [Support development](#support-development)
-
-- [Author](#author)
-
-- [License](#license)
-
----
-
-## 🚀 Implemented Methods
+## Implemented Methods
 
 ### 1. Binary VQE (Asset Selection)
 
@@ -155,7 +125,7 @@ Notebook clients:
 
 ---
 
-## 🧠 Why Quantum Here?
+## Why Quantum Here?
 
 Classical mean–variance portfolio optimization is well understood and efficiently solvable *in its simplest form*.
 However, many practically relevant extensions introduce **combinatorial structure** that scales poorly with problem size.
@@ -193,7 +163,7 @@ Instead, this repository provides a **carefully engineered research baseline** f
 
 ---
 
-## 📦 Installation
+## Installation
 
 Base install (quantum algorithms only):
 
@@ -221,7 +191,7 @@ pip install -e ".[dev]"
 
 ---
 
-## 🗂 Repository Structure
+## Repository Structure
 
 ```
 src/
@@ -250,7 +220,7 @@ notebooks/
 
 ---
 
-## 📖 Usage
+## Usage
 
 This package can be used **both programmatically (Python API)** and **from the command line (CLI)**.
 
@@ -264,13 +234,13 @@ See **[USAGE.md](USAGE.md)** for:
 
 ---
 
-## 📚 Additional Documentation
+## Additional Documentation
 
 - **Theory & derivations**: [`THEORY.md`](THEORY.md)
 
 ---
 
-## 🧠 Why This Matters
+## Why This Matters
 
 This project demonstrates:
 
@@ -282,7 +252,7 @@ This project demonstrates:
 
 ---
 
-## 🧾 References
+## References
 
 - QUBO overview: [https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization)
 - PennyLane documentation: [https://docs.pennylane.ai](https://docs.pennylane.ai)
@@ -313,4 +283,4 @@ GitHub: [https://github.com/SidRichardsQuantum](https://github.com/SidRichardsQu
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+MIT License — see [LICENSE](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/blob/main/LICENSE)

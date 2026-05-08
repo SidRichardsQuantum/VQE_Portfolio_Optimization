@@ -28,6 +28,8 @@ html_theme = "furo"
 html_title = project
 html_static_path = ["_static"]
 html_css_files = ["portfolio.css"]
+html_copy_source = False
+html_show_sourcelink = False
 
 myst_enable_extensions = [
     "amsmath",

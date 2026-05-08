@@ -1,48 +1,11 @@
-# Usage Guide — vqe-portfolio
+# Usage
 
 This document shows how to use the `vqe_portfolio` package **without notebooks**, directly from Python.
 Notebooks in this repository are thin clients around the same API.
 
 ---
 
-## Table of Contents
-
-- [Command-Line Interface (CLI)](#-command-line-interface-cli)
-
-  - [Binary VQE (Asset Selection)](#binary-vqe-asset-selection)
-  - [QAOA (Binary Asset Selection)](#qaoa-binary-asset-selection)
-  - [Fractional VQE (Continuous Allocation)](#fractional-vqe-continuous-allocation)
-
-  - [Input formats](#input-formats)
-  - [Reproducibility via CLI](#reproducibility-via-cli)
-  - [Relationship to the Python API](#relationship-to-the-python-api)
-
-- [Minimal Example (Synthetic Data)](#1-minimal-example-synthetic-data)
-
-- [Binary VQE (Asset Selection)](#2-binary-vqe-asset-selection)
-
-- [QAOA (Binary Asset Selection)](#3-qaoa-binary-asset-selection)
-
-- [λ-Sweeps and Efficient Frontiers](#4-λ-sweeps-and-efficient-frontiers)
-
-  - [Fractional frontier](#fractional-frontier)
-  - [QAOA λ-sweep](#qaoa-λ-sweep)
-
-- [Real Market Data](#5-real-market-data)
-
-- [Reproducibility](#6-reproducibility)
-
-- [Notebooks as Clients](#7-notebooks-as-clients)
-
-- [What This Package Is (and Is Not)](#8-what-this-package-is-and-is-not)
-
-- [Author](#author)
-
-- [License](#license)
-
----
-
-## 🖥 Command-Line Interface (CLI)
+## Command-Line Interface (CLI)
 
 The package provides a first-class CLI for running quantum portfolio optimization **without writing Python code**.
 
@@ -483,4 +446,4 @@ GitHub:
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+MIT License — see [LICENSE](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/blob/main/LICENSE)

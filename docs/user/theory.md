@@ -1,4 +1,2 @@
-# Theory
-
 ```{include} ../../THEORY.md
 ```
