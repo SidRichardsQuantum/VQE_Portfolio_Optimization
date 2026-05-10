@@ -64,6 +64,7 @@ Notebook client:
 
 - `notebooks/Binary.ipynb`
 - `notebooks/examples/02_Real_Example.ipynb`
+- `notebooks/examples/04_Larger_Real_Data_Example.ipynb`
 
 ---
 
@@ -98,6 +99,7 @@ Notebook client:
 
 - `notebooks/QAOA.ipynb`
 - `notebooks/examples/03_Real_Example.ipynb`
+- `notebooks/examples/04_Larger_Real_Data_Example.ipynb`
 
 ---
 
@@ -123,6 +125,7 @@ Notebook clients:
 
 - `notebooks/Fractional.ipynb`
 - `notebooks/examples/01_Real_example.ipynb`
+- `notebooks/examples/04_Larger_Real_Data_Example.ipynb`
 
 ---
 
@@ -211,7 +214,8 @@ src/
 
 scripts/
 ├── generate_comparison_results.py  # Synthetic baselines and repeatability CSVs
-└── generate_ansatz_comparison.py   # Compact ansatz comparison CSV
+├── generate_ansatz_comparison.py   # Compact ansatz comparison CSV
+└── generate_larger_real_data_example.py  # 12-stock real-data example artifacts
 
 results/
 ├── synthetic_comparison.csv
@@ -219,6 +223,7 @@ results/
 ├── generated_comparison_summary.csv
 ├── generated_repeatability_trials.csv
 ├── real_data_method_comparison.csv
+├── larger_real_data_comparison.csv
 └── ansatz_comparison.csv
 
 notebooks/
@@ -231,7 +236,8 @@ notebooks/
 ├── examples/
 │   ├── 01_Real_example.ipynb
 │   ├── 02_Real_Example.ipynb
-│   └── 03_Real_Example.ipynb
+│   ├── 03_Real_Example.ipynb
+│   └── 04_Larger_Real_Data_Example.ipynb
 └── images/
 
 tests/

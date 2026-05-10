@@ -362,8 +362,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="vqe-portfolio",
         description=(
-            "Quantum portfolio optimization with Binary VQE, QAOA, "
-            "and Fractional VQE."
+            "Quantum portfolio optimization with Binary VQE, QAOA, and Fractional VQE."
         ),
     )
     sub = p.add_subparsers(dest="cmd", required=True)

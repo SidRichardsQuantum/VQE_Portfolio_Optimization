@@ -9,6 +9,7 @@ Machine-readable copies of the comparison tables are committed under `results/`:
 - `results/generated_comparison_summary.csv`
 - `results/generated_repeatability_trials.csv`
 - `results/real_data_method_comparison.csv`
+- `results/larger_real_data_comparison.csv`
 - `results/ansatz_comparison.csv`
 
 For repeatable synthetic benchmark summaries, regenerate a compact comparison CSV with:
@@ -180,6 +181,32 @@ Binary rows use equal-weight selected portfolios for reported return and risk, w
 ![Real data method comparison fractional objective](notebooks/images/Real_Data_Method_Comparison_Fractional_Objective.png)
 ![Real data method comparison feasibility](notebooks/images/Real_Data_Method_Comparison_Feasibility.png)
 
+### Larger Real-Data Universe
+
+`scripts/generate_larger_real_data_example.py` writes `results/larger_real_data_comparison.csv`, regenerates `notebooks/examples/04_Larger_Real_Data_Example.ipynb`, and saves figures for a 12-stock 2024 market-data window. The binary and QAOA methods use one qubit per asset, so this example is deliberately a scalability/stress example rather than a claim of production scale or quantum advantage.
+
+Regenerate it with:
+
+```bash
+python scripts/generate_larger_real_data_example.py
+```
+
+| Method | Objective family | K | Selection or weights | Return | Risk | Best objective | Feasible rate |
+| --- | --- | ---: | --- | ---: | ---: | ---: | ---: |
+| Classical exhaustive search | binary QUBO | 5 | AAPL, NVDA, JPM, JNJ, PG | 0.341060 | 0.128919 | -0.043287 | 1.000000 |
+| Binary VQE best feasible | binary QUBO | 5 | NVDA, XOM, JNJ, PG, HD | 0.257295 | 0.120824 | 0.173363 | 0.777344 |
+| QAOA X best feasible | binary QUBO | 5 | AAPL, META, JPM, PG, UNH | 0.248903 | 0.117525 | 0.136708 | 0.343750 |
+| QAOA XY best feasible | binary QUBO | 5 | MSFT, NVDA, GOOGL, JPM, UNH | 0.346208 | 0.172098 | 1.230733 | 1.000000 |
+| Classical exact Markowitz | fractional simplex |  | simplex weights | 0.580921 | 0.226857 | -0.375066 | 1.000000 |
+| Fractional VQE | fractional simplex |  | simplex weights | 0.549605 | 0.217478 | -0.360419 | 1.000000 |
+
+![Larger real-data risk return](notebooks/examples/images/Larger_Real_Data_Risk_Return.png)
+![Larger real-data binary objective](notebooks/examples/images/Larger_Real_Data_Binary_Objective.png)
+![Larger real-data fractional objective](notebooks/examples/images/Larger_Real_Data_Fractional_Objective.png)
+![Larger real-data feasibility](notebooks/examples/images/Larger_Real_Data_Feasibility.png)
+![Larger real-data asset returns](notebooks/examples/images/Larger_Real_Data_Asset_Returns.png)
+![Larger real-data fractional allocation pies](notebooks/examples/images/Larger_Real_Data_Fractional_Weights.png)
+
 ### Real Fractional Frontier
 
 | Method | λ | Return | Risk |
@@ -245,5 +272,6 @@ Then open the notebook clients:
 - `notebooks/examples/01_Real_example.ipynb`
 - `notebooks/examples/02_Real_Example.ipynb`
 - `notebooks/examples/03_Real_Example.ipynb`
+- `notebooks/examples/04_Larger_Real_Data_Example.ipynb`
 
 The notebooks should save updated plots under `notebooks/images/` and `notebooks/examples/images/`.

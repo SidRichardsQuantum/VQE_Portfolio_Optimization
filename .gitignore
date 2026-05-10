@@ -38,6 +38,7 @@ ENV/
 # Jupyter
 # -----------------------
 .ipynb_checkpoints/
+notebooks/notebooks/
 
 # -----------------------
 # Lint / format caches
