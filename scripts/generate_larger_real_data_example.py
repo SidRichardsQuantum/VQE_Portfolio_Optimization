@@ -238,7 +238,7 @@ def _make_notebook(
                 if str(ROOT) not in sys.path:
                     sys.path.insert(0, str(ROOT))
 
-                from scripts.generate_larger_real_data_example import main
+                from scripts.generate_larger_real_data_example import main  # noqa: E402
 
                 main([
                     "--tickers", "{",".join(tickers)}",
