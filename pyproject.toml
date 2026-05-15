@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vqe-portfolio"
-version = "0.2.5"
+version = "0.2.6"
 description = "VQE-based portfolio optimization with PennyLane"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -37,6 +37,7 @@ dev = [
   "pytest>=8,<9",
   "nbmake>=1.5,<2.0",
   "ruff>=0.6,<1.0",
+  "black>=24.0,<26.0",
   "build>=1.2,<2.0",
   "twine>=6,<7",
   "tomli>=2.0,<3.0; python_version < '3.11'",

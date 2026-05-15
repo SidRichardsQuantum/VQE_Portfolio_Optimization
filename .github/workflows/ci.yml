@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    tags-ignore:
+      - "v*"
   pull_request:
 
 jobs:
@@ -35,9 +37,9 @@ jobs:
         run: |
           ruff check .
 
-      - name: Format check (ruff)
+      - name: Format check (black)
         run: |
-          ruff format --check src tests scripts
+          black --check src tests scripts
 
       - name: Run tests
         run: |
