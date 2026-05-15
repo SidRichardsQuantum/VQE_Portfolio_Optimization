@@ -211,7 +211,8 @@ def _make_notebook(
 ) -> None:
     nb = nbf.v4.new_notebook()
     nb.cells = [
-        nbf.v4.new_markdown_cell(dedent(f"""
+        nbf.v4.new_markdown_cell(
+            dedent(f"""
                 # Larger Real-Data Portfolio Example
 
                 This notebook uses a 12-stock real-data universe to stress the
@@ -224,8 +225,10 @@ def _make_notebook(
                 Binary cardinality: `K={k}`  
                 Risk-aversion: `lambda={lam}`  
                 Penalty: `alpha={alpha}`
-                """).strip()),
-        nbf.v4.new_code_cell(dedent(f"""
+                """).strip()
+        ),
+        nbf.v4.new_code_cell(
+            dedent(f"""
                 from pathlib import Path
                 import sys
 
@@ -251,8 +254,10 @@ def _make_notebook(
                     "--shots", "{shots}",
                     "--seed", "{seed}",
                 ])
-                """).strip()),
-        nbf.v4.new_code_cell(dedent("""
+                """).strip()
+        ),
+        nbf.v4.new_code_cell(
+            dedent("""
                 csv_path = ROOT / "results" / "larger_real_data_comparison.csv"
                 rows = pd.read_csv(csv_path)
                 rows[
@@ -268,8 +273,10 @@ def _make_notebook(
                         "selected_assets",
                     ]
                 ]
-                """).strip()),
-        nbf.v4.new_code_cell(dedent("""
+                """).strip()
+        ),
+        nbf.v4.new_code_cell(
+            dedent("""
                 image_paths = [
                     "notebooks/examples/images/Larger_Real_Data_Risk_Return.png",
                     "notebooks/examples/images/Larger_Real_Data_Binary_Objective.png",
@@ -281,13 +288,16 @@ def _make_notebook(
 
                 for path in image_paths:
                     display(Image(filename=str(ROOT / path)))
-                """).strip()),
-        nbf.v4.new_markdown_cell(dedent("""
+                """).strip()
+        ),
+        nbf.v4.new_markdown_cell(
+            dedent("""
                 The binary objective and fractional objective are different
                 mathematical objectives. Compare methods within each objective
                 family, and use the risk/return chart as a cross-family view of
                 the reported portfolios.
-                """).strip()),
+                """).strip()
+        ),
     ]
     nb.metadata["kernelspec"] = {
         "display_name": "Python 3",
