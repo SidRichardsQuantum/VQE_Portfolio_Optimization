@@ -14,4 +14,5 @@ Overview <user/readme>
 Usage <user/usage>
 Theory <user/theory>
 Results <results>
+Quantum advantage research <QUANTUM_ADVANTAGE>
 ```
