@@ -266,6 +266,7 @@ See **[USAGE.md](USAGE.md)** for:
 - **Theory & derivations**: [`THEORY.md`](THEORY.md)
 - **Usage & reproducibility**: [`USAGE.md`](USAGE.md)
 - **Committed benchmark results**: [`RESULTS.md`](RESULTS.md)
+- **Stronger classical solvers**: [installation and benchmarks](USAGE.md#strong-classical-baselines)
 - **Quantum advantage research protocol**: [`QUANTUM_ADVANTAGE.md`](QUANTUM_ADVANTAGE.md)
 
 ---

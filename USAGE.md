@@ -481,3 +481,41 @@ GitHub:
 ## License
 
 MIT License — see [LICENSE](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/blob/main/LICENSE)
+
+## Strong Classical Baselines
+
+Install the optional solver dependencies:
+
+```bash
+pip install -e ".[classical]"
+```
+
+Run the stronger baselines without exponential enumeration or quantum simulation:
+
+```bash
+python scripts/generate_comparison_results.py \
+  --methods classical-solvers --asset-counts 8,16,32 --k 4 \
+  --seeds 0,1,2 --solver-time-limit 60 --local-restarts 16 \
+  --output results/strong_classical_summary.csv \
+  --trials-output results/strong_classical_trials.csv
+```
+
+The methods solve the same objectives as the existing comparison tracks:
+
+| Method | Formulation | What the result means |
+| --- | --- | --- |
+| Classical convex Markowitz (OSQP) | Convex quadratic objective with nonnegative weights summing to one, via CVXPY | Numerical optimum; tiny negative weights are clipped and weights renormalised before evaluation |
+| Classical mixed integer (HiGHS) | Exact-K binary selection with a sparse linearisation of pairwise products, via SciPy | Incumbent, solver status, lower bound, and relative MIP gap; a limit status does not certify optimality |
+| Classical multistart swap search | Exact-K selection, best-improvement swaps from top-return, diagonal-cost, and random starts | Seeded heuristic with no global optimality guarantee |
+
+The HiGHS formulation introduces a continuous variable `y_ij` per pair, constrained by `y_ij <= x_i`, `y_ij <= x_j`, and `y_ij >= x_i + x_j - 1`, with all variables bounded in `[0, 1]` and `x` binary. This represents both positive and negative covariance couplings exactly. Its model size grows quadratically; it is a stronger general-purpose comparator, not a claim to be the best possible classical solver.
+
+`--solver-time-limit` limits the HiGHS solve only. Reported runtime includes the entire solver helper call, including model construction and candidate cleanup; it can exceed that limit. OSQP uses accuracy tolerances, and swap search uses restart/swap limits, not that time limit. These runs do **not** yet implement the fixed end-to-end budgets in the quantum-advantage protocol.
+
+`--seeds` controls independent multistart-search runs as well as quantum runs. Each local-search run uses `--local-restarts` starts (minimum two). `--k` fixes cardinality across requested sizes. Defaults remain compatible with the existing examples: `all` selects the original methods and excludes optional solvers. Use `--methods all,classical-solvers` to include the new methods alongside the original small-instance references and quantum methods. Avoid `classical`/`all` for large instances because the old exact references enumerate subsets.
+
+The CSVs add `solver_status`, `lower_bound`, and `mip_gap`; legacy methods leave them blank. Trial rows retain unsuccessful solver returns with blank objective/portfolio values and zero feasibility. Summary quality statistics include feasible returns only, while runtime, trial count, and feasibility include failures. Inspect trial rows before drawing comparisons. A reported bound is the numerical solver bound, not an independent exact-arithmetic certificate. Missing dependencies or solver exceptions stop the run visibly rather than silently substituting a weaker solver.
+
+Programmatic entry points are `convex_markowitz_baseline`, `mixed_integer_binary_baseline`, and `local_search_binary_baseline` in `vqe_portfolio.classical`. They return a `ClassicalResult` with the candidate, recomputed original objective, termination status, and available bound metadata. The local-search helper also accepts `max_swaps` (default 1,000 per restart).
+
+Solver interfaces: [SciPy/HiGHS MILP](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.milp.html), [CVXPY solver options](https://www.cvxpy.org/tutorial/solvers/).

@@ -22,6 +22,8 @@ python scripts/generate_comparison_results.py
 
 By default this writes `results/generated_comparison_summary.csv` with classical baselines, multi-seed quantum summaries, feasibility rates, objectives, risk/return metrics, and runtimes. It also writes `results/generated_repeatability_trials.csv` with one row per method/seed trial. Use `--asset-counts`, `--seeds`, `--steps`, and `--methods` to expand or tighten the run.
 
+Optional stronger baselines (OSQP, HiGHS, and multistart swap search) are available through `--methods classical-solvers`; see [usage](USAGE.md#strong-classical-baselines). The committed tables above predate these solvers and are not regenerated automatically.
+
 ## How to Read the Tables
 
 For binary selection methods, lower objective is better for a fixed dataset, risk-aversion value, penalty, and cardinality. For fractional allocation methods, lower simplex objective is better at the same risk-aversion value.

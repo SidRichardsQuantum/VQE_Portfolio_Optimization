@@ -3,7 +3,8 @@
 
 The script intentionally uses deterministic synthetic data and NumPy-only
 classical baselines so it can run without notebook execution, market-data
-downloads, or optional solver dependencies.
+downloads, or optional solver dependencies. Opt into stronger solvers with
+--methods classical-solvers and install .[classical].
 """
 
 from __future__ import annotations
@@ -26,6 +27,11 @@ from vqe_portfolio import (
     run_fractional_vqe,
     run_qaoa,
 )
+from vqe_portfolio.classical import (
+    convex_markowitz_baseline,
+    local_search_binary_baseline,
+    mixed_integer_binary_baseline,
+)
 from vqe_portfolio.metrics import portfolio_return, portfolio_risk
 
 FIELDNAMES = [
@@ -47,6 +53,9 @@ FIELDNAMES = [
     "mean_runtime_seconds",
     "best_selection_or_weights",
     "notes",
+    "solver_status",
+    "lower_bound",
+    "mip_gap",
 ]
 
 TRIAL_FIELDNAMES = [
@@ -66,6 +75,9 @@ TRIAL_FIELDNAMES = [
     "runtime_seconds",
     "selection_or_weights",
     "notes",
+    "solver_status",
+    "lower_bound",
+    "mip_gap",
 ]
 
 
@@ -504,6 +516,144 @@ def add_classical_rows(
     )
 
 
+def add_solver_rows(
+    rows, trial_rows, dataset, mu, Sigma, lam, k, seeds, time_limit=60.0, restarts=16
+):
+    """Run stronger baselines without the exponential reference algorithms.
+
+    Keep failed trials and solver termination metadata. Summary quality is
+    conditional on feasible returns; seed_count and feasible_rate include all
+    trials. Solver limits do not claim to implement end-to-end protocol budgets.
+    """
+    for method, binary, run_seeds, solve in [
+        (
+            "Classical convex Markowitz (OSQP)",
+            False,
+            ["-"],
+            lambda seed: convex_markowitz_baseline(mu, Sigma, lam),
+        ),
+        (
+            "Classical mixed integer (HiGHS)",
+            True,
+            ["-"],
+            lambda seed: mixed_integer_binary_baseline(
+                mu, Sigma, lam, k, time_limit=time_limit
+            ),
+        ),
+        (
+            "Classical multistart swap search",
+            True,
+            seeds,
+            lambda seed: local_search_binary_baseline(
+                mu, Sigma, lam, k, seed=seed, restarts=restarts
+            ),
+        ),
+    ]:
+        common = {
+            "dataset": dataset,
+            "n_assets": len(mu),
+            "k": k if binary else None,
+            "method": method,
+            "method_type": (
+                "classical heuristic" if method.endswith("search") else "classical"
+            ),
+            "lam": lam,
+            "objective_family": "binary_qubo" if binary else "fractional_simplex",
+            "reported_weighting": (
+                "equal_weight_selected" if binary else "simplex_weights"
+            ),
+        }
+        results, durations, returns, risks, candidates = [], [], [], [], []
+        for seed in run_seeds:
+            started = time.perf_counter()
+            result = solve(seed)
+            durations.append(time.perf_counter() - started)
+            results.append(result)
+            feasible = result.candidate is not None
+            w = (
+                (
+                    selected_equal_weight(result.candidate)
+                    if binary
+                    else result.candidate
+                )
+                if feasible
+                else None
+            )
+            ret = portfolio_return(mu, w) if feasible else float("nan")
+            risk = portfolio_risk(Sigma, w) if feasible else float("nan")
+            candidate = (
+                (
+                    bitstring(result.candidate)
+                    if binary
+                    else weights_string(result.candidate)
+                )
+                if feasible
+                else ""
+            )
+            returns.append(ret)
+            risks.append(risk)
+            candidates.append(candidate)
+            row = trial_row(
+                **common,
+                seed=seed,
+                objective=result.objective if feasible else float("nan"),
+                ret=ret,
+                risk=risk,
+                feasible_rate=float(feasible),
+                runtime=durations[-1],
+                candidate=candidate,
+                notes=result.message,
+            )
+            if not feasible:
+                for field in ["objective", "return", "risk"]:
+                    row[field] = ""
+            row.update(
+                solver_status=result.status,
+                lower_bound=(
+                    "" if result.lower_bound is None else repr(result.lower_bound)
+                ),
+                mip_gap="" if result.mip_gap is None else repr(result.mip_gap),
+            )
+            trial_rows.append(row)
+        valid = [i for i, result in enumerate(results) if result.candidate is not None]
+        notes = "Quality summaries include feasible returns only; runtimes and feasibility include all trials."
+        if valid:
+            summary = summarize_trials(
+                **common,
+                objectives=[results[i].objective for i in valid],
+                returns=[returns[i] for i in valid],
+                risks=[risks[i] for i in valid],
+                feasible_rates=[1.0] * len(valid),
+                runtimes=[durations[i] for i in valid],
+                candidates=[candidates[i] for i in valid],
+                notes=notes,
+            )
+        else:
+            summary = {field: "" for field in FIELDNAMES}
+            summary.update(
+                {
+                    key: str(value)
+                    for key, value in common.items()
+                    if key not in {"method_type", "lam"}
+                }
+            )
+            summary.update(
+                type=common["method_type"],
+                k=str(k) if binary else "",
+                notes=notes,
+                **{"lambda": f"{lam:.6g}"},
+            )
+        summary.update(
+            seed_count=str(len(results)),
+            feasible_rate=f"{len(valid) / len(results):.6f}",
+            mean_runtime_seconds=f"{mean(durations):.6f}",
+            solver_status=";".join(sorted({r.status for r in results})),
+            lower_bound=trial_rows[-1]["lower_bound"] if len(results) == 1 else "",
+            mip_gap=trial_rows[-1]["mip_gap"] if len(results) == 1 else "",
+        )
+        rows.append(summary)
+
+
 def add_binary_vqe_row(
     rows: list[dict[str, str]],
     trial_rows: list[dict[str, str]],
@@ -734,7 +884,13 @@ def parse_int_list(value: str) -> list[int]:
 def parse_methods(value: str) -> set[str]:
     methods = {item.strip().lower() for item in value.split(",") if item.strip()}
     if "all" in methods:
-        return {"classical", "binary-vqe", "qaoa-x", "qaoa-xy", "fractional-vqe"}
+        methods = (methods - {"all"}) | {
+            "classical",
+            "binary-vqe",
+            "qaoa-x",
+            "qaoa-xy",
+            "fractional-vqe",
+        }
     return methods
 
 
@@ -756,12 +912,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comma-separated synthetic problem sizes.",
     )
     parser.add_argument(
-        "--seeds", default="0,1,2", help="Comma-separated quantum seeds."
+        "--seeds",
+        default="0,1,2",
+        help="Comma-separated quantum and local-search seeds.",
     )
     parser.add_argument(
         "--methods",
         default="all",
-        help="Comma-separated subset: classical,binary-vqe,qaoa-x,qaoa-xy,fractional-vqe.",
+        help="Comma-separated subset: classical,classical-solvers,binary-vqe,qaoa-x,qaoa-xy,fractional-vqe. all excludes optional classical-solvers.",
+    )
+    parser.add_argument(
+        "--solver-time-limit",
+        type=float,
+        default=60.0,
+        help="HiGHS solve limit in seconds (excludes model construction).",
+    )
+    parser.add_argument("--local-restarts", type=int, default=16)
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=None,
+        help="Selection size; default is min(2, n-1), at least 1.",
     )
     parser.add_argument("--lambda-value", type=float, default=4.0)
     parser.add_argument("--alpha", type=float, default=5.0)
@@ -778,10 +949,25 @@ def main(argv: list[str] | None = None) -> int:
     seeds = parse_int_list(args.seeds)
     methods = parse_methods(args.methods)
 
+    if not seeds or not asset_counts or any(n < 1 for n in asset_counts):
+        raise ValueError("Provide seeds and positive asset counts.")
+    allowed = {
+        "classical",
+        "classical-solvers",
+        "binary-vqe",
+        "qaoa-x",
+        "qaoa-xy",
+        "fractional-vqe",
+    }
+    if not methods or methods - allowed:
+        raise ValueError("Unknown or empty method selection.")
+
     rows: list[dict[str, str]] = []
     trial_rows: list[dict[str, str]] = []
     for n_assets in asset_counts:
-        k = max(1, min(2, n_assets - 1))
+        k = args.k if args.k is not None else max(1, min(2, n_assets - 1))
+        if not 1 <= k <= n_assets:
+            raise ValueError("k must be between 1 and each asset count.")
         dataset = f"Synthetic generated n={n_assets}"
         mu, Sigma = synthetic_problem(n_assets)
 
@@ -795,6 +981,20 @@ def main(argv: list[str] | None = None) -> int:
                 args.lambda_value,
                 args.alpha,
                 k,
+            )
+
+        if "classical-solvers" in methods:
+            add_solver_rows(
+                rows,
+                trial_rows,
+                dataset,
+                mu,
+                Sigma,
+                args.lambda_value,
+                k,
+                seeds,
+                args.solver_time_limit,
+                args.local_restarts,
             )
 
         if "binary-vqe" in methods:
