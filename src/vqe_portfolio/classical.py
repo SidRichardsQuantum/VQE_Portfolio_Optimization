@@ -8,6 +8,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .problem import PortfolioProblem
+from .problem import portfolio_objective as _objective
+
 
 @dataclass
 class ClassicalResult:
@@ -20,25 +23,10 @@ class ClassicalResult:
 
 
 def _problem(mu, Sigma, lam, k=None):
-    mu = np.asarray(mu, dtype=float)
-    Sigma = np.asarray(Sigma, dtype=float)
-    if mu.ndim != 1 or not mu.size or Sigma.shape != (mu.size, mu.size):
-        raise ValueError("Expected nonempty mu and a matching square covariance.")
-    if not np.all(np.isfinite(mu)) or not np.all(np.isfinite(Sigma)):
-        raise ValueError("Problem data must be finite.")
-    if not np.isfinite(lam) or lam < 0:
-        raise ValueError("lam must be finite and nonnegative.")
-    if not np.allclose(Sigma, Sigma.T, atol=1e-12, rtol=1e-10):
-        raise ValueError("Covariance must be symmetric.")
-    if k is not None and (
-        not isinstance(k, (int, np.integer)) or not 0 <= k <= len(mu)
-    ):
-        raise ValueError("k must be an integer between zero and n_assets.")
-    return mu, (Sigma + Sigma.T) / 2
-
-
-def _objective(x, mu, Sigma, lam):
-    return float(lam * x @ Sigma @ x - mu @ x)
+    problem = PortfolioProblem(
+        mu, Sigma, lam, "binary_qubo" if k is not None else "fractional_simplex", k
+    )
+    return problem.mu, problem.Sigma
 
 
 def convex_markowitz_baseline(mu, Sigma, lam) -> ClassicalResult:

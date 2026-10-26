@@ -7,34 +7,17 @@ from typing import Iterable
 
 import numpy as np
 
+from .benchmark import CandidateTrial, comparison_rows
 from .binary import run_binary_vqe
 from .data import get_stock_data
 from .fractional import run_fractional_vqe
-from .metrics import portfolio_return, portfolio_risk
+from .problem import (
+    PortfolioProblem,
+    binary_objective,
+    fractional_objective,
+)
 from .qaoa import run_qaoa
 from .types import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
-
-
-def binary_objective(
-    x: np.ndarray,
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-    alpha: float,
-    k: int,
-) -> float:
-    x = np.asarray(x, dtype=float)
-    return float(lam * x @ Sigma @ x - mu @ x + alpha * (x.sum() - k) ** 2)
-
-
-def fractional_objective(
-    w: np.ndarray,
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-) -> float:
-    w = np.asarray(w, dtype=float)
-    return float(-mu @ w + lam * w @ Sigma @ w)
 
 
 def exhaustive_binary_baseline(
@@ -217,62 +200,54 @@ def real_data_comparison_rows(
         scale=scale,
         progress=False,
     )
-    mu = mu_series.values
-    Sigma = sigma_df.values
+    binary_problem = PortfolioProblem(
+        mu_series.values, sigma_df.values, lam, "binary_qubo", k
+    )
+    fractional_problem = PortfolioProblem(
+        mu_series.values, sigma_df.values, lam, "fractional_simplex"
+    )
+    mu, Sigma = binary_problem.mu, binary_problem.Sigma
 
-    def binary_row(
-        method: str,
-        method_type: str,
-        x: np.ndarray,
-        runtime: float,
-        feasible_rate: float,
-        notes: str,
-    ) -> dict[str, str]:
-        return {
-            "dataset": "Real data method comparison",
-            "method": method,
-            "type": method_type,
-            "window": f"{start} to {end}",
-            "lambda": f"{lam:.6g}",
-            "objective_family": "binary_qubo",
-            "reported_weighting": "equal_weight_selected",
-            "k": str(k),
-            "selection_or_weights": labels_from_selection(tickers, x),
-            "bitstring": bitstring(x),
-            "return": f"{portfolio_return(mu, selected_equal_weight(x)):.6f}",
-            "risk": f"{portfolio_risk(Sigma, selected_equal_weight(x)):.6f}",
-            "objective": f"{binary_objective(x, mu, Sigma, lam, alpha, k):.6f}",
-            "feasible_rate": f"{feasible_rate:.6f}",
-            "runtime_seconds": f"{runtime:.6f}",
-            "notes": notes,
-        }
+    def report(
+        problem, method, method_type, candidate, runtime, notes, sample_rate=None
+    ):
+        _, runs = comparison_rows(
+            problem,
+            [
+                CandidateTrial(
+                    candidate,
+                    runtime,
+                    seed=seed,
+                    sample_feasible_rate=sample_rate,
+                    notes=notes,
+                )
+            ],
+            dataset="Real data method comparison",
+            method=method,
+            method_type=method_type,
+            alpha=alpha if problem.k is not None else None,
+        )
+        row = runs[0]
+        row["window"] = f"{start} to {end}"
+        row["bitstring"] = ""
+        if problem.k is not None and row["feasible_rate"] == "1.000000":
+            row["bitstring"] = row["selection_or_weights"]
+            row["selection_or_weights"] = labels_from_selection(tickers, candidate)
+        return row
 
-    def weight_row(
-        method: str,
-        method_type: str,
-        w: np.ndarray,
-        runtime: float,
-        notes: str,
-    ) -> dict[str, str]:
-        feasible = float(np.all(w >= -1e-8) and abs(w.sum() - 1.0) < 1e-6)
-        return {
-            "dataset": "Real data method comparison",
-            "method": method,
-            "type": method_type,
-            "window": f"{start} to {end}",
-            "lambda": f"{lam:.6g}",
-            "objective_family": "fractional_simplex",
-            "reported_weighting": "simplex_weights",
-            "k": "",
-            "selection_or_weights": weights_string(w),
-            "bitstring": "",
-            "return": f"{portfolio_return(mu, w):.6f}",
-            "risk": f"{portfolio_risk(Sigma, w):.6f}",
-            "objective": f"{fractional_objective(w, mu, Sigma, lam):.6f}",
-            "feasible_rate": f"{feasible:.6f}",
-            "runtime_seconds": f"{runtime:.6f}",
-            "notes": notes,
-        }
+    def binary_row(method, method_type, x, runtime, feasible_rate, notes):
+        return report(
+            binary_problem,
+            method,
+            method_type,
+            x,
+            runtime,
+            notes,
+            feasible_rate if method_type == "quantum" else None,
+        )
+
+    def weight_row(method, method_type, w, runtime, notes):
+        return report(fractional_problem, method, method_type, w, runtime, notes)
 
     rows: list[dict[str, str]] = []
 
@@ -327,13 +302,10 @@ def real_data_comparison_rows(
     )
     started = time.perf_counter()
     binary_res = run_binary_vqe(mu, Sigma, binary_cfg)
-    x_binary = np.asarray(
-        (
-            binary_res.x_best_feasible
-            if binary_res.x_best_feasible is not None
-            else binary_res.x_topk
-        ),
-        dtype=int,
+    x_binary = (
+        binary_res.x_best_feasible
+        if binary_res.x_best_feasible is not None
+        else binary_res.x_topk
     )
     rows.append(
         binary_row(
@@ -342,7 +314,11 @@ def real_data_comparison_rows(
             x_binary,
             time.perf_counter() - started,
             feasible_sample_rate(binary_res.sample_counts, k),
-            "Falls back to Top-K projection if needed",
+            (
+                "Top-K fallback"
+                if binary_res.x_best_feasible is None
+                else "Best feasible sampled candidate"
+            ),
         )
     )
 
@@ -362,13 +338,10 @@ def real_data_comparison_rows(
         )
         started = time.perf_counter()
         qaoa_res = run_qaoa(mu, Sigma, qaoa_cfg)
-        x_qaoa = np.asarray(
-            (
-                qaoa_res.x_best_feasible
-                if qaoa_res.x_best_feasible is not None
-                else qaoa_res.x_topk
-            ),
-            dtype=int,
+        x_qaoa = (
+            qaoa_res.x_best_feasible
+            if qaoa_res.x_best_feasible is not None
+            else qaoa_res.x_topk
         )
         rows.append(
             binary_row(
@@ -377,7 +350,11 @@ def real_data_comparison_rows(
                 x_qaoa,
                 time.perf_counter() - started,
                 feasible_sample_rate(qaoa_res.sample_counts, k),
-                "Falls back to Top-K projection if needed",
+                (
+                    "Top-K fallback"
+                    if qaoa_res.x_best_feasible is None
+                    else "Best feasible sampled candidate"
+                ),
             )
         )
 
@@ -395,7 +372,7 @@ def real_data_comparison_rows(
         weight_row(
             "Fractional VQE",
             "quantum",
-            np.asarray(fractional_res.weights, dtype=float),
+            fractional_res.weights,
             time.perf_counter() - started,
             "Simplex-normalized allocation",
         )

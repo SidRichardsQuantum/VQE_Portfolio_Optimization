@@ -26,6 +26,8 @@ Optional stronger baselines (OSQP, HiGHS, and multistart swap search) are availa
 
 ## How to Read the Tables
 
+The committed tables below use the historical schema: binary `feasible_rate` measures sample feasibility. Newly regenerated comparisons independently validate returned portfolios, use `feasible_rate` for returned-portfolio feasibility, and report sample feasibility separately as `sample_feasible_rate`. They also include a shared `problem_id`, and trial rows separate original objective scores from `penalized_energy`. See [shared problem definitions and evaluation](USAGE.md#shared-problem-definitions-and-evaluation).
+
 For binary selection methods, lower objective is better for a fixed dataset, risk-aversion value, penalty, and cardinality. For fractional allocation methods, lower simplex objective is better at the same risk-aversion value.
 
 Generated comparison tables include `objective_family` and `reported_weighting` columns because binary QUBO objectives and fractional simplex objectives are different mathematical objectives. In generated comparison rows, binary return and risk are reported from equal-weight selected portfolios (`x / K`) so risk-return plots are comparable with simplex allocations, while the binary objective remains the true QUBO objective evaluated on the raw bitstring `x`.

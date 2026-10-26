@@ -429,7 +429,7 @@ python scripts/generate_comparison_results.py
 
 This records aggregate objective statistics in `results/generated_comparison_summary.csv` and per-seed trial rows in `results/generated_repeatability_trials.csv`.
 
-Comparison CSVs distinguish `objective_family` from `reported_weighting`: binary objectives are true QUBO objectives on bitstrings, while binary risk/return is reported from equal-weight selected portfolios for comparability with simplex allocations.
+Comparison CSVs distinguish `objective_family` from `reported_weighting`: binary candidates are scored on the original mean-variance objective using raw bitstrings, while binary risk/return uses equal-weight selected portfolios. Penalty energy is a separate diagnostic. Binary and fractional objective values must not be ranked together.
 
 ---
 
@@ -519,3 +519,32 @@ The CSVs add `solver_status`, `lower_bound`, and `mip_gap`; legacy methods leave
 Programmatic entry points are `convex_markowitz_baseline`, `mixed_integer_binary_baseline`, and `local_search_binary_baseline` in `vqe_portfolio.classical`. They return a `ClassicalResult` with the candidate, recomputed original objective, termination status, and available bound metadata. The local-search helper also accepts `max_swaps` (default 1,000 per restart).
 
 Solver interfaces: [SciPy/HiGHS MILP](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.milp.html), [CVXPY solver options](https://www.cvxpy.org/tutorial/solvers/).
+
+
+## Shared Problem Definitions and Evaluation
+
+`PortfolioProblem` freezes copies of the returns, covariance, risk aversion, objective family, and cardinality. Its arrays are read-only. All benchmark adapters receive these frozen arrays, and the independent evaluator recomputes feasibility, objective, risk, and return from the returned candidate instead of trusting solver scores. The synthetic, ansatz, and real-data comparison workflows use the same evaluator.
+
+```python
+from vqe_portfolio import PortfolioProblem
+
+problem = PortfolioProblem(mu, Sigma, lam=4.0, objective_family="binary_qubo", k=2)
+result = problem.evaluate([1, 0, 1], alpha=5.0)  # for a three-asset problem
+print(problem.problem_id, result.feasible, result.objective)
+```
+
+Use `objective_family="fractional_simplex"` without `k` for continuous allocations. The evaluator requires exact binary entries and cardinality, or nonnegative simplex weights within `1e-8` of the constraints. Wrong shapes, nonfinite values, missing candidates, and constraint violations have no scored objective. Evaluation does not round, project, or normalise candidates. Solver-side cleanup and Top-K fallback remain explicit algorithm behaviour; fallback is recorded in trial notes.
+
+For binary selection, the scored objective is `lam * x.T @ Sigma @ x - mu.T @ x`; risk and return use `x / K`. For fractional allocation, both the objective and descriptive metrics use the returned weights. The existing `binary_qubo` family name is retained for compatibility, but scores exclude penalties. The public `binary_objective(...)` helper still returns penalised QUBO energy for existing callers.
+
+Newly generated CSVs distinguish:
+
+- `problem_id`: SHA-256 of the canonical problem snapshot, including allocation rules and feasibility tolerance. Only compare objective values within the same ID. Penalty strength, solver settings, and seeds are not part of the underlying problem.
+- `feasible_rate`: fraction of **returned portfolios** passing independent validation, for every method.
+- `sample_feasible_rate`: fraction of sampled binary bitstrings satisfying cardinality, when available. A Top-K fallback can produce a feasible returned portfolio even when no feasible bitstring was sampled.
+- `penalized_energy`: trial-level binary energy when a penalty coefficient is supplied; it never controls the benchmark ranking.
+- `validation_error`: trial-level reason a candidate was rejected. Invalid trials remain in runtime and feasibility statistics; quality summaries exclude them and are blank if none are valid.
+
+**Schema change:** older committed CSVs and notebook outputs use `feasible_rate` for binary sample feasibility. Those historical values have not been relabelled or regenerated. Use `sample_feasible_rate` for that diagnostic in new outputs; do not mix old and new feasibility columns without accounting for this change.
+
+The synthetic generator writes `<summary-stem>.problems.json` beside its summary CSV, keyed by `problem_id`, containing the exact data for both tracks. Restore an instance with `PortfolioProblem.from_dict(snapshot)` and verify its ID before comparing runs. `problem.to_dict()` provides the same snapshot format for programmatic and real-data workflows. These snapshots define reproducible optimisation inputs; they do not yet implement the full fixed-budget research protocol.

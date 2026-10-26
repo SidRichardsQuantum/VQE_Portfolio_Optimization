@@ -11,11 +11,10 @@ from __future__ import annotations
 
 import argparse
 import csv
-import itertools
+import json
 import time
 from dataclasses import replace
 from pathlib import Path
-from statistics import mean, pstdev
 
 import numpy as np
 
@@ -27,12 +26,29 @@ from vqe_portfolio import (
     run_fractional_vqe,
     run_qaoa,
 )
+from vqe_portfolio import comparison as _comparison
+from vqe_portfolio.benchmark import CandidateTrial, comparison_rows
 from vqe_portfolio.classical import (
     convex_markowitz_baseline,
     local_search_binary_baseline,
     mixed_integer_binary_baseline,
 )
-from vqe_portfolio.metrics import portfolio_return, portfolio_risk
+from vqe_portfolio.comparison import (
+    equal_weight_baseline,
+    exact_long_only_markowitz_baseline,
+    exhaustive_binary_baseline,
+    feasible_sample_rate,
+    minimum_variance_binary_baseline,
+    top_return_baseline,
+)
+from vqe_portfolio.problem import PortfolioProblem
+
+# Preserve helpers previously defined here for notebook/external callers.
+binary_objective = _comparison.binary_objective
+fractional_objective = _comparison.fractional_objective
+selected_equal_weight = _comparison.selected_equal_weight
+weights_string = _comparison.weights_string
+bitstring = _comparison.bitstring
 
 FIELDNAMES = [
     "dataset",
@@ -56,6 +72,8 @@ FIELDNAMES = [
     "solver_status",
     "lower_bound",
     "mip_gap",
+    "problem_id",
+    "sample_feasible_rate",
 ]
 
 TRIAL_FIELDNAMES = [
@@ -78,7 +96,11 @@ TRIAL_FIELDNAMES = [
     "solver_status",
     "lower_bound",
     "mip_gap",
+    "problem_id",
+    "sample_feasible_rate",
 ]
+
+TRIAL_FIELDNAMES += ["penalized_energy", "validation_error"]
 
 
 def synthetic_problem(n_assets: int, seed: int = 123) -> tuple[np.ndarray, np.ndarray]:
@@ -89,791 +111,215 @@ def synthetic_problem(n_assets: int, seed: int = 123) -> tuple[np.ndarray, np.nd
     return mu.astype(float), Sigma.astype(float)
 
 
-def binary_objective(
-    x: np.ndarray,
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-    alpha: float,
-    k: int,
-) -> float:
-    x = np.asarray(x, dtype=float)
-    return float(lam * x @ Sigma @ x - mu @ x + alpha * (x.sum() - k) ** 2)
-
-
-def fractional_objective(
-    w: np.ndarray,
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-) -> float:
-    w = np.asarray(w, dtype=float)
-    return float(-mu @ w + lam * w @ Sigma @ w)
-
-
-def exhaustive_binary_baseline(
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-    alpha: float,
-    k: int,
-) -> tuple[np.ndarray, float]:
-    best_x: np.ndarray | None = None
-    best_obj = float("inf")
-    for combo in itertools.combinations(range(len(mu)), k):
-        x = np.zeros(len(mu), dtype=int)
-        x[list(combo)] = 1
-        obj = binary_objective(x, mu, Sigma, lam=lam, alpha=alpha, k=k)
-        if obj < best_obj:
-            best_x = x
-            best_obj = obj
-    if best_x is None:
-        raise RuntimeError("No feasible binary portfolio was generated.")
-    return best_x, best_obj
-
-
-def top_return_baseline(
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-    alpha: float,
-    k: int,
-) -> tuple[np.ndarray, float]:
-    selected = np.argsort(mu)[-k:]
-    x = np.zeros(len(mu), dtype=int)
-    x[selected] = 1
-    return x, binary_objective(x, mu, Sigma, lam=lam, alpha=alpha, k=k)
-
-
-def minimum_variance_binary_baseline(
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-    alpha: float,
-    k: int,
-) -> tuple[np.ndarray, float]:
-    best_x: np.ndarray | None = None
-    best_variance = float("inf")
-    for combo in itertools.combinations(range(len(mu)), k):
-        x = np.zeros(len(mu), dtype=int)
-        x[list(combo)] = 1
-        variance = float(x @ Sigma @ x)
-        if variance < best_variance:
-            best_x = x
-            best_variance = variance
-    if best_x is None:
-        raise RuntimeError("No feasible binary portfolio was generated.")
-    return best_x, binary_objective(best_x, mu, Sigma, lam=lam, alpha=alpha, k=k)
-
-
-def exact_long_only_markowitz_baseline(
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-    tol: float = 1e-9,
-) -> tuple[np.ndarray, float]:
-    """Solve the long-only simplex Markowitz problem by active-set enumeration."""
-    mu = np.asarray(mu, dtype=float)
-    Sigma = np.asarray(Sigma, dtype=float)
-    n = len(mu)
-
-    if lam <= 0:
-        w = np.zeros(n, dtype=float)
-        w[int(np.argmax(mu))] = 1.0
-        return w, fractional_objective(w, mu, Sigma, lam=lam)
-
-    best_w: np.ndarray | None = None
-    best_obj = float("inf")
-
-    for size in range(1, n + 1):
-        for support in itertools.combinations(range(n), size):
-            idx = np.array(support, dtype=int)
-            sigma_s = Sigma[np.ix_(idx, idx)]
-            mu_s = mu[idx]
-            lhs = np.block(
-                [
-                    [2.0 * lam * sigma_s, np.ones((size, 1))],
-                    [np.ones((1, size)), np.zeros((1, 1))],
-                ]
-            )
-            rhs = np.concatenate([mu_s, np.array([1.0])])
-            try:
-                sol = np.linalg.solve(lhs, rhs)
-            except np.linalg.LinAlgError:
-                sol = np.linalg.lstsq(lhs, rhs, rcond=None)[0]
-            w_s = sol[:size]
-            if np.any(w_s < -tol):
-                continue
-            w_s = np.maximum(w_s, 0.0)
-            total = float(w_s.sum())
-            if total <= 0:
-                continue
-            w_s = w_s / total
-
-            w = np.zeros(n, dtype=float)
-            w[idx] = w_s
-            obj = fractional_objective(w, mu, Sigma, lam=lam)
-            if obj < best_obj:
-                best_w = w
-                best_obj = obj
-
-    if best_w is None:
-        raise RuntimeError("No feasible Markowitz allocation was generated.")
-
-    return best_w, best_obj
-
-
-def equal_weight_baseline(
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-) -> tuple[np.ndarray, float]:
-    w = np.full(len(mu), 1.0 / len(mu), dtype=float)
-    return w, fractional_objective(w, mu, Sigma, lam=lam)
-
-
-def bitstring(x: np.ndarray) -> str:
-    return "".join(str(int(v)) for v in np.asarray(x, dtype=int))
-
-
-def weights_string(w: np.ndarray) -> str:
-    return "[" + " ".join(f"{float(v):.6f}" for v in np.asarray(w, dtype=float)) + "]"
-
-
-def feasible_sample_rate(sample_counts: dict[str, int], k: int) -> float:
-    total = sum(sample_counts.values())
-    if total == 0:
-        return 0.0
-    feasible = sum(
-        count for bits, count in sample_counts.items() if bits.count("1") == k
-    )
-    return feasible / total
-
-
-def selected_equal_weight(x: np.ndarray) -> np.ndarray:
-    x = np.asarray(x, dtype=float)
-    selected = float(x.sum())
-    if selected <= 0:
-        return x
-    return x / selected
-
-
-def summarize_trials(
-    *,
-    dataset: str,
-    n_assets: int,
-    k: int | None,
-    method: str,
-    method_type: str,
-    lam: float,
-    objective_family: str,
-    reported_weighting: str,
-    objectives: list[float],
-    returns: list[float],
-    risks: list[float],
-    feasible_rates: list[float],
-    runtimes: list[float],
-    candidates: list[str],
-    notes: str,
-) -> dict[str, str]:
-    best_idx = int(np.argmin(objectives))
-    return {
-        "dataset": dataset,
-        "n_assets": str(n_assets),
-        "k": "" if k is None else str(k),
-        "method": method,
-        "type": method_type,
-        "lambda": f"{lam:.6g}",
-        "objective_family": objective_family,
-        "reported_weighting": reported_weighting,
-        "seed_count": str(len(objectives)),
-        "best_objective": f"{min(objectives):.6f}",
-        "mean_objective": f"{mean(objectives):.6f}",
-        "std_objective": (
-            f"{pstdev(objectives):.6f}" if len(objectives) > 1 else "0.000000"
-        ),
-        "mean_return": f"{mean(returns):.6f}",
-        "mean_risk": f"{mean(risks):.6f}",
-        "feasible_rate": f"{mean(feasible_rates):.6f}",
-        "mean_runtime_seconds": f"{mean(runtimes):.6f}",
-        "best_selection_or_weights": candidates[best_idx],
-        "notes": notes,
-    }
-
-
-def trial_row(
-    *,
-    dataset: str,
-    n_assets: int,
-    k: int | None,
-    method: str,
-    method_type: str,
-    lam: float,
-    objective_family: str,
-    reported_weighting: str,
-    seed: int | str,
-    objective: float,
-    ret: float,
-    risk: float,
-    feasible_rate: float,
-    runtime: float,
-    candidate: str,
-    notes: str,
-) -> dict[str, str]:
-    return {
-        "dataset": dataset,
-        "n_assets": str(n_assets),
-        "k": "" if k is None else str(k),
-        "method": method,
-        "type": method_type,
-        "lambda": f"{lam:.6g}",
-        "objective_family": objective_family,
-        "reported_weighting": reported_weighting,
-        "seed": str(seed),
-        "objective": f"{objective:.6f}",
-        "return": f"{ret:.6f}",
-        "risk": f"{risk:.6f}",
-        "feasible_rate": f"{feasible_rate:.6f}",
-        "runtime_seconds": f"{runtime:.6f}",
-        "selection_or_weights": candidate,
-        "notes": notes,
-    }
-
-
-def add_summary_and_trial(
-    rows: list[dict[str, str]],
-    trial_rows: list[dict[str, str]],
-    *,
-    dataset: str,
-    n_assets: int,
-    k: int | None,
-    method: str,
-    method_type: str,
-    lam: float,
-    objective_family: str,
-    reported_weighting: str,
-    objective: float,
-    ret: float,
-    risk: float,
-    feasible_rate: float,
-    runtime: float,
-    candidate: str,
-    notes: str,
-) -> None:
-    rows.append(
-        summarize_trials(
-            dataset=dataset,
-            n_assets=n_assets,
-            k=k,
-            method=method,
-            method_type=method_type,
-            lam=lam,
-            objective_family=objective_family,
-            reported_weighting=reported_weighting,
-            objectives=[objective],
-            returns=[ret],
-            risks=[risk],
-            feasible_rates=[feasible_rate],
-            runtimes=[runtime],
-            candidates=[candidate],
-            notes=notes,
-        )
-    )
-    trial_rows.append(
-        trial_row(
-            dataset=dataset,
-            n_assets=n_assets,
-            k=k,
-            method=method,
-            method_type=method_type,
-            lam=lam,
-            objective_family=objective_family,
-            reported_weighting=reported_weighting,
-            seed="-",
-            objective=objective,
-            ret=ret,
-            risk=risk,
-            feasible_rate=feasible_rate,
-            runtime=runtime,
-            candidate=candidate,
-            notes=notes,
-        )
-    )
-
-
-def add_classical_rows(
-    rows: list[dict[str, str]],
-    trial_rows: list[dict[str, str]],
-    dataset: str,
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    lam: float,
-    alpha: float,
-    k: int,
-) -> None:
-    started = time.perf_counter()
-    x, obj = exhaustive_binary_baseline(mu, Sigma, lam=lam, alpha=alpha, k=k)
-    elapsed = time.perf_counter() - started
-    add_summary_and_trial(
-        rows,
-        trial_rows,
+def _append(
+    rows, trial_rows, problem, trials, dataset, method, method_type, alpha=None
+):
+    summary, runs = comparison_rows(
+        problem,
+        trials,
         dataset=dataset,
-        n_assets=len(mu),
-        k=k,
-        method="Classical exhaustive search",
-        method_type="classical",
-        lam=lam,
-        objective=obj,
-        objective_family="binary_qubo",
-        reported_weighting="equal_weight_selected",
-        ret=portfolio_return(mu, selected_equal_weight(x)),
-        risk=portfolio_risk(Sigma, selected_equal_weight(x)),
-        feasible_rate=1.0,
-        runtime=elapsed,
-        candidate=bitstring(x),
-        notes="Exact binary cardinality baseline",
+        method=method,
+        method_type=method_type,
+        alpha=alpha,
     )
+    rows.append(summary)
+    trial_rows.extend(runs)
 
-    for method, baseline, notes in [
+
+def add_classical_rows(rows, trial_rows, dataset, mu, Sigma, lam, alpha, k):
+    binary = PortfolioProblem(mu, Sigma, lam, "binary_qubo", k)
+    fractional = PortfolioProblem(mu, Sigma, lam, "fractional_simplex")
+    for method, baseline, problem, method_type in [
+        (
+            "Classical exhaustive search",
+            exhaustive_binary_baseline,
+            binary,
+            "classical",
+        ),
         (
             "Classical top-return heuristic",
             top_return_baseline,
-            "Selects the K largest expected returns",
+            binary,
+            "classical heuristic",
         ),
         (
             "Classical minimum-variance subset",
             minimum_variance_binary_baseline,
-            "Selects the feasible subset with the lowest quadratic variance",
+            binary,
+            "classical heuristic",
+        ),
+        (
+            "Classical equal weight",
+            equal_weight_baseline,
+            fractional,
+            "classical heuristic",
+        ),
+        (
+            "Classical exact Markowitz",
+            exact_long_only_markowitz_baseline,
+            fractional,
+            "classical",
         ),
     ]:
+        kwargs = {"alpha": alpha, "k": k} if problem.k is not None else {}
         started = time.perf_counter()
-        x, obj = baseline(mu, Sigma, lam=lam, alpha=alpha, k=k)
-        elapsed = time.perf_counter() - started
-        add_summary_and_trial(
+        candidate, _ = baseline(problem.mu, problem.Sigma, lam=problem.lam, **kwargs)
+        trial = CandidateTrial(candidate, time.perf_counter() - started)
+        _append(
             rows,
             trial_rows,
-            dataset=dataset,
-            n_assets=len(mu),
-            k=k,
-            method=method,
-            method_type="classical heuristic",
-            lam=lam,
-            objective=obj,
-            objective_family="binary_qubo",
-            reported_weighting="equal_weight_selected",
-            ret=portfolio_return(mu, selected_equal_weight(x)),
-            risk=portfolio_risk(Sigma, selected_equal_weight(x)),
-            feasible_rate=1.0,
-            runtime=elapsed,
-            candidate=bitstring(x),
-            notes=notes,
+            problem,
+            [trial],
+            dataset,
+            method,
+            method_type,
+            alpha if problem.k is not None else None,
         )
-
-    started = time.perf_counter()
-    w, obj = equal_weight_baseline(mu, Sigma, lam=lam)
-    elapsed = time.perf_counter() - started
-    add_summary_and_trial(
-        rows,
-        trial_rows,
-        dataset=dataset,
-        n_assets=len(mu),
-        k=None,
-        method="Classical equal weight",
-        method_type="classical heuristic",
-        lam=lam,
-        objective_family="fractional_simplex",
-        reported_weighting="simplex_weights",
-        objective=obj,
-        ret=portfolio_return(mu, w),
-        risk=portfolio_risk(Sigma, w),
-        feasible_rate=1.0,
-        runtime=elapsed,
-        candidate=weights_string(w),
-        notes="Uniform long-only allocation baseline",
-    )
-
-    started = time.perf_counter()
-    w, obj = exact_long_only_markowitz_baseline(mu, Sigma, lam=lam)
-    elapsed = time.perf_counter() - started
-    add_summary_and_trial(
-        rows,
-        trial_rows,
-        dataset=dataset,
-        n_assets=len(mu),
-        k=None,
-        method="Classical exact Markowitz",
-        method_type="classical",
-        lam=lam,
-        objective_family="fractional_simplex",
-        reported_weighting="simplex_weights",
-        objective=obj,
-        ret=portfolio_return(mu, w),
-        risk=portfolio_risk(Sigma, w),
-        feasible_rate=1.0,
-        runtime=elapsed,
-        candidate=weights_string(w),
-        notes="Exact long-only simplex baseline from active-set enumeration",
-    )
 
 
 def add_solver_rows(
     rows, trial_rows, dataset, mu, Sigma, lam, k, seeds, time_limit=60.0, restarts=16
 ):
-    """Run stronger baselines without the exponential reference algorithms.
-
-    Keep failed trials and solver termination metadata. Summary quality is
-    conditional on feasible returns; seed_count and feasible_rate include all
-    trials. Solver limits do not claim to implement end-to-end protocol budgets.
-    """
-    for method, binary, run_seeds, solve in [
+    binary = PortfolioProblem(mu, Sigma, lam, "binary_qubo", k)
+    fractional = PortfolioProblem(mu, Sigma, lam, "fractional_simplex")
+    for method, problem, run_seeds, solve in [
         (
             "Classical convex Markowitz (OSQP)",
-            False,
+            fractional,
             ["-"],
-            lambda seed: convex_markowitz_baseline(mu, Sigma, lam),
+            lambda p, seed: convex_markowitz_baseline(p.mu, p.Sigma, p.lam),
         ),
         (
             "Classical mixed integer (HiGHS)",
-            True,
+            binary,
             ["-"],
-            lambda seed: mixed_integer_binary_baseline(
-                mu, Sigma, lam, k, time_limit=time_limit
+            lambda p, seed: mixed_integer_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, time_limit=time_limit
             ),
         ),
         (
             "Classical multistart swap search",
-            True,
+            binary,
             seeds,
-            lambda seed: local_search_binary_baseline(
-                mu, Sigma, lam, k, seed=seed, restarts=restarts
+            lambda p, seed: local_search_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
             ),
         ),
     ]:
-        common = {
-            "dataset": dataset,
-            "n_assets": len(mu),
-            "k": k if binary else None,
-            "method": method,
-            "method_type": (
-                "classical heuristic" if method.endswith("search") else "classical"
-            ),
-            "lam": lam,
-            "objective_family": "binary_qubo" if binary else "fractional_simplex",
-            "reported_weighting": (
-                "equal_weight_selected" if binary else "simplex_weights"
-            ),
-        }
-        results, durations, returns, risks, candidates = [], [], [], [], []
+        trials = []
         for seed in run_seeds:
             started = time.perf_counter()
-            result = solve(seed)
-            durations.append(time.perf_counter() - started)
-            results.append(result)
-            feasible = result.candidate is not None
-            w = (
-                (
-                    selected_equal_weight(result.candidate)
-                    if binary
-                    else result.candidate
+            result = solve(problem, seed)
+            trials.append(
+                CandidateTrial(
+                    result.candidate,
+                    time.perf_counter() - started,
+                    seed=seed,
+                    status=result.status,
+                    lower_bound=result.lower_bound,
+                    mip_gap=result.mip_gap,
+                    notes=result.message,
                 )
-                if feasible
-                else None
             )
-            ret = portfolio_return(mu, w) if feasible else float("nan")
-            risk = portfolio_risk(Sigma, w) if feasible else float("nan")
-            candidate = (
-                (
-                    bitstring(result.candidate)
-                    if binary
-                    else weights_string(result.candidate)
-                )
-                if feasible
-                else ""
-            )
-            returns.append(ret)
-            risks.append(risk)
-            candidates.append(candidate)
-            row = trial_row(
-                **common,
-                seed=seed,
-                objective=result.objective if feasible else float("nan"),
-                ret=ret,
-                risk=risk,
-                feasible_rate=float(feasible),
-                runtime=durations[-1],
-                candidate=candidate,
-                notes=result.message,
-            )
-            if not feasible:
-                for field in ["objective", "return", "risk"]:
-                    row[field] = ""
-            row.update(
-                solver_status=result.status,
-                lower_bound=(
-                    "" if result.lower_bound is None else repr(result.lower_bound)
-                ),
-                mip_gap="" if result.mip_gap is None else repr(result.mip_gap),
-            )
-            trial_rows.append(row)
-        valid = [i for i, result in enumerate(results) if result.candidate is not None]
-        notes = "Quality summaries include feasible returns only; runtimes and feasibility include all trials."
-        if valid:
-            summary = summarize_trials(
-                **common,
-                objectives=[results[i].objective for i in valid],
-                returns=[returns[i] for i in valid],
-                risks=[risks[i] for i in valid],
-                feasible_rates=[1.0] * len(valid),
-                runtimes=[durations[i] for i in valid],
-                candidates=[candidates[i] for i in valid],
-                notes=notes,
-            )
+        _append(
+            rows,
+            trial_rows,
+            problem,
+            trials,
+            dataset,
+            method,
+            "classical heuristic" if method.endswith("search") else "classical",
+        )
+
+
+def _add_quantum_row(
+    rows, trial_rows, dataset, mu, Sigma, cfg, seeds, solve, method, binary
+):
+    problem = PortfolioProblem(
+        mu,
+        Sigma,
+        cfg.lam,
+        "binary_qubo" if binary else "fractional_simplex",
+        cfg.k if binary else None,
+    )
+    trials = []
+    for seed in seeds:
+        started = time.perf_counter()
+        result = solve(problem.mu, problem.Sigma, replace(cfg, seed=seed))
+        if binary:
+            fallback = result.x_best_feasible is None
+            candidate = result.x_topk if fallback else result.x_best_feasible
+            sample_rate = feasible_sample_rate(result.sample_counts, problem.k)
+            notes = "Top-K fallback" if fallback else "Best feasible sampled candidate"
         else:
-            summary = {field: "" for field in FIELDNAMES}
-            summary.update(
-                {
-                    key: str(value)
-                    for key, value in common.items()
-                    if key not in {"method_type", "lam"}
-                }
+            candidate, sample_rate, notes = (
+                result.weights,
+                None,
+                "Returned simplex allocation",
             )
-            summary.update(
-                type=common["method_type"],
-                k=str(k) if binary else "",
-                notes=notes,
-                **{"lambda": f"{lam:.6g}"},
-            )
-        summary.update(
-            seed_count=str(len(results)),
-            feasible_rate=f"{len(valid) / len(results):.6f}",
-            mean_runtime_seconds=f"{mean(durations):.6f}",
-            solver_status=";".join(sorted({r.status for r in results})),
-            lower_bound=trial_rows[-1]["lower_bound"] if len(results) == 1 else "",
-            mip_gap=trial_rows[-1]["mip_gap"] if len(results) == 1 else "",
-        )
-        rows.append(summary)
-
-
-def add_binary_vqe_row(
-    rows: list[dict[str, str]],
-    trial_rows: list[dict[str, str]],
-    dataset: str,
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    base_cfg: BinaryVQEConfig,
-    seeds: list[int],
-) -> None:
-    objectives: list[float] = []
-    returns: list[float] = []
-    risks: list[float] = []
-    feasible_rates: list[float] = []
-    runtimes: list[float] = []
-    candidates: list[str] = []
-    method = "Binary VQE best feasible"
-    notes = "Falls back to Top-K projection if no feasible sample is observed"
-
-    for seed in seeds:
-        started = time.perf_counter()
-        res = run_binary_vqe(mu, Sigma, replace(base_cfg, seed=seed))
-        elapsed = time.perf_counter() - started
-        x = np.asarray(
-            res.x_best_feasible if res.x_best_feasible is not None else res.x_topk
-        )
-        w = selected_equal_weight(x)
-        objectives.append(
-            binary_objective(x, mu, Sigma, base_cfg.lam, base_cfg.alpha, base_cfg.k)
-        )
-        returns.append(portfolio_return(mu, w))
-        risks.append(portfolio_risk(Sigma, w))
-        feasible_rates.append(feasible_sample_rate(res.sample_counts, base_cfg.k))
-        runtimes.append(elapsed)
-        candidates.append(bitstring(x))
-        trial_rows.append(
-            trial_row(
-                dataset=dataset,
-                n_assets=len(mu),
-                k=base_cfg.k,
-                method=method,
-                method_type="quantum",
-                lam=base_cfg.lam,
-                objective_family="binary_qubo",
-                reported_weighting="equal_weight_selected",
+        trials.append(
+            CandidateTrial(
+                candidate,
+                time.perf_counter() - started,
                 seed=seed,
-                objective=objectives[-1],
-                ret=returns[-1],
-                risk=risks[-1],
-                feasible_rate=feasible_rates[-1],
-                runtime=elapsed,
-                candidate=candidates[-1],
+                sample_feasible_rate=sample_rate,
                 notes=notes,
             )
         )
-
-    rows.append(
-        summarize_trials(
-            dataset=dataset,
-            n_assets=len(mu),
-            k=base_cfg.k,
-            method=method,
-            method_type="quantum",
-            lam=base_cfg.lam,
-            objective_family="binary_qubo",
-            reported_weighting="equal_weight_selected",
-            objectives=objectives,
-            returns=returns,
-            risks=risks,
-            feasible_rates=feasible_rates,
-            runtimes=runtimes,
-            candidates=candidates,
-            notes=notes,
-        )
+    _append(
+        rows,
+        trial_rows,
+        problem,
+        trials,
+        dataset,
+        method,
+        "quantum",
+        cfg.alpha if binary else None,
     )
 
 
-def add_qaoa_row(
-    rows: list[dict[str, str]],
-    trial_rows: list[dict[str, str]],
-    dataset: str,
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    base_cfg: QAOAConfig,
-    seeds: list[int],
-) -> None:
-    objectives: list[float] = []
-    returns: list[float] = []
-    risks: list[float] = []
-    feasible_rates: list[float] = []
-    runtimes: list[float] = []
-    candidates: list[str] = []
-    method = f"QAOA {base_cfg.mixer.upper()} best feasible"
-    notes = "Falls back to Top-K projection if no feasible sample is observed"
-
-    for seed in seeds:
-        started = time.perf_counter()
-        res = run_qaoa(mu, Sigma, replace(base_cfg, seed=seed))
-        elapsed = time.perf_counter() - started
-        x = np.asarray(
-            res.x_best_feasible if res.x_best_feasible is not None else res.x_topk
-        )
-        w = selected_equal_weight(x)
-        objectives.append(
-            binary_objective(x, mu, Sigma, base_cfg.lam, base_cfg.alpha, base_cfg.k)
-        )
-        returns.append(portfolio_return(mu, w))
-        risks.append(portfolio_risk(Sigma, w))
-        feasible_rates.append(feasible_sample_rate(res.sample_counts, base_cfg.k))
-        runtimes.append(elapsed)
-        candidates.append(bitstring(x))
-        trial_rows.append(
-            trial_row(
-                dataset=dataset,
-                n_assets=len(mu),
-                k=base_cfg.k,
-                method=method,
-                method_type="quantum",
-                lam=base_cfg.lam,
-                objective_family="binary_qubo",
-                reported_weighting="equal_weight_selected",
-                seed=seed,
-                objective=objectives[-1],
-                ret=returns[-1],
-                risk=risks[-1],
-                feasible_rate=feasible_rates[-1],
-                runtime=elapsed,
-                candidate=candidates[-1],
-                notes=notes,
-            )
-        )
-
-    rows.append(
-        summarize_trials(
-            dataset=dataset,
-            n_assets=len(mu),
-            k=base_cfg.k,
-            method=method,
-            method_type="quantum",
-            lam=base_cfg.lam,
-            objective_family="binary_qubo",
-            reported_weighting="equal_weight_selected",
-            objectives=objectives,
-            returns=returns,
-            risks=risks,
-            feasible_rates=feasible_rates,
-            runtimes=runtimes,
-            candidates=candidates,
-            notes=notes,
-        )
+def add_binary_vqe_row(rows, trial_rows, dataset, mu, Sigma, base_cfg, seeds):
+    _add_quantum_row(
+        rows,
+        trial_rows,
+        dataset,
+        mu,
+        Sigma,
+        base_cfg,
+        seeds,
+        run_binary_vqe,
+        "Binary VQE best feasible",
+        True,
     )
 
 
-def add_fractional_vqe_row(
-    rows: list[dict[str, str]],
-    trial_rows: list[dict[str, str]],
-    dataset: str,
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    base_cfg: FractionalVQEConfig,
-    seeds: list[int],
-) -> None:
-    objectives: list[float] = []
-    returns: list[float] = []
-    risks: list[float] = []
-    feasible_rates: list[float] = []
-    runtimes: list[float] = []
-    candidates: list[str] = []
-    method = "Fractional VQE"
-    notes = "Simplex-normalized allocation"
+def add_qaoa_row(rows, trial_rows, dataset, mu, Sigma, base_cfg, seeds):
+    _add_quantum_row(
+        rows,
+        trial_rows,
+        dataset,
+        mu,
+        Sigma,
+        base_cfg,
+        seeds,
+        run_qaoa,
+        f"QAOA {base_cfg.mixer.upper()} best feasible",
+        True,
+    )
 
-    for seed in seeds:
-        started = time.perf_counter()
-        res = run_fractional_vqe(mu, Sigma, replace(base_cfg, seed=seed))
-        elapsed = time.perf_counter() - started
-        w = np.asarray(res.weights, dtype=float)
-        objectives.append(fractional_objective(w, mu, Sigma, base_cfg.lam))
-        returns.append(portfolio_return(mu, w))
-        risks.append(portfolio_risk(Sigma, w))
-        feasible_rates.append(float(np.all(w >= -1e-8) and abs(w.sum() - 1.0) < 1e-6))
-        runtimes.append(elapsed)
-        candidates.append(weights_string(w))
-        trial_rows.append(
-            trial_row(
-                dataset=dataset,
-                n_assets=len(mu),
-                k=None,
-                method=method,
-                method_type="quantum",
-                lam=base_cfg.lam,
-                objective_family="fractional_simplex",
-                reported_weighting="simplex_weights",
-                seed=seed,
-                objective=objectives[-1],
-                ret=returns[-1],
-                risk=risks[-1],
-                feasible_rate=feasible_rates[-1],
-                runtime=elapsed,
-                candidate=candidates[-1],
-                notes=notes,
-            )
-        )
 
-    rows.append(
-        summarize_trials(
-            dataset=dataset,
-            n_assets=len(mu),
-            k=None,
-            method=method,
-            method_type="quantum",
-            lam=base_cfg.lam,
-            objective_family="fractional_simplex",
-            reported_weighting="simplex_weights",
-            objectives=objectives,
-            returns=returns,
-            risks=risks,
-            feasible_rates=feasible_rates,
-            runtimes=runtimes,
-            candidates=candidates,
-            notes=notes,
-        )
+def add_fractional_vqe_row(rows, trial_rows, dataset, mu, Sigma, base_cfg, seeds):
+    _add_quantum_row(
+        rows,
+        trial_rows,
+        dataset,
+        mu,
+        Sigma,
+        base_cfg,
+        seeds,
+        run_fractional_vqe,
+        "Fractional VQE",
+        False,
     )
 
 
@@ -962,6 +408,7 @@ def main(argv: list[str] | None = None) -> int:
     if not methods or methods - allowed:
         raise ValueError("Unknown or empty method selection.")
 
+    snapshots = {}
     rows: list[dict[str, str]] = []
     trial_rows: list[dict[str, str]] = []
     for n_assets in asset_counts:
@@ -970,6 +417,11 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("k must be between 1 and each asset count.")
         dataset = f"Synthetic generated n={n_assets}"
         mu, Sigma = synthetic_problem(n_assets)
+        for family, cardinality in [("binary_qubo", k), ("fractional_simplex", None)]:
+            problem = PortfolioProblem(
+                mu, Sigma, args.lambda_value, family, cardinality
+            )
+            snapshots[problem.problem_id] = problem.to_dict()
 
         if "classical" in methods:
             add_classical_rows(
@@ -1053,6 +505,8 @@ def main(argv: list[str] | None = None) -> int:
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_path = output.with_suffix(".problems.json")
+    snapshot_path.write_text(json.dumps(snapshots, indent=2, allow_nan=False) + "\n")
     with output.open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()

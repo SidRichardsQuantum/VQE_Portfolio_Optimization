@@ -117,7 +117,7 @@ def test_strong_classical_failures_are_preserved(monkeypatch):
     assert all(r["feasible_rate"] == "0.000000" for r in rows)
     assert all(r["best_objective"] == "" for r in rows)
     assert all(r["objective"] == "" for r in trials)
-    assert rows[1]["lower_bound"] == "-3.0"
+    assert float(rows[1]["lower_bound"]) == -3.0
 
     assert all(set(r) <= set(benchmark.FIELDNAMES) for r in rows)
     assert all(r["lambda"] == "1" for r in rows)

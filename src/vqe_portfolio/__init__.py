@@ -93,6 +93,8 @@ from .frontier import (
     fractional_frontier_from_allocs,
 )
 
+from .problem import PortfolioProblem, PortfolioEvaluation
+
 from .comparison import (
     binary_objective,
     fractional_objective,
@@ -144,6 +146,8 @@ __all__ = [
     "binary_frontier_from_probs",
     "fractional_frontier_from_allocs",
     # --- comparison helpers ---
+    "PortfolioProblem",
+    "PortfolioEvaluation",
     "binary_objective",
     "fractional_objective",
     "exhaustive_binary_baseline",

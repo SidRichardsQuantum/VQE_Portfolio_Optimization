@@ -1,6 +1,6 @@
 # Quantum Advantage Research Protocol
 
-Status: prospective protocol. The existing results are exploratory examples, not evidence that these criteria have been met. This document defines the research question; implementing and running the benchmark is subsequent work.
+Status: prospective protocol. The existing results are exploratory examples, not evidence that these criteria have been met. This document defines the research question; the full fixed-budget study remains subsequent work. Shared problem snapshots, independent candidate evaluation, and stronger classical baselines are implemented; see [usage](USAGE.md#shared-problem-definitions-and-evaluation).
 
 ## Research question
 

@@ -7,11 +7,7 @@ import argparse
 import csv
 import sys
 import time
-from dataclasses import replace
 from pathlib import Path
-from statistics import mean, pstdev
-
-import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -20,24 +16,20 @@ if str(ROOT) not in sys.path:
 import matplotlib.pyplot as plt  # noqa: E402
 
 from scripts.generate_comparison_results import (  # noqa: E402
-    binary_objective,
+    add_binary_vqe_row,
+    add_fractional_vqe_row,
     exact_long_only_markowitz_baseline,
     exhaustive_binary_baseline,
-    feasible_sample_rate,
-    fractional_objective,
-    selected_equal_weight,
     synthetic_problem,
-    weights_string,
 )
 from vqe_portfolio import BinaryVQEConfig, FractionalVQEConfig  # noqa: E402
 from vqe_portfolio.ansatz import BINARY_ANSATZES, FRACTIONAL_ANSATZES  # noqa: E402
-from vqe_portfolio.binary import run_binary_vqe  # noqa: E402
-from vqe_portfolio.fractional import run_fractional_vqe  # noqa: E402
-from vqe_portfolio.metrics import portfolio_return, portfolio_risk  # noqa: E402
+from vqe_portfolio.benchmark import CandidateTrial, comparison_rows  # noqa: E402
 from vqe_portfolio.plotting import (  # noqa: E402
     plot_comparison_metric_bars,
     plot_risk_return_comparison,
 )
+from vqe_portfolio.problem import PortfolioProblem  # noqa: E402
 
 FIELDNAMES = [
     "dataset",
@@ -56,95 +48,39 @@ FIELDNAMES = [
     "mean_runtime_seconds",
     "best_selection_or_weights",
     "notes",
+    "problem_id",
+    "sample_feasible_rate",
 ]
 
 
-def bitstring(x: np.ndarray) -> str:
-    return "".join(str(int(v)) for v in np.asarray(x, dtype=int))
-
-
-def summarize(
-    *,
-    dataset: str,
-    method: str,
-    ansatz: str,
-    depth: int,
-    objective_family: str,
-    reported_weighting: str,
-    objectives: list[float],
-    returns: list[float],
-    risks: list[float],
-    feasible_rates: list[float],
-    runtimes: list[float],
-    candidates: list[str],
-    notes: str,
-) -> dict[str, str]:
-    best_idx = int(np.argmin(objectives))
+def _ansatz_summary(row, ansatz, depth):
     return {
-        "dataset": dataset,
-        "method": method,
-        "ansatz": ansatz,
-        "depth": str(depth),
-        "objective_family": objective_family,
-        "reported_weighting": reported_weighting,
-        "seed_count": str(len(objectives)),
-        "best_objective": f"{min(objectives):.6f}",
-        "mean_objective": f"{mean(objectives):.6f}",
-        "std_objective": (
-            f"{pstdev(objectives):.6f}" if len(objectives) > 1 else "0.000000"
-        ),
-        "mean_return": f"{mean(returns):.6f}",
-        "mean_risk": f"{mean(risks):.6f}",
-        "feasible_rate": f"{mean(feasible_rates):.6f}",
-        "mean_runtime_seconds": f"{mean(runtimes):.6f}",
-        "best_selection_or_weights": candidates[best_idx],
-        "notes": notes,
+        field: (
+            str(ansatz)
+            if field == "ansatz"
+            else str(depth) if field == "depth" else row.get(field, "")
+        )
+        for field in FIELDNAMES
     }
 
 
-def binary_ansatz_rows(
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    seeds: list[int],
-    *,
-    depth: int,
-    steps: int,
-    shots: int,
-    lam: float,
-    alpha: float,
-    k: int,
-) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
-    x_exact, exact_obj = exhaustive_binary_baseline(
-        mu, Sigma, lam=lam, alpha=alpha, k=k
+def binary_ansatz_rows(mu, Sigma, seeds, *, depth, steps, shots, lam, alpha, k):
+    problem = PortfolioProblem(mu, Sigma, lam, "binary_qubo", k)
+    mu, Sigma = problem.mu, problem.Sigma
+    dataset = f"Synthetic ansatz n={len(mu)}"
+    started = time.perf_counter()
+    candidate, _ = exhaustive_binary_baseline(mu, Sigma, lam, alpha, k)
+    exact, _ = comparison_rows(
+        problem,
+        [CandidateTrial(candidate, time.perf_counter() - started)],
+        dataset=dataset,
+        method="Classical exhaustive search",
+        method_type="classical",
+        alpha=alpha,
     )
-    w_exact = selected_equal_weight(x_exact)
-    rows.append(
-        summarize(
-            dataset=f"Synthetic ansatz n={len(mu)}",
-            method="Classical exhaustive search",
-            ansatz="-",
-            depth=0,
-            objective_family="binary_qubo",
-            reported_weighting="equal_weight_selected",
-            objectives=[exact_obj],
-            returns=[portfolio_return(mu, w_exact)],
-            risks=[portfolio_risk(Sigma, w_exact)],
-            feasible_rates=[1.0],
-            runtimes=[0.0],
-            candidates=[bitstring(x_exact)],
-            notes="Exact binary cardinality baseline",
-        )
-    )
-
+    rows = [_ansatz_summary(exact, "-", 0)]
     for ansatz in BINARY_ANSATZES:
-        objectives: list[float] = []
-        returns: list[float] = []
-        risks: list[float] = []
-        feasible_rates: list[float] = []
-        runtimes: list[float] = []
-        candidates: list[str] = []
-        base_cfg = BinaryVQEConfig(
+        cfg = BinaryVQEConfig(
             ansatz=ansatz,
             depth=depth,
             steps=steps,
@@ -156,78 +92,29 @@ def binary_ansatz_rows(
             shots_train=None,
             shots_sample=shots,
         )
-        for seed in seeds:
-            started = time.perf_counter()
-            res = run_binary_vqe(mu, Sigma, replace(base_cfg, seed=seed))
-            runtimes.append(time.perf_counter() - started)
-            x = np.asarray(
-                res.x_best_feasible if res.x_best_feasible is not None else res.x_topk,
-                dtype=int,
-            )
-            w = selected_equal_weight(x)
-            objectives.append(binary_objective(x, mu, Sigma, lam=lam, alpha=alpha, k=k))
-            returns.append(portfolio_return(mu, w))
-            risks.append(portfolio_risk(Sigma, w))
-            feasible_rates.append(feasible_sample_rate(res.sample_counts, k))
-            candidates.append(bitstring(x))
-
-        rows.append(
-            summarize(
-                dataset=f"Synthetic ansatz n={len(mu)}",
-                method="Binary VQE",
-                ansatz=ansatz,
-                depth=depth,
-                objective_family="binary_qubo",
-                reported_weighting="equal_weight_selected",
-                objectives=objectives,
-                returns=returns,
-                risks=risks,
-                feasible_rates=feasible_rates,
-                runtimes=runtimes,
-                candidates=candidates,
-                notes="Best feasible sampled candidate, falling back to Top-K projection",
-            )
-        )
+        summaries, trials = [], []
+        add_binary_vqe_row(summaries, trials, dataset, mu, Sigma, cfg, seeds)
+        summaries[0]["method"] = "Binary VQE"
+        rows.append(_ansatz_summary(summaries[0], ansatz, depth))
     return rows
 
 
-def fractional_ansatz_rows(
-    mu: np.ndarray,
-    Sigma: np.ndarray,
-    seeds: list[int],
-    *,
-    depth: int,
-    steps: int,
-    lam: float,
-) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
-    w_exact, exact_obj = exact_long_only_markowitz_baseline(mu, Sigma, lam=lam)
-    rows.append(
-        summarize(
-            dataset=f"Synthetic ansatz n={len(mu)}",
-            method="Classical exact Markowitz",
-            ansatz="-",
-            depth=0,
-            objective_family="fractional_simplex",
-            reported_weighting="simplex_weights",
-            objectives=[exact_obj],
-            returns=[portfolio_return(mu, w_exact)],
-            risks=[portfolio_risk(Sigma, w_exact)],
-            feasible_rates=[1.0],
-            runtimes=[0.0],
-            candidates=[weights_string(w_exact)],
-            notes="Exact long-only simplex baseline from active-set enumeration",
-        )
+def fractional_ansatz_rows(mu, Sigma, seeds, *, depth, steps, lam):
+    problem = PortfolioProblem(mu, Sigma, lam, "fractional_simplex")
+    mu, Sigma = problem.mu, problem.Sigma
+    dataset = f"Synthetic ansatz n={len(mu)}"
+    started = time.perf_counter()
+    candidate, _ = exact_long_only_markowitz_baseline(mu, Sigma, lam)
+    exact, _ = comparison_rows(
+        problem,
+        [CandidateTrial(candidate, time.perf_counter() - started)],
+        dataset=dataset,
+        method="Classical exact Markowitz",
+        method_type="classical",
     )
-
+    rows = [_ansatz_summary(exact, "-", 0)]
     for ansatz in FRACTIONAL_ANSATZES:
-        objectives: list[float] = []
-        returns: list[float] = []
-        risks: list[float] = []
-        feasible_rates: list[float] = []
-        runtimes: list[float] = []
-        candidates: list[str] = []
-        base_cfg = FractionalVQEConfig(
+        cfg = FractionalVQEConfig(
             ansatz=ansatz,
             depth=depth,
             steps=steps,
@@ -236,36 +123,9 @@ def fractional_ansatz_rows(
             lam=lam,
             shots=None,
         )
-        for seed in seeds:
-            started = time.perf_counter()
-            res = run_fractional_vqe(mu, Sigma, replace(base_cfg, seed=seed))
-            runtimes.append(time.perf_counter() - started)
-            w = np.asarray(res.weights, dtype=float)
-            objectives.append(fractional_objective(w, mu, Sigma, lam=lam))
-            returns.append(portfolio_return(mu, w))
-            risks.append(portfolio_risk(Sigma, w))
-            feasible_rates.append(
-                float(np.all(w >= -1e-8) and abs(w.sum() - 1.0) < 1e-6)
-            )
-            candidates.append(weights_string(w))
-
-        rows.append(
-            summarize(
-                dataset=f"Synthetic ansatz n={len(mu)}",
-                method="Fractional VQE",
-                ansatz=ansatz,
-                depth=depth,
-                objective_family="fractional_simplex",
-                reported_weighting="simplex_weights",
-                objectives=objectives,
-                returns=returns,
-                risks=risks,
-                feasible_rates=feasible_rates,
-                runtimes=runtimes,
-                candidates=candidates,
-                notes="Simplex-normalized allocation",
-            )
-        )
+        summaries, trials = [], []
+        add_fractional_vqe_row(summaries, trials, dataset, mu, Sigma, cfg, seeds)
+        rows.append(_ansatz_summary(summaries[0], ansatz, depth))
     return rows
 
 
@@ -306,7 +166,7 @@ def save_plots(rows: list[dict[str, str]], plot_dir: Path) -> None:
         rows,
         metric="feasible_rate",
         title="Ansatz comparison: feasibility",
-        ylabel="Feasible sample/simplex rate",
+        ylabel="Feasible returned-portfolio rate",
         outpath=plot_dir / "Ansatz_Comparison_Feasibility.png",
     )
     plt.close()
