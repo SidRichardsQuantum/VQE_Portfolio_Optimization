@@ -548,3 +548,32 @@ Newly generated CSVs distinguish:
 **Schema change:** older committed CSVs and notebook outputs use `feasible_rate` for binary sample feasibility. Those historical values have not been relabelled or regenerated. Use `sample_feasible_rate` for that diagnostic in new outputs; do not mix old and new feasibility columns without accounting for this change.
 
 The synthetic generator writes `<summary-stem>.problems.json` beside its summary CSV, keyed by `problem_id`, containing the exact data for both tracks. Restore an instance with `PortfolioProblem.from_dict(snapshot)` and verify its ID before comparing runs. `problem.to_dict()` provides the same snapshot format for programmatic and real-data workflows. These snapshots define reproducible optimisation inputs; they do not yet implement the full fixed-budget research protocol.
+
+## Small-Instance Validation
+
+The separate validation runner adds multiple independent instances per size, exact-reference objective gaps, target-hit rates, frozen experiment metadata and per-trial checkpoints. It keeps the original example generators unchanged.
+
+```bash
+pip install -e ".[classical]"
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/run_small_instance_validation.py \
+  --config experiments/small_instance_validation.json \
+  --output-dir results/small_instance_validation
+```
+
+Use a new output directory to repeat the experiment. To continue an interrupted run, use the same command with `--resume`; configuration, source hashes and recorded environment must match. Already checkpointed trials, including solver errors, are retained. An interruption during a trial leaves that trial to be rerun. There is no concurrent-writer support: run one process per output directory.
+
+See [the experiment design](experiments/README.md) and [the saved pilot report](results/small_instance_validation/report.md). This validates small-instance behaviour on a noiseless simulator; it does not implement matched end-to-end time budgets or establish quantum advantage.
+
+### Before and After Training
+
+Measure the exact single-draw probability of a feasible, target-quality portfolio at the initial and trained parameters of Binary VQE, QAOA X and QAOA XY:
+
+```bash
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/run_training_diagnostic.py \
+  --pilot-manifest results/small_instance_validation/manifest.json \
+  --output-dir results/my_training_diagnostic
+```
+
+The runner inherits settings and frozen inputs from the validation manifest. It writes paired metrics, initial/final parameters, exact distributions, a plot and a report. Add `--resume` to continue a matching interrupted run. See [the diagnostic design](experiments/README.md#before-and-after-training-diagnostic) and [saved report](results/training_diagnostic/report.md). This evaluates binary circuit distributions without sampling or Top-K repair; Fractional VQE is outside this diagnostic.

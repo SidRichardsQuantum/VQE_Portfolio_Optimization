@@ -1,0 +1,19 @@
+{
+  "asset_counts": [4, 6, 8],
+  "instance_seeds": [101, 202, 303],
+  "solver_seeds": [0, 1, 2],
+  "k_fractions": [0.5],
+  "methods": [
+    "exact-binary", "highs", "swap", "random-k", "binary-vqe", "qaoa-x", "qaoa-xy",
+    "exact-fractional", "osqp", "fractional-vqe"
+  ],
+  "steps": 25,
+  "shots": 512,
+  "lam": 4.0,
+  "alpha": 5.0,
+  "binary_depth": 2,
+  "qaoa_p": 1,
+  "target_gap": 0.001,
+  "solver_time_limit": 60.0,
+  "local_restarts": 16
+}

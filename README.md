@@ -268,6 +268,8 @@ See **[USAGE.md](USAGE.md)** for:
 - **Committed benchmark results**: [`RESULTS.md`](RESULTS.md)
 - **Stronger classical solvers**: [installation and benchmarks](USAGE.md#strong-classical-baselines)
 - **Quantum advantage research protocol**: [`QUANTUM_ADVANTAGE.md`](QUANTUM_ADVANTAGE.md)
+- **Small-instance validation pilot**: [configuration and reproduction](experiments/README.md), [saved report](results/small_instance_validation/report.md)
+- **Effect of quantum training**: [before/after diagnostic](experiments/README.md#before-and-after-training-diagnostic), [saved report](results/training_diagnostic/report.md)
 
 ---
 

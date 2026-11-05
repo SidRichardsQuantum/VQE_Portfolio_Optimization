@@ -22,7 +22,7 @@ python scripts/generate_comparison_results.py
 
 By default this writes `results/generated_comparison_summary.csv` with classical baselines, multi-seed quantum summaries, feasibility rates, objectives, risk/return metrics, and runtimes. It also writes `results/generated_repeatability_trials.csv` with one row per method/seed trial. Use `--asset-counts`, `--seeds`, `--steps`, and `--methods` to expand or tighten the run.
 
-Optional stronger baselines (OSQP, HiGHS, and multistart swap search) are available through `--methods classical-solvers`; see [usage](USAGE.md#strong-classical-baselines). The committed tables above predate these solvers and are not regenerated automatically.
+Optional stronger baselines (OSQP, HiGHS, and multistart swap search) are available through `--methods classical-solvers`; see [usage](USAGE.md#strong-classical-baselines). The historical tables listed above predate these solvers and are not regenerated automatically. The separate small-instance validation pilot below includes them.
 
 ## How to Read the Tables
 
@@ -33,6 +33,46 @@ For binary selection methods, lower objective is better for a fixed dataset, ris
 Generated comparison tables include `objective_family` and `reported_weighting` columns because binary QUBO objectives and fractional simplex objectives are different mathematical objectives. In generated comparison rows, binary return and risk are reported from equal-weight selected portfolios (`x / K`) so risk-return plots are comparable with simplex allocations, while the binary objective remains the true QUBO objective evaluated on the raw bitstring `x`.
 
 The real-data tables report values already saved in notebook outputs. Exact real-data classical optimizer rows should be regenerated together with the market-data notebooks because adjusted prices and shrinkage estimates are provider-dependent.
+
+## Small-Instance Validation Pilot
+
+The [validation runner](scripts/run_small_instance_validation.py) completed 198 trials across 4, 6 and 8 securities, with three independent synthetic factor-model instances per size and three solver seeds per stochastic method. Binary cardinality is half the universe size. Quantum methods use 25 optimisation steps on a noiseless simulator; the binary methods sample 512 candidates. Fractional allocation is a separate control track. See the [configuration and reproduction instructions](experiments/README.md) and [full report](results/small_instance_validation/report.md).
+
+All 198 returned portfolios passed independent feasibility checks. No solver exceptions or reference contradictions were recorded. The target is a feasible normalised objective gap of at most 0.001 against the corresponding reference, using the scale defined in the research protocol.
+
+| Method | Target hit: 4 securities | 6 securities | 8 securities |
+| --- | ---: | ---: | ---: |
+| Classical methods (each, in its own track) | 100% | 100% | 100% |
+| Binary VQE | 66.7% | 33.3% | 0% |
+| QAOA X | 100% | 100% | 100% |
+| QAOA XY | 66.7% | 66.7% | 0% |
+| Fractional VQE | 33.3% | 11.1% | 33.3% |
+
+QAOA X returned the exact binary optimum in every trial, but the classical best-of-512 uniformly sampled feasible subsets baseline also did so. These small search spaces therefore do not establish a benefit from quantum parameter optimisation. All classical comparators had shorter mean runtimes than the corresponding quantum simulator methods in this run. These timings describe the tested implementation and machine, not QPU performance.
+
+The pilot validates the comparison pipeline and exposes reliability differences for these settings. It has no matched end-to-end time budgets, uncertainty estimates or held-out tuning study, and does not establish quantum advantage or a scaling law. In particular, the three tested sizes do not justify extrapolating a crossover. Frozen inputs, references, software/source metadata, raw candidates and trial-level scores are saved under `results/small_instance_validation/`.
+
+### Effect of Training on Binary Circuit Distributions
+
+The [before/after diagnostic](experiments/README.md#before-and-after-training-diagnostic) compares each full circuit at its initial random parameters and after 25 Adam updates, using the same nine frozen binary problems and three initialisation seeds. All 81 pairs completed without errors. The measure below is the exact **single-draw probability** of a feasible portfolio within the normalised quality target (0.001), not the chance of finding one after 512 samples. No sampling or Top-K repair is used in this diagnostic.
+
+| Securities | Method | Initial target probability | Trained target probability | Improved / worsened pairs |
+| ---: | --- | ---: | ---: | ---: |
+| 4 | Binary VQE | 6.124% | 26.65% | 4 / 5 |
+| 4 | QAOA X | 6.346% | 11.64% | 8 / 1 |
+| 4 | QAOA XY | 24.64% | 41.17% | 5 / 1 |
+| 6 | Binary VQE | 0.9142% | 18.53% | 4 / 5 |
+| 6 | QAOA X | 2.075% | 4.312% | 8 / 1 |
+| 6 | QAOA XY | 4.226% | 35.55% | 5 / 1 |
+| 8 | Binary VQE | 0.5765% | 0.003692% | 0 / 9 |
+| 8 | QAOA X | 0.5499% | 1.090% | 9 / 0 |
+| 8 | QAOA XY | approximately zero | approximately zero | 0 / 0 |
+
+Means average seeds within each instance, then give instances equal weight. Improved/worsened counts use a numerical deadband of `1e-12` probability; remaining pairs are unchanged within that tolerance. Numerically negligible QAOA XY target mass at eight securities is below that deadband before and after training.
+
+Training improves mean target probability at four and six securities for all three methods, but Binary VQE worsens in five of nine runs at each of those sizes: a few large gains raise the mean. At eight securities, Binary VQE's mean feasibility rises from 30.52% to 97.22%, while its target probability falls in every run. QAOA X improves unconditional target probability in 25 of 27 pairs; its mean target probability conditional on feasibility nevertheless decreases at four and six securities. Better constraint satisfaction and better selection among feasible portfolios are distinct outcomes.
+
+These observations apply to the tested settings and small development-instance sample. They do not establish an advantage over classical methods, statistical significance, or a scaling law. Fractional allocation is outside this binary sampling diagnostic. The [full report](results/training_diagnostic/report.md), [paired metrics](results/training_diagnostic/pairs.csv), checkpointed raw distributions and [plot](results/training_diagnostic/training_probability.png) are saved separately from the original validation artifacts.
 
 ## Synthetic Results
 
