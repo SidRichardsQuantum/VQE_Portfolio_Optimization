@@ -84,3 +84,70 @@ Use `--resume` with the same input, sources and environment to complete missing 
 The primary comparison is the paired change in `p_target`, averaged over seeds within each instance and then equally across instances. Improved/worsened counts use a `1e-12` numerical deadband, not a significance test. These exact probability evaluations have no shot noise, but conclusions still depend on the small instance and initialisation sample. There are no shot/depth/training-budget sweeps, confidence intervals, QPU measurements or advantage claims in this diagnostic.
 
 See the [saved diagnostic report](../results/training_diagnostic/report.md).
+
+## Sampling allowance diagnostic
+
+This follow-up reuses `manifest.json` and `pairs.json` from the completed training diagnostic. It calculates the probability of finding at least one feasible target-quality portfolio in 16, 64 or 512 independent draws, for the initial circuit, trained circuit and uniform feasible classical sampling. It performs no training and draws no random samples.
+
+```bash
+python scripts/run_sampling_allowance.py \
+  --diagnostic-dir results/training_diagnostic \
+  --draws 16,64,512 \
+  --output-dir results/my_sampling_allowance
+```
+
+For a fixed single-draw target probability p, the success probability is `1 - (1 - p)^m`. The implementation evaluates the numerically stable equivalent `-expm1(m * log1p(-p))`, handling p=0 and p=1 explicitly. It transforms each run's probability separately, computes the paired training change, averages seeds within each instance, and finally averages instances equally. Transforming a mean p instead would overstate success for heterogeneous runs.
+
+Every raw circuit sample consumes one draw, including infeasible bitstrings. The analysis does not condition on feasibility or apply Top-K repair. Classical sampling draws uniformly from exact-K subsets with replacement, matching the earlier `random-k` baseline's sampling distribution. Its target probability is independently computed from the frozen target subset count and feasible subset count. A classical baseline is recorded once per instance and allowance, rather than repeated across quantum methods and seeds.
+
+The input checkpoint must contain every planned pair exactly once. Snapshots, references, pair metadata, target masks, distribution normalisation and stored target probabilities are checked before producing results. Failed source pairs remain represented with blank probabilities and error counts; conditional coverage is explicit. Source input files are preserved and both are hashed in the new manifest.
+
+The default analysis produces 243 per-pair allowance rows, 27 method/size/allowance summary rows, 27 classical instance/allowance rows and nine classical summaries. Outputs are:
+
+| File | Contents |
+| --- | --- |
+| `manifest.json` | Draw counts, target tolerance, input-file hashes, software and analysis source hashes; records that no training or sampling occurred |
+| `pairs.csv` | Initial/trained success probabilities and paired changes for each saved run and allowance |
+| `summary.csv` | Instance-weighted method means, error counts and valid-pair coverage |
+| `baseline_trials.csv` | One uniform feasible classical row per instance/allowance |
+| `baseline_summary.csv` | Classical means across all instances at each size/allowance |
+| `report.md`, `sampling_success.png` | Descriptive tables and success-probability curves |
+
+Use a new output directory when repeating the analysis; it finishes quickly and needs no resume mechanism. The plotted points are the evaluated allowances; lines between them guide the eye. These are analytical expected success probabilities, not newly observed hit rates. Near-100% values may round to 100% in the report; CSVs retain full precision.
+
+The model assumes independent draws from a fixed distribution with replacement. It excludes training and circuit execution costs, hardware noise, drift and postprocessing. Equal draw counts are not equal time or cost budgets, so this study cannot establish quantum advantage. Baseline curves cover all source instances; if source errors occur, quantum curves condition on successful pairs and can have different coverage. The matched classical column in `summary.csv` uses the same coverage as each method.
+
+See the [saved sampling allowance report](../results/sampling_allowance/report.md).
+
+## Training-effort development study
+
+This study compares checkpoints at 0, 25 and 100 optimiser steps on the same nine frozen binary problems, three methods and three initialisation seeds: 81 trajectories and 243 checkpoint distributions. Each trajectory initialises once, runs Adam continuously to step 100, and copies parameters at the requested checkpoints without resetting Adam's moment estimates. Circuit depths, penalties, learning rates, target tolerance and initialisation are inherited from the earlier diagnostic. These are development instances, not a held-out tuning evaluation.
+
+```bash
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/run_training_effort.py \
+  --diagnostic-dir results/training_diagnostic \
+  --steps 0,25,100 --draws 16,64,512 \
+  --output-dir results/my_training_effort
+```
+
+The runner validates the source checkpoint and requires the new step-zero and step-25 parameters/probabilities to reproduce the saved diagnostic. Target references are available only to evaluation. It records exact target and feasibility probability, target probability conditional on feasibility, expected penalised energy, analytical success with each sampling allowance, and cumulative training time. Success probabilities are calculated per run before instance-weighted aggregation. All checkpoint intervals receive paired comparisons, including improved/worsened run counts with a `1e-12` numerical probability deadband.
+
+Training time is measured only inside the continuous Adam loop. It includes callback and logging overhead, but excludes encoding, device setup and diagnostic probability evaluation. All distributions are evaluated after optimisation finishes, so diagnostic state measurements do not inflate later checkpoint times. Step zero has zero optimiser time. These timings describe the simulator and machine and are not end-to-end budgets or QPU measurements. No samples, Top-K repair, best-iterate selection or additional hyperparameter tuning occur.
+
+Outputs include:
+
+| File | Contents |
+| --- | --- |
+| `manifest.json` | Inherited settings and snapshots, checkpoint/draw allowances, both input-file hashes, software and source metadata |
+| `trajectories.json` | Atomic checkpoint of completed trajectories, raw parameters/distributions at each step, metrics, errors and source-reproduction checks |
+| `checkpoints.csv` | Per-run checkpoint metrics, including all three sampling allowances and cumulative optimisation times |
+| `summary.csv` | Means over seeds within each instance and then equally across instances, with error and coverage counts |
+| `paired_summary.csv` | Paired changes for 0→25, 0→100 and 25→100, including target probability, sampling success and additional training time |
+| `report.md` | Descriptive results, definitions and limitations |
+| `training_effort.png` | Mean target probability, feasibility, sampling reliability and training time |
+| `training_pairs.png` | Individual paired target-probability trajectories and their means; each panel uses its own vertical scale |
+
+Use `--resume` with identical inputs, settings, sources and recorded environment to skip completed trajectories. An interrupted trajectory restarts from its original seed; the runner does not resume Adam from a parameter snapshot without its moment estimates. Completed errors remain recorded. Failed trajectories have blank metrics at all checkpoints and are excluded from probability means, with coverage explicit. Only one process should write to an output directory.
+
+There are no confidence intervals, noise studies, scaling conclusions or advantage claims. The analysis determines whether extra training helps under these fixed settings; a later comparison of chosen settings must use fresh evaluation instances. See the [saved training-effort report](../results/training_effort/report.md).

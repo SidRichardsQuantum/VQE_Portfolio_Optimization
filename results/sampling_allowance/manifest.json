@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "study": "iid_sampling_allowance",
+  "created_utc": "2026-11-05T14:57:37.075270+00:00",
+  "draw_counts": [
+    16,
+    64,
+    512
+  ],
+  "target_gap": 0.001,
+  "source_pair_count": 81,
+  "source_instance_count": 9,
+  "source_inputs_sha256": {
+    "manifest.json": "af3a7acc2364f130eaaf362b9b60a134114fd944fff149c3c535db8fec4090fb",
+    "pairs.json": "6f7e2a8032563059f835cf8b62603af1a971758670e27d754f7e00033b1fb490"
+  },
+  "environment": {
+    "python": "3.14.2",
+    "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "cpu_count": 2,
+    "cpu_affinity": [
+      0,
+      1
+    ],
+    "thread_environment": {
+      "OMP_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null
+    },
+    "packages": {
+      "numpy": "2.5.4",
+      "pennylane": "0.45.1",
+      "scipy": "1.18.1",
+      "cvxpy": "1.7.2",
+      "osqp": "0.6.7.post3",
+      "pennylane-lightning": "0.45.0",
+      "matplotlib": "3.11.2"
+    },
+    "source_sha256": {
+      "src/vqe_portfolio/__init__.py": "ef9250cd4c5fa6ef3a6a59a9373b52f156f8826df99efe1523a54c54d4ee9077",
+      "src/vqe_portfolio/__main__.py": "40978f4504f1a9684198875035a1b3793baa7d95dfd05dbb022678663e4e1297",
+      "src/vqe_portfolio/ansatz.py": "04f141555d53744b0f84d757e7f32f8fa5274a7fe4634bf67264b2bb82b19f1e",
+      "src/vqe_portfolio/benchmark.py": "ec9021daaaf6de142db896f3f9dd47d74dd60dbc57bed390860bf3c34dcc2332",
+      "src/vqe_portfolio/binary.py": "3f768ef3b9097daabb192a974c4ef05591ce34de8ec264637b158ed895487fe5",
+      "src/vqe_portfolio/classical.py": "27d4934619be8a311d7275ad6185788e7176b7724403255f503e6dc232b7576f",
+      "src/vqe_portfolio/cli.py": "dcf9eef8470d149e37bacd88ea1960cd290b9a5673bdee5a869f18a9cc8906ab",
+      "src/vqe_portfolio/comparison.py": "b1a2817aae6d9c3185e7976baff497e428a33509032190b7300a6cf7647b80a3",
+      "src/vqe_portfolio/data.py": "acf5da9ce850ffa3e27fe696715fa41c60e6b8455302eae48150bf62f25dfe6c",
+      "src/vqe_portfolio/fractional.py": "b9de2e1a6bc5ea9e84b2caa14a6b479be96abed0eb1872a2aad4b890be490829",
+      "src/vqe_portfolio/frontier.py": "879855288853afbbaef594156219cee5a0366771d78d28d4e77808f3960be1c6",
+      "src/vqe_portfolio/metrics.py": "11524a40ac678ae677b6dca6e075d4a37dca0b21f2765bc17f3ad91f250a7bf1",
+      "src/vqe_portfolio/optimize.py": "6f3a500b4f033ed0e7133028c6ae4ea1817b97b3faa96d2ef3f79d81e0960bf1",
+      "src/vqe_portfolio/plotting.py": "9b022393a9431ad94cba5f96a162b157e2a93117bea101d02b9ba608aaaca97b",
+      "src/vqe_portfolio/problem.py": "331b186d67a92ead67c7ac588f2d4e8ea98ddd5dcedf82f31add91c69ffd6d6d",
+      "src/vqe_portfolio/qaoa.py": "07a186e11b22287e0526e42da0c20f334b7c5ab5baa3fd2d418322392f0df453",
+      "src/vqe_portfolio/sampling_allowance.py": "ff9e20ddd3cc4ce1eb5c87316583361714b6390c1ac89e4d2c1948681394bea1",
+      "src/vqe_portfolio/training_diagnostics.py": "0a7a16b04395d31ce2c62334fcd6c74e4f680828a28bad0c7b83a680d818757c",
+      "src/vqe_portfolio/training_effort.py": "3eccb8ce6e5db15eb1d12efe2feb54b1ab4f5a806d47bb283c6501ef9f504cc1",
+      "src/vqe_portfolio/types.py": "dc23c17db7c8e0e8535346c7417ea042ecf3980d74442950a332822da2511016",
+      "src/vqe_portfolio/utils.py": "c81fb9bb855fc238e50415770b9ac726f2dedec8a86a2cc4d02e3725553dc5c1",
+      "src/vqe_portfolio/validation.py": "36adba7f6ba47b404ad4a3208e62885c37e19eb1a3983fdcc5cbc70fc0bb5a98",
+      "scripts/run_small_instance_validation.py": "8acc70a3720a761624555bda85d115ba85dcff7507ae36b8ef24126ccf20cc84",
+      "scripts/run_sampling_allowance.py": "d79d53502286d38d487882d53e5b79265990b6a3c7876429094deebeb4f288ee"
+    }
+  },
+  "training_performed": false,
+  "sampling_performed": false,
+  "assumption": "independent fixed-distribution draws with replacement; every raw quantum draw counts"
+}

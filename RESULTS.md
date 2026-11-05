@@ -74,6 +74,51 @@ Training improves mean target probability at four and six securities for all thr
 
 These observations apply to the tested settings and small development-instance sample. They do not establish an advantage over classical methods, statistical significance, or a scaling law. Fractional allocation is outside this binary sampling diagnostic. The [full report](results/training_diagnostic/report.md), [paired metrics](results/training_diagnostic/pairs.csv), checkpointed raw distributions and [plot](results/training_diagnostic/training_probability.png) are saved separately from the original validation artifacts.
 
+### Sampling Allowance: 16, 64 and 512 Draws
+
+The [sampling allowance diagnostic](experiments/README.md#sampling-allowance-diagnostic) reuses all 81 initial/trained pairs. For each run it calculates `1 - (1 - p)^m` before averaging across seeds and instances. It also evaluates uniform sampling of feasible exact-K subsets with replacement, once per instance and allowance. No training or new sampling occurs. Success requires at least one raw feasible target-quality portfolio; infeasible circuit samples consume draws, and no Top-K repair is applied.
+
+At eight securities, the expected success probabilities are:
+
+| Distribution | 16 draws | 64 draws | 512 draws |
+| --- | ---: | ---: | ---: |
+| Binary VQE, initial | 8.446% | 26.15% | 61.23% |
+| Binary VQE, trained | 0.05893% | 0.2339% | 1.740% |
+| QAOA X, initial | 8.344% | 28.48% | 87.15% |
+| QAOA X, trained | 15.92% | 48.79% | 98.03% |
+| QAOA XY, initial or trained | approximately zero | approximately zero | approximately zero |
+| Classical uniform feasible | 26.08% | 68.24% | 99.96% |
+
+Increasing the allowance to 512 makes QAOA X highly reliable in this small pilot, but the classical baseline matches or exceeds every circuit's mean success probability at every tested size and allowance. No sampling-reliability advantage is observed for these circuits and settings.
+
+The before/after result depends on the allowance: Binary VQE at four and six securities has a higher mean single-draw target probability after training, yet its expected 512-draw success falls from 89.74% to 49.96% and from 68.85% to 34.05%, respectively. A few large single-draw gains coexist with runs where target probability becomes tiny. Evaluating the nonlinear success formula on the mean single-draw probability would hide that heterogeneity.
+
+These analytical probabilities are not the observed fractions in the earlier finite-sample pilot. The calculation assumes independent fixed-distribution draws with replacement, excludes training/execution costs and does not establish a computational or quantum advantage. Tables may round probabilities near certainty to 100%; CSVs retain full precision. See the [full report and curves](results/sampling_allowance/report.md), [per-run allowance results](results/sampling_allowance/pairs.csv) and [summary](results/sampling_allowance/summary.csv).
+
+### Training Effort: 0, 25 and 100 Steps
+
+The [training-effort study](experiments/README.md#training-effort-development-study) completed 81 uninterrupted Adam trajectories and evaluated 243 checkpoint distributions. All initial and step-25 parameters/probabilities reproduced the saved diagnostic within numerical tolerance. Optimiser moments were preserved through step 100; distribution evaluation occurred after training, outside the cumulative optimisation timer. No trajectory errors occurred.
+
+The effect of extending training from 25 to 100 steps on expected success within 512 raw draws was:
+
+| Securities | Method | 25 steps | 100 steps |
+| ---: | --- | ---: | ---: |
+| 4 | Binary VQE | 49.96% | 66.67% |
+| 4 | QAOA X | approximately 100% | approximately 100% |
+| 4 | QAOA XY | 66.67% | 66.67% |
+| 6 | Binary VQE | 34.05% | 22.22% |
+| 6 | QAOA X | approximately 100% | approximately 100% |
+| 6 | QAOA XY | 66.67% | 66.67% |
+| 8 | Binary VQE | 1.740% | <0.00001% |
+| 8 | QAOA X | 98.03% | 98.42% |
+| 8 | QAOA XY | approximately zero | approximately zero |
+
+More training does not consistently improve reliability under these settings. At six securities, Binary VQE's mean single-draw target probability increases from 18.53% to 22.21%, while 512-draw success decreases: two runs improve and seven worsen between checkpoints. At eight securities, all nine Binary VQE runs worsen, despite mean feasibility approaching 100%. QAOA XY's negligible eight-security target probability persists.
+
+For eight securities, QAOA X's extra 75 steps improve expected 512-draw success by about 0.391 percentage points, while measured mean cumulative optimiser time rises from 2.11 to 8.17 seconds. Uniform feasible classical sampling from the prior allowance analysis reaches 99.96% at the same draw count, excluding execution/training costs. This does not establish quantum advantage or a fixed-time comparison.
+
+The [full report](results/training_effort/report.md) includes single-draw quality, feasibility, all three sampling allowances and cumulative times. [Paired plots](results/training_effort/training_pairs.png) show individual runs, and [summary plots](results/training_effort/training_effort.png) show means. Raw parameters/distributions, input/source hashes and paired changes are retained. This development study uses the existing small instance set; settings chosen from it need fresh held-out evaluation.
+
 ## Synthetic Results
 
 Synthetic examples use fixed in-notebook arrays and are therefore the best place for deterministic method-to-baseline comparisons.

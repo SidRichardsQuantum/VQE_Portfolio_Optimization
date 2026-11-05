@@ -3,6 +3,8 @@
 import time
 from collections import defaultdict
 from dataclasses import asdict
+from math import gcd
+from numbers import Integral
 from statistics import mean
 
 import numpy as np
@@ -67,13 +69,31 @@ def distribution_metrics(probabilities, feasible, target, energies):
     }
 
 
-def train_circuit(problem, method, seed, config):
-    """Use production initialisation, ansatz and Adam settings; no references.
+def validate_checkpoints(steps, final_step):
+    if (
+        len(steps) < 2
+        or any(
+            isinstance(s, bool) or not isinstance(s, Integral) or s < 0 for s in steps
+        )
+        or len(set(steps)) != len(steps)
+        or min(steps) != 0
+        or max(steps) != final_step
+    ):
+        raise ValueError(
+            "Checkpoints must be distinct nonnegative integers including zero and the final step."
+        )
+    return tuple(sorted(int(s) for s in steps))
+
+
+def train_checkpoints(problem, method, seed, config, checkpoint_steps):
+    """One uninterrupted production Adam trajectory, without references.
 
     The private QAOA helpers are deliberately shared with the production path.
     Regression tests compare final parameters/probabilities with public solvers.
-    No samples, projections or best-of-many candidate selection are performed.
+    Parameter snapshots and cumulative optimisation times are captured in the
+    callback; all distribution evaluations happen after optimisation finishes.
     """
+    checkpoint_steps = validate_checkpoints(checkpoint_steps, config.steps)
     if method not in DIAGNOSTIC_METHODS or problem.k is None:
         raise ValueError("Use a supported binary circuit method.")
     common = {
@@ -82,7 +102,7 @@ def train_circuit(problem, method, seed, config):
         "k": problem.k,
         "seed": seed,
         "steps": config.steps,
-        "log_every": config.steps,
+        "log_every": gcd(*checkpoint_steps[1:]),
         "shots_train": None,
         "shots_sample": config.shots,
     }
@@ -116,26 +136,57 @@ def train_circuit(problem, method, seed, config):
     else:
         init = _random_init(cfg.p, cfg.mixer)
     initial = np.asarray(init).copy()
+    snapshots = [(0, initial, 0.0)]
     started = time.perf_counter()
-    trained = adam_optimize(
-        energy, init, steps=cfg.steps, stepsize=cfg.stepsize, log_every=cfg.log_every
+
+    def capture(step, value, params):
+        if step in checkpoint_steps:
+            elapsed = time.perf_counter() - started
+            snapshots.append((step, np.asarray(params).copy(), elapsed))
+
+    adam_optimize(
+        energy,
+        init,
+        steps=cfg.steps,
+        stepsize=cfg.stepsize,
+        log_every=cfg.log_every,
+        callback=capture,
     )
-    training_runtime = time.perf_counter() - started
+    if tuple(s[0] for s in snapshots) != checkpoint_steps:
+        raise RuntimeError("Optimisation did not capture every requested checkpoint.")
 
     @qml.qnode(device)
     def probabilities(params):
         ansatz(params)
         return qml.probs(wires=range(n))
 
-    before = np.asarray(probabilities(initial), dtype=float)
-    after = np.asarray(probabilities(trained.params), dtype=float)
     return {
         "algorithm_config": asdict(cfg),
-        "initial_params": initial.tolist(),
-        "trained_params": np.asarray(trained.params).tolist(),
-        "before_probabilities": before.tolist(),
-        "after_probabilities": after.tolist(),
-        "training_runtime_seconds": training_runtime,
+        "checkpoints": [
+            {
+                "step": step,
+                "params": params.tolist(),
+                "probabilities": np.asarray(
+                    probabilities(params), dtype=float
+                ).tolist(),
+                "training_runtime_seconds": elapsed,
+            }
+            for step, params, elapsed in snapshots
+        ],
+    }
+
+
+def train_circuit(problem, method, seed, config):
+    """Legacy initial/final diagnostic, sharing the checkpoint training path."""
+    result = train_checkpoints(problem, method, seed, config, (0, config.steps))
+    initial, trained = result["checkpoints"]
+    return {
+        "algorithm_config": result["algorithm_config"],
+        "initial_params": initial["params"],
+        "trained_params": trained["params"],
+        "before_probabilities": initial["probabilities"],
+        "after_probabilities": trained["probabilities"],
+        "training_runtime_seconds": trained["training_runtime_seconds"],
     }
 
 

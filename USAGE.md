@@ -577,3 +577,30 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 ```
 
 The runner inherits settings and frozen inputs from the validation manifest. It writes paired metrics, initial/final parameters, exact distributions, a plot and a report. Add `--resume` to continue a matching interrupted run. See [the diagnostic design](experiments/README.md#before-and-after-training-diagnostic) and [saved report](results/training_diagnostic/report.md). This evaluates binary circuit distributions without sampling or Top-K repair; Fractional VQE is outside this diagnostic.
+
+### Sampling Allowances
+
+Calculate the chance of at least one target-quality portfolio in 16, 64 or 512 independent draws from the saved initial/trained circuit distributions, alongside uniform feasible classical sampling:
+
+```bash
+python scripts/run_sampling_allowance.py \
+  --diagnostic-dir results/training_diagnostic \
+  --draws 16,64,512 \
+  --output-dir results/my_sampling_allowance
+```
+
+This analysis uses the completed checkpoint without retraining or drawing samples. It validates the raw probability vectors, transforms each run before aggregation, preserves source failures and records input hashes. Use a new output directory to repeat it. See [the method and assumptions](experiments/README.md#sampling-allowance-diagnostic) and [saved report](results/sampling_allowance/report.md). Draw counts measure sampling reliability; execution and training costs are excluded.
+
+### Training Effort
+
+Compare 0, 25 and 100 optimisation steps along a single Adam trajectory per instance/method/seed, preserving optimiser state:
+
+```bash
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/run_training_effort.py \
+  --diagnostic-dir results/training_diagnostic \
+  --steps 0,25,100 --draws 16,64,512 \
+  --output-dir results/my_training_effort
+```
+
+The runner inherits the earlier diagnostic settings, checks the initial/25-step states against saved evidence, and records exact probabilities, sampling reliability and cumulative training times. Add `--resume` to skip completed trajectories; an interrupted trajectory restarts from its seed to preserve Adam's full state. See [the study design](experiments/README.md#training-effort-development-study) and [saved report and paired plots](results/training_effort/report.md). This is development sensitivity analysis, not a held-out or matched-budget advantage test.
