@@ -4,32 +4,29 @@
 from __future__ import annotations
 
 import argparse
-import csv
-import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+import matplotlib.pyplot as plt
 
-import matplotlib.pyplot as plt  # noqa: E402
-
-from scripts.generate_comparison_results import (  # noqa: E402
+from vqe_portfolio import BinaryVQEConfig, FractionalVQEConfig
+from vqe_portfolio.ansatz import BINARY_ANSATZES, FRACTIONAL_ANSATZES
+from vqe_portfolio.benchmark import CandidateTrial, comparison_rows
+from vqe_portfolio.plotting import (
+    plot_comparison_metric_bars,
+    plot_risk_return_comparison,
+)
+from vqe_portfolio.problem import PortfolioProblem
+from vqe_portfolio.research.comparison import (
     add_binary_vqe_row,
     add_fractional_vqe_row,
     exact_long_only_markowitz_baseline,
     exhaustive_binary_baseline,
     synthetic_problem,
 )
-from vqe_portfolio import BinaryVQEConfig, FractionalVQEConfig  # noqa: E402
-from vqe_portfolio.ansatz import BINARY_ANSATZES, FRACTIONAL_ANSATZES  # noqa: E402
-from vqe_portfolio.benchmark import CandidateTrial, comparison_rows  # noqa: E402
-from vqe_portfolio.plotting import (  # noqa: E402
-    plot_comparison_metric_bars,
-    plot_risk_return_comparison,
-)
-from vqe_portfolio.problem import PortfolioProblem  # noqa: E402
+from vqe_portfolio.research.infrastructure import write_csv
+
+ROOT = Path(__file__).resolve().parents[1]
 
 FIELDNAMES = [
     "dataset",
@@ -218,10 +215,7 @@ def main(argv: list[str] | None = None) -> int:
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv(output, rows, fieldnames=FIELDNAMES)
 
     if not args.skip_plots:
         save_plots(rows, Path(args.plot_dir))

@@ -4,12 +4,12 @@ import json
 import numpy as np
 import pytest
 
-from vqe_portfolio import training_diagnostics as diagnostic
 from vqe_portfolio.binary import run_binary_vqe
 from vqe_portfolio.problem import PortfolioProblem
 from vqe_portfolio.qaoa import run_qaoa
+from vqe_portfolio.research import training_diagnostics as diagnostic
+from vqe_portfolio.research.validation import ValidationConfig, prepare_instances
 from vqe_portfolio.types import BinaryVQEConfig, QAOAConfig
-from vqe_portfolio.validation import ValidationConfig, prepare_instances
 
 
 def small_config():

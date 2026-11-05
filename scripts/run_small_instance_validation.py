@@ -1,17 +1,13 @@
 """Run/checkpoint a configured small-instance simulator validation study."""
 
 import argparse
-import csv
-import hashlib
 import json
-import os
-import platform
 import subprocess
 from datetime import datetime, timezone
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-from vqe_portfolio.validation import (
+from vqe_portfolio.research.infrastructure import provenance, write_csv, write_json
+from vqe_portfolio.research.validation import (
     ValidationConfig,
     evaluate_trial,
     prepare_instances,
@@ -22,66 +18,10 @@ from vqe_portfolio.validation import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def write_json(path, value):
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
-    temporary.replace(path)
-
-
-def provenance():
-    packages = {}
-    for name in ("numpy", "pennylane", "scipy", "cvxpy", "osqp", "pennylane-lightning"):
-        try:
-            packages[name] = version(name)
-        except PackageNotFoundError:
-            packages[name] = None
-    sources = sorted((ROOT / "src/vqe_portfolio").glob("*.py")) + [Path(__file__)]
-    cpu_model = platform.processor()
-    if not cpu_model and Path("/proc/cpuinfo").exists():
-        cpu_model = next(
-            (
-                line.split(":", 1)[1].strip()
-                for line in Path("/proc/cpuinfo").read_text().splitlines()
-                if line.startswith("model name")
-            ),
-            "",
-        )
-    return {
-        "python": platform.python_version(),
-        "platform": platform.platform(),
-        "machine": platform.machine(),
-        "processor": cpu_model,
-        "cpu_count": os.cpu_count(),
-        "cpu_affinity": (
-            sorted(os.sched_getaffinity(0))
-            if hasattr(os, "sched_getaffinity")
-            else None
-        ),
-        "thread_environment": {
-            name: os.environ.get(name)
-            for name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
-        },
-        "packages": packages,
-        "source_sha256": {
-            str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in sources
-        },
-    }
-
-
 def export_results(output, trials, expected):
     summaries = summarise_trials(trials)
     for filename, rows in (("trials.csv", trials), ("summary.csv", summaries)):
-        if rows:
-            fields = list(dict.fromkeys(key for row in rows for key in row))
-            with (output / filename).open("w", newline="") as stream:
-                writer = csv.DictWriter(stream, fieldnames=fields)
-                writer.writeheader()
-                for row in rows:
-                    row = dict(row)
-                    if "candidate" in row:
-                        row["candidate"] = json.dumps(row["candidate"], allow_nan=False)
-                    writer.writerow(row)
+        write_csv(output / filename, rows, json_fields=("candidate",))
     lines = [
         "# Small-instance validation pilot",
         "",
@@ -139,7 +79,7 @@ def main(argv=None):
     identity = {
         "schema_version": 1,
         "config": config.to_dict(),
-        "environment": provenance(),
+        "environment": provenance(ROOT, Path(__file__)),
     }
     if args.resume:
         manifest = json.loads((output / "manifest.json").read_text())

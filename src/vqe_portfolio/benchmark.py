@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from statistics import mean, pstdev
+from typing import Iterable
 
 import numpy as np
 
@@ -108,3 +109,33 @@ def comparison_rows(
         "mip_gap": rows[0]["mip_gap"] if len(trials) == 1 else "",
     }
     return summary, rows
+
+
+def bitstring(x: np.ndarray) -> str:
+    return "".join(str(int(v)) for v in np.asarray(x, dtype=int))
+
+
+def weights_string(w: np.ndarray) -> str:
+    return "[" + " ".join(f"{float(v):.6f}" for v in np.asarray(w, dtype=float)) + "]"
+
+
+def feasible_sample_rate(sample_counts: dict[str, int], k: int) -> float:
+    total = sum(sample_counts.values())
+    if total == 0:
+        return 0.0
+    feasible = sum(
+        count for bits, count in sample_counts.items() if bits.count("1") == k
+    )
+    return feasible / total
+
+
+def selected_equal_weight(x: np.ndarray) -> np.ndarray:
+    x = np.asarray(x, dtype=float)
+    selected = float(x.sum())
+    if selected <= 0:
+        return x
+    return x / selected
+
+
+def labels_from_selection(labels: Iterable[str], x: np.ndarray) -> str:
+    return ", ".join(label for label, selected in zip(labels, x) if int(selected))

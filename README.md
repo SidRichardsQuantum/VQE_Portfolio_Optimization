@@ -28,295 +28,91 @@ PyPI: [https://pypi.org/project/vqe-portfolio/](https://pypi.org/project/vqe-por
 
 Website: [https://sidrichardsquantum.github.io/VQE_Portfolio_Optimization/](https://sidrichardsquantum.github.io/VQE_Portfolio_Optimization/)
 
-This package implements **portfolio optimization using Variational Quantum Eigensolvers (VQE)** as a clean, testable, and reusable **Python library**, with notebooks acting purely as *clients*.
+A Python library for portfolio optimization with PennyLane. It provides Binary VQE and QAOA for selecting a fixed number of assets, and Fractional VQE for long-only allocation. Classical baselines and independent candidate evaluation support reproducible comparisons.
 
-Three complementary quantum formulations are provided:
-
-- **Binary VQE** — asset *selection* under a cardinality constraint (QUBO → Ising → VQE)
-- **QAOA** — gate-based combinatorial optimization using alternating cost and mixer Hamiltonians
-- **Fractional VQE** — long-only *allocation* on the simplex using a constraint-preserving quantum parameterization
-
-All core logic lives in `src/vqe_portfolio/`; notebooks and examples simply call the public API.
-
----
-
-## Implemented Methods
-
-### 1. Binary VQE (Asset Selection)
-
-Select exactly **K assets** by solving a constrained mean–variance problem:
-
-$$
-\min_{x \in \{0,1\}^n}
-\;\lambda\, x^\top \Sigma x
-\;-\;\mu^\top x
-\;+\;\alpha(\mathbf{1}^\top x - K)^2
-$$
-
-**Highlights**
-
-- QUBO formulation mapped to an **Ising Hamiltonian**
-- Configurable ansatz options: **RY + CZ ring**, **RY/RZ + CZ ring**, and PennyLane strongly-entangling layers
-- VQE minimizes ⟨H⟩ directly
-- Outputs include probabilities, samples, Top‑K projections, λ‑sweeps, and efficient frontiers
-
-Notebook client:
-
-- `notebooks/Binary.ipynb`
-- `notebooks/examples/02_Real_Example.ipynb`
-- `notebooks/examples/04_Larger_Real_Data_Example.ipynb`
-
----
-
-### 2. QAOA (Binary Asset Selection)
-
-Solve the same constrained mean–variance problem using the **Quantum Approximate Optimization Algorithm (QAOA)**:
-
-$$
-\min_{x \in \{0,1\}^n}
-\;\lambda\, x^\top \Sigma x
-\;-\;\mu^\top x
-\;+\;\alpha(\mathbf{1}^\top x - K)^2
-$$
-
-**Highlights**
-
-- Uses the same QUBO → Ising mapping as Binary VQE
-- Alternating operator ansatz:
-  - cost unitary $e^{-i\gamma H_C}$
-  - mixer unitary $e^{-i\beta H_M}$
-- Supports:
-  - standard **X mixer**
-  - **XY mixer** for improved constraint structure
-- Produces:
-  - bitstring samples
-  - marginal selection probabilities
-  - Top-K projections
-  - feasible candidate solutions
-  - λ-sweeps
-
-Notebook client:
-
-- `notebooks/QAOA.ipynb`
-- `notebooks/examples/03_Real_Example.ipynb`
-- `notebooks/examples/04_Larger_Real_Data_Example.ipynb`
-
----
-
-### 3. Fractional VQE (Continuous Allocation)
-
-Solve the long-only mean–variance problem on the simplex:
-
-$$
-\min_{w \in \Delta}\; -\mu^\top w + \lambda\, w^\top \Sigma w
-\quad\text{with}\quad
-\Delta={w\ge0,\sum_i w_i=1}
-$$
-
-**Highlights**
-
-- Simplex constraint enforced **by construction**
-- Configurable ansatz options: **RY**, **RY + CZ ring**, and **RY/RZ + CZ ring**
-- No penalty tuning required
-- Smooth λ‑sweeps with optional warm starts
-- Efficient frontier computed from allocations
-
-Notebook clients:
-
-- `notebooks/Fractional.ipynb`
-- `notebooks/examples/01_Real_example.ipynb`
-- `notebooks/examples/04_Larger_Real_Data_Example.ipynb`
-
----
-
-## Why Quantum Here?
-
-Classical mean–variance portfolio optimization is well understood and efficiently solvable *in its simplest form*.
-However, many practically relevant extensions introduce **combinatorial structure** that scales poorly with problem size.
-
-This project focuses on those regimes.
-
-### What is classically easy
-- Unconstrained or long-only Markowitz optimization
-- Convex quadratic objectives on the simplex
-- Small-scale cardinality constraints via heuristics
-
-### What becomes hard
-- **Exact cardinality constraints** (select exactly *K* assets)
-- Discrete–continuous hybrid decision spaces
-- Exhaustive exploration of correlated asset subsets
-- Non-convex penalty landscapes introduced by constraints
-
-These settings naturally map to **QUBO / Ising formulations**, which are native to near-term quantum algorithms such as **VQE** and **QAOA**.
-
-### Why VQE is a natural research tool
-- VQE directly minimizes ⟨H⟩ for problem-encoded Hamiltonians
-- Constraints can be enforced **structurally** (fractional case) or via penalties (binary case)
-- Hybrid quantum–classical loops align with existing optimization workflows
-- The framework cleanly supports:
-  - Ansatz experimentation
-  - Noise and shot studies
-  - Warm-started parameter sweeps
-
-### What this project does *not* claim
-- Quantum advantage over classical solvers
-- Near-term production readiness
-- Superiority to specialized classical optimizers
-
-Instead, this repository provides a **carefully engineered research baseline** for exploring how constrained financial optimization problems behave when expressed in quantum-native representations.
-
----
+The experiments use quantum simulation and do not establish quantum advantage or production readiness.
 
 ## Installation
-
-Base install (quantum algorithms only):
 
 ```bash
 pip install vqe-portfolio
 ```
 
-With real market data utilities:
+Optional dependencies:
 
 ```bash
-pip install "vqe-portfolio[data]"
+pip install "vqe-portfolio[data]"       # Market data utilities
+pip install "vqe-portfolio[classical]"  # SciPy/HiGHS and CVXPY/OSQP baselines
+pip install -e ".[dev,docs]"           # Development and documentation
 ```
 
-With classical Markowitz baseline:
+## Quickstart
+
+Run a small synthetic asset-selection problem:
+
+```python
+import numpy as np
+from vqe_portfolio import BinaryVQEConfig, run_binary_vqe
+
+mu = np.array([0.10, 0.12, 0.07, 0.09])
+sigma = np.eye(4) * 0.02
+config = BinaryVQEConfig(k=2, lam=4.0, alpha=2.0, steps=25, seed=0)
+result = run_binary_vqe(mu, sigma, config)
+print(result.x_topk)
+```
+
+The command-line interface supports the same solvers:
 
 ```bash
-pip install "vqe-portfolio[markowitz]"
+vqe-portfolio --help
+python -m vqe_portfolio --help
 ```
 
-For development:
+See the [usage guide](USAGE.md) for complete API and CLI examples, ansatz options, real-data workflows, and efficient frontiers.
 
-```bash
-pip install -e ".[dev]"
+## Repository structure
+
+```text
+src/vqe_portfolio/
+├── binary.py, qaoa.py, fractional.py   # Quantum solvers
+├── problem.py, types.py               # Problem evaluation and solver types
+├── ansatz.py, optimize.py             # Shared circuit and optimizer code
+├── baselines/                        # Classical references and optional solvers
+├── benchmark.py                      # Independent candidate evaluation/reporting
+├── research/                         # Study logic and shared runner infrastructure
+└── ...                               # CLI, data, plotting, frontier utilities
+scripts/                              # Experiment entry points and report generation
+experiments/                          # Study configuration and reproduction guide
+results/                              # Saved research evidence
+notebooks/                            # Tutorial and comparison clients
+tests/                               # Solver, research, CLI, compatibility tests
+docs/                                 # Sphinx documentation
 ```
 
----
+See [architecture and development](docs/architecture.md) for module boundaries and the v0.3.0 migration notes. Existing public imports remain supported.
 
-## Repository Structure
+## Documentation and research
 
-```
-src/
-└── vqe_portfolio/
-    ├── binary.py        # Binary VQE (QUBO / Ising formulation)
-    ├── qaoa.py          # QAOA portfolio optimization
-    ├── fractional.py    # Fractional VQE (simplex parameterization)
-    ├── frontier.py      # Efficient frontier utilities
-    ├── comparison.py    # Exact baselines and comparison helpers
-    ├── ansatz.py        # Shared circuit ansätze
-    ├── optimize.py      # Optimizer loops
-    ├── metrics.py       # Risk / return utilities
-    ├── plotting.py      # Centralized plotting helpers
-    ├── data.py          # Market data utilities
-    └── types.py         # Dataclasses for configs & results
+| Guide | Contents |
+| --- | --- |
+| [Usage](USAGE.md) | Installation, API, CLI, benchmarks, and reproduction commands |
+| [Theory](THEORY.md) | Portfolio formulations, circuit mappings, and derivations |
+| [Results](RESULTS.md) | Committed benchmark and diagnostic findings |
+| [Research protocol](QUANTUM_ADVANTAGE.md) | Evaluation design and limits on advantage claims |
+| [Experiments](experiments/README.md) | Validation, training, sampling, and failure diagnostics |
 
-scripts/
-├── generate_comparison_results.py  # Synthetic baselines and repeatability CSVs
-├── generate_ansatz_comparison.py   # Compact ansatz comparison CSV
-└── generate_larger_real_data_example.py  # 12-stock real-data example artifacts
+Start with `notebooks/Binary.ipynb`, `notebooks/QAOA.ipynb`, or `notebooks/Fractional.ipynb`. Real-data examples are in `notebooks/examples/`.
 
-results/
-├── synthetic_comparison.csv
-├── real_data_comparison.csv
-├── generated_comparison_summary.csv
-├── generated_repeatability_trials.csv
-├── real_data_method_comparison.csv
-├── larger_real_data_comparison.csv
-└── ansatz_comparison.csv
+Saved study reports:
 
-notebooks/
-├── Binary.ipynb
-├── QAOA.ipynb
-├── Fractional.ipynb
-├── Benchmark_Comparison.ipynb
-├── Real_Data_Comparison.ipynb
-├── Ansatz_Comparison.ipynb
-├── examples/
-│   ├── 01_Real_example.ipynb
-│   ├── 02_Real_Example.ipynb
-│   ├── 03_Real_Example.ipynb
-│   └── 04_Larger_Real_Data_Example.ipynb
-└── images/
+- [Small-instance validation](results/small_instance_validation/report.md)
+- [Before/after training](results/training_diagnostic/report.md)
+- [Sampling allowances](results/sampling_allowance/report.md)
+- [Training effort](results/training_effort/report.md)
+- [Failure diagnostics](results/failure_diagnostics/report.md)
 
-tests/
-└── test_*.py
-```
+## Author and support
 
----
+[Sid Richards](https://github.com/SidRichardsQuantum) · [LinkedIn](https://www.linkedin.com/in/sid-richards-21374b30b/) · [Sponsor development](https://github.com/sponsors/SidRichardsQuantum)
 
-## Usage
-
-This package can be used **both programmatically (Python API)** and **from the command line (CLI)**.
-
-See **[USAGE.md](USAGE.md)** for:
-
-- Command-line interface (CLI) usage
-- Minimal API examples
-- Synthetic-data quickstart
-- Real-data workflows
-- Benchmark comparison workflows
-- λ-sweeps and efficient frontiers
-
----
-
-## Additional Documentation
-
-- **Theory & derivations**: [`THEORY.md`](THEORY.md)
-- **Usage & reproducibility**: [`USAGE.md`](USAGE.md)
-- **Committed benchmark results**: [`RESULTS.md`](RESULTS.md)
-- **Stronger classical solvers**: [installation and benchmarks](USAGE.md#strong-classical-baselines)
-- **Quantum advantage research protocol**: [`QUANTUM_ADVANTAGE.md`](QUANTUM_ADVANTAGE.md)
-- **Small-instance validation pilot**: [configuration and reproduction](experiments/README.md), [saved report](results/small_instance_validation/report.md)
-- **Effect of quantum training**: [before/after diagnostic](experiments/README.md#before-and-after-training-diagnostic), [saved report](results/training_diagnostic/report.md)
-- **Sampling allowances**: [method and reproduction](experiments/README.md#sampling-allowance-diagnostic), [saved curves and report](results/sampling_allowance/report.md)
-- **Training effort**: [continuous-trajectory study](experiments/README.md#training-effort-development-study), [saved results and paired plots](results/training_effort/report.md)
-- **Failure diagnostics**: [XY reachability and VQE depth/penalty study](experiments/README.md#eight-security-failure-diagnostics), [saved report and figures](results/failure_diagnostics/report.md)
-
----
-
-## Why This Matters
-
-This project demonstrates:
-
-- Mapping **financial optimization problems** to quantum Hamiltonians
-- Clean constraint handling (cardinality vs simplex)
-- A strict separation between **research code**, notebook clients, and benchmark scripts
-- Reproducible hybrid quantum–classical workflows
-- Production‑grade packaging and CI for quantum algorithms
-
----
-
-## References
-
-- QUBO overview: [https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization)
-- PennyLane documentation: [https://docs.pennylane.ai](https://docs.pennylane.ai)
-
----
-
-## Support development
-
-If this repository is useful for research, learning, or experimentation, you can support continued development via GitHub Sponsors:
-
-[https://github.com/sponsors/SidRichardsQuantum](https://github.com/sponsors/SidRichardsQuantum)
-
-Sponsorship supports continued work on open-source implementations of quantum optimization algorithms, including improvements to documentation, reproducible workflows, example notebooks, and benchmarking utilities.
-
-Support helps maintain accessible reference implementations of VQE and QAOA methods for constrained optimization problems and hybrid quantum–classical experimentation.
-
----
-
-## Author
-
-**Sid Richards**
-
-LinkedIn: [https://www.linkedin.com/in/sid-richards-21374b30b/](https://www.linkedin.com/in/sid-richards-21374b30b/)
-
-GitHub: [https://github.com/SidRichardsQuantum](https://github.com/SidRichardsQuantum)
-
----
-
-## License
-
-MIT License — see [LICENSE](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/blob/main/LICENSE)
+MIT License — see [LICENSE](https://github.com/SidRichardsQuantum/VQE_Portfolio_Optimization/blob/main/LICENSE).

@@ -1,24 +1,21 @@
 """Measure initial/trained target probabilities on frozen binary pilot problems."""
 
 import argparse
-import csv
 import hashlib
 import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from vqe_portfolio.training_diagnostics import (
+from vqe_portfolio.research.infrastructure import provenance, write_csv, write_json
+from vqe_portfolio.research.training_diagnostics import (
     DIAGNOSTIC_METHODS,
     measure_pair,
     summarise_pairs,
 )
-from vqe_portfolio.validation import ValidationConfig, trial_plan
+from vqe_portfolio.research.validation import ValidationConfig, trial_plan
 
-if __package__:
-    from .run_small_instance_validation import ROOT, provenance, write_json
-else:
-    from run_small_instance_validation import ROOT, provenance, write_json
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def plot_results(output, summaries):
@@ -77,14 +74,7 @@ def export_results(output, trials, expected):
         ),
         ("summary.csv", summaries),
     ):
-        if rows:
-            with (output / filename).open("w", newline="") as stream:
-                writer = csv.DictWriter(
-                    stream,
-                    fieldnames=list(dict.fromkeys(k for row in rows for k in row)),
-                )
-                writer.writeheader()
-                writer.writerows(rows)
+        write_csv(output / filename, rows)
 
     def percent(value):
         return "—" if value is None else f"{100 * value:.4g}%"
@@ -150,10 +140,7 @@ def main(argv=None):
     ]
     if not instances or len({i["problem_id"] for i in instances}) != len(instances):
         raise ValueError("Require distinct frozen binary pilot instances.")
-    environment = provenance()
-    environment["source_sha256"][str(Path(__file__).relative_to(ROOT))] = (
-        hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-    )
+    environment = provenance(ROOT, Path(__file__), extra_packages=("matplotlib",))
     identity = {
         "schema_version": 1,
         "study": "initial_vs_trained_binary_distributions",

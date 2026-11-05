@@ -4,11 +4,15 @@ import json
 import numpy as np
 import pytest
 
-from vqe_portfolio import failure_diagnostics as f
 from vqe_portfolio.problem import PortfolioProblem
 from vqe_portfolio.qaoa import xy_mixer_edges
-from vqe_portfolio.training_effort import measure_trajectory
-from vqe_portfolio.validation import ValidationConfig, prepare_instances, trial_plan
+from vqe_portfolio.research import failure_diagnostics as f
+from vqe_portfolio.research.training_effort import measure_trajectory
+from vqe_portfolio.research.validation import (
+    ValidationConfig,
+    prepare_instances,
+    trial_plan,
+)
 
 
 @pytest.mark.parametrize("n", [2, 3, 4, 6, 8])

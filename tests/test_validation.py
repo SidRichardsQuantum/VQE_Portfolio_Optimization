@@ -4,8 +4,8 @@ import json
 import numpy as np
 import pytest
 
-from vqe_portfolio import validation as v
 from vqe_portfolio.problem import PortfolioProblem
+from vqe_portfolio.research import validation as v
 
 
 def test_reference_matches_independent_enumeration_and_simplex_solution():

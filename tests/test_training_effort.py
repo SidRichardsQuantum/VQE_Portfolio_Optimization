@@ -4,10 +4,14 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from vqe_portfolio import training_diagnostics as diagnostic
-from vqe_portfolio import training_effort as effort
 from vqe_portfolio.problem import PortfolioProblem
-from vqe_portfolio.validation import ValidationConfig, prepare_instances, trial_plan
+from vqe_portfolio.research import training_diagnostics as diagnostic
+from vqe_portfolio.research import training_effort as effort
+from vqe_portfolio.research.validation import (
+    ValidationConfig,
+    prepare_instances,
+    trial_plan,
+)
 
 
 def small_config():

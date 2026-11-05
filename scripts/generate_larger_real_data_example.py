@@ -9,33 +9,30 @@ scaling behavior without turning the notebook into a long-running benchmark.
 from __future__ import annotations
 
 import argparse
-import csv
-import sys
 from pathlib import Path
 from textwrap import dedent
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+import matplotlib.pyplot as plt
+import nbformat as nbf
+import numpy as np
 
-import matplotlib.pyplot as plt  # noqa: E402
-import nbformat as nbf  # noqa: E402
-import numpy as np  # noqa: E402
-
-from scripts.generate_comparison_results import (  # noqa: E402
+from vqe_portfolio import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
+from vqe_portfolio.data import get_stock_data
+from vqe_portfolio.plotting import (
+    plot_comparison_metric_bars,
+    plot_risk_return_comparison,
+    savefig,
+)
+from vqe_portfolio.research.comparison import (
     FIELDNAMES,
     add_binary_vqe_row,
     add_classical_rows,
     add_fractional_vqe_row,
     add_qaoa_row,
 )
-from vqe_portfolio import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig  # noqa: E402
-from vqe_portfolio.data import get_stock_data  # noqa: E402
-from vqe_portfolio.plotting import (  # noqa: E402
-    plot_comparison_metric_bars,
-    plot_risk_return_comparison,
-    savefig,
-)
+from vqe_portfolio.research.infrastructure import write_csv
+
+ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULT_TICKERS = [
     "AAPL",
@@ -69,10 +66,7 @@ def _add_selected_labels(rows: list[dict[str, str]], tickers: list[str]) -> None
 def _write_rows(path: Path, rows: list[dict[str, str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = FIELDNAMES + ["selected_assets"]
-    with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv(path, rows, fieldnames=fieldnames)
 
 
 def _plot_top_returns(tickers: list[str], mu: np.ndarray, outpath: Path) -> None:
@@ -211,7 +205,9 @@ def _make_notebook(
 ) -> None:
     nb = nbf.v4.new_notebook()
     nb.cells = [
-        nbf.v4.new_markdown_cell(dedent(f"""
+        nbf.v4.new_markdown_cell(
+            dedent(
+                f"""
                 # Larger Real-Data Portfolio Example
 
                 This notebook uses a 12-stock real-data universe to stress the
@@ -224,8 +220,12 @@ def _make_notebook(
                 Binary cardinality: `K={k}`  
                 Risk-aversion: `lambda={lam}`  
                 Penalty: `alpha={alpha}`
-                """).strip()),
-        nbf.v4.new_code_cell(dedent(f"""
+                """
+            ).strip()
+        ),
+        nbf.v4.new_code_cell(
+            dedent(
+                f"""
                 from pathlib import Path
                 import sys
 
@@ -251,8 +251,12 @@ def _make_notebook(
                     "--shots", "{shots}",
                     "--seed", "{seed}",
                 ])
-                """).strip()),
-        nbf.v4.new_code_cell(dedent("""
+                """
+            ).strip()
+        ),
+        nbf.v4.new_code_cell(
+            dedent(
+                """
                 csv_path = ROOT / "results" / "larger_real_data_comparison.csv"
                 rows = pd.read_csv(csv_path)
                 rows[
@@ -268,8 +272,12 @@ def _make_notebook(
                         "selected_assets",
                     ]
                 ]
-                """).strip()),
-        nbf.v4.new_code_cell(dedent("""
+                """
+            ).strip()
+        ),
+        nbf.v4.new_code_cell(
+            dedent(
+                """
                 image_paths = [
                     "notebooks/examples/images/Larger_Real_Data_Risk_Return.png",
                     "notebooks/examples/images/Larger_Real_Data_Binary_Objective.png",
@@ -281,13 +289,19 @@ def _make_notebook(
 
                 for path in image_paths:
                     display(Image(filename=str(ROOT / path)))
-                """).strip()),
-        nbf.v4.new_markdown_cell(dedent("""
+                """
+            ).strip()
+        ),
+        nbf.v4.new_markdown_cell(
+            dedent(
+                """
                 The binary objective and fractional objective are different
                 mathematical objectives. Compare methods within each objective
                 family, and use the risk/return chart as a cross-family view of
                 the reported portfolios.
-                """).strip()),
+                """
+            ).strip()
+        ),
     ]
     nb.metadata["kernelspec"] = {
         "display_name": "Python 3",

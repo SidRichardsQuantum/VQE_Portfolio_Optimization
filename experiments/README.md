@@ -1,5 +1,9 @@
 # Small-instance validation
 
+Study implementations live in `vqe_portfolio.research`. The executable scripts use shared provenance, atomic checkpoint writing, and CSV exports from `vqe_portfolio.research.infrastructure`; no runner imports another runner. Classical reference and optional solver implementations live in `vqe_portfolio.baselines`, and independent candidate reporting lives in `vqe_portfolio.benchmark`.
+
+As of v0.3.0, new manifests hash package sources recursively, including subpackages, and record the active runner and installed package version. Saved results retain their original manifests and source hashes. Pre-refactor checkpoints cannot be resumed with changed source code: use the original revision/environment to resume them, or a new output directory for v0.3.0. Downstream studies can still read the frozen schema-version-1 evidence.
+
 This pilot checks the research pipeline before a larger scaling study. The runner uses library modules, saves trial-level evidence, and generates a Markdown report. Notebooks can consume the saved CSVs without rerunning the algorithms.
 
 ## Design

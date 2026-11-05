@@ -6,13 +6,17 @@ import json
 import numpy as np
 import pytest
 
-from vqe_portfolio.sampling_allowance import (
+from vqe_portfolio.research.sampling_allowance import (
     sampling_rows,
     success_probability,
     summarise_sampling,
     validate_draw_counts,
 )
-from vqe_portfolio.validation import ValidationConfig, prepare_instances, trial_plan
+from vqe_portfolio.research.validation import (
+    ValidationConfig,
+    prepare_instances,
+    trial_plan,
+)
 
 
 @pytest.fixture
@@ -179,7 +183,7 @@ def test_runner_creates_analysis_without_training_and_preserves_inputs(
     tmp_path, evidence, monkeypatch
 ):
     from scripts import run_sampling_allowance as runner
-    from vqe_portfolio import training_diagnostics
+    from vqe_portfolio.research import training_diagnostics
 
     def forbidden(*args, **kwargs):
         pytest.fail("Sampling allowance analysis must never train a circuit.")

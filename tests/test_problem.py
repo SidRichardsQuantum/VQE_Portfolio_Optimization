@@ -7,11 +7,12 @@ import numpy as np
 import pennylane as qml
 import pytest
 
-import scripts.generate_comparison_results as benchmark
+import scripts.generate_comparison_results as runner
+from vqe_portfolio.baselines import ClassicalResult
 from vqe_portfolio.benchmark import CandidateTrial, comparison_rows
 from vqe_portfolio.binary import build_ising_hamiltonian
-from vqe_portfolio.classical import ClassicalResult
 from vqe_portfolio.problem import PortfolioProblem
+from vqe_portfolio.research import comparison as benchmark
 from vqe_portfolio.types import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
 
 
@@ -211,7 +212,7 @@ def test_all_invalid_trials_keep_metadata(toy_problem):
 
 def test_generated_snapshot_replays_every_row(tmp_path):
     summary, trials = tmp_path / "summary.csv", tmp_path / "trials.csv"
-    benchmark.main(
+    runner.main(
         [
             "--methods",
             "classical",
@@ -240,7 +241,7 @@ def test_generated_snapshot_replays_every_row(tmp_path):
 
 
 def test_real_data_adapter_uses_independent_evaluator(monkeypatch, toy_problem):
-    import vqe_portfolio.comparison as real
+    from vqe_portfolio.research import comparison as real
 
     mu, sigma = toy_problem
     monkeypatch.setattr(

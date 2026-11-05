@@ -45,74 +45,54 @@ def compute_mu_sigma(*args, **kwargs):
     return _lazy_data_import("compute_mu_sigma")(*args, **kwargs)
 
 
-# ---------------------------------------------------------------------
-# Configuration & result types
-# ---------------------------------------------------------------------
-
-from .types import (
-    BinaryVQEConfig,
-    QAOAConfig,
-    FractionalVQEConfig,
-    LambdaSweepConfig,
-    BinaryVQEResult,
-    QAOAResult,
-    FractionalVQEResult,
-)
-
-# ---------------------------------------------------------------------
-# Core algorithms
-# ---------------------------------------------------------------------
-
-from .binary import (
-    run_binary_vqe,
-    binary_lambda_sweep,
-)
-
-from .qaoa import (
-    run_qaoa,
-    qaoa_lambda_sweep,
-)
-
-from .fractional import (
-    run_fractional_vqe,
-    fractional_lambda_sweep,
-)
-
+# Public exports retain the existing package-root API.
 from .ansatz import (
     BINARY_ANSATZES,
     FRACTIONAL_ANSATZES,
 )
-
-# ---------------------------------------------------------------------
-# Evaluation utilities
-# ---------------------------------------------------------------------
-
+from .baselines import (
+    equal_weight_baseline,
+    exact_long_only_markowitz_baseline,
+    exhaustive_binary_baseline,
+    minimum_variance_binary_baseline,
+    top_return_baseline,
+)
+from .binary import (
+    binary_lambda_sweep,
+    run_binary_vqe,
+)
+from .fractional import (
+    fractional_lambda_sweep,
+    run_fractional_vqe,
+)
 from .frontier import (
     Frontier,
     binary_frontier_from_probs,
     fractional_frontier_from_allocs,
 )
-
-from .problem import PortfolioProblem, PortfolioEvaluation
-
-from .comparison import (
+from .problem import (
+    PortfolioEvaluation,
+    PortfolioProblem,
     binary_objective,
     fractional_objective,
-    exhaustive_binary_baseline,
-    top_return_baseline,
-    minimum_variance_binary_baseline,
-    equal_weight_baseline,
-    exact_long_only_markowitz_baseline,
-    real_data_comparison_rows,
 )
-
-# ---------------------------------------------------------------------
-# Public utilities
-# ---------------------------------------------------------------------
-
+from .qaoa import (
+    qaoa_lambda_sweep,
+    run_qaoa,
+)
+from .research.comparison import real_data_comparison_rows
+from .types import (
+    BinaryVQEConfig,
+    BinaryVQEResult,
+    FractionalVQEConfig,
+    FractionalVQEResult,
+    LambdaSweepConfig,
+    QAOAConfig,
+    QAOAResult,
+)
 from .utils import (
-    set_global_seed,
     resolve_notebook_outdir,
+    set_global_seed,
 )
 
 # ---------------------------------------------------------------------

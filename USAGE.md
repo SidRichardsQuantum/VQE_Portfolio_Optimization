@@ -192,7 +192,7 @@ The CLI is a **thin client** over the same public API used by notebooks and scri
 - `vqe-portfolio binary` → `run_binary_vqe`
 - `vqe-portfolio qaoa` → `run_qaoa`
 - `vqe-portfolio fractional` → `run_fractional_vqe`
-- benchmark notebooks/scripts → `vqe_portfolio.comparison` helpers and public ansatz config options
+- benchmark notebooks/scripts → `vqe_portfolio.research.comparison` workflows and `vqe_portfolio.benchmark` evaluation helpers and public ansatz config options
 
 No logic is duplicated.
 
@@ -516,7 +516,7 @@ The HiGHS formulation introduces a continuous variable `y_ij` per pair, constrai
 
 The CSVs add `solver_status`, `lower_bound`, and `mip_gap`; legacy methods leave them blank. Trial rows retain unsuccessful solver returns with blank objective/portfolio values and zero feasibility. Summary quality statistics include feasible returns only, while runtime, trial count, and feasibility include failures. Inspect trial rows before drawing comparisons. A reported bound is the numerical solver bound, not an independent exact-arithmetic certificate. Missing dependencies or solver exceptions stop the run visibly rather than silently substituting a weaker solver.
 
-Programmatic entry points are `convex_markowitz_baseline`, `mixed_integer_binary_baseline`, and `local_search_binary_baseline` in `vqe_portfolio.classical`. They return a `ClassicalResult` with the candidate, recomputed original objective, termination status, and available bound metadata. The local-search helper also accepts `max_swaps` (default 1,000 per restart).
+Programmatic entry points are `convex_markowitz_baseline`, `mixed_integer_binary_baseline`, and `local_search_binary_baseline` in `vqe_portfolio.baselines`. They return a `ClassicalResult` with the candidate, recomputed original objective, termination status, and available bound metadata. The local-search helper also accepts `max_swaps` (default 1,000 per restart).
 
 Solver interfaces: [SciPy/HiGHS MILP](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.milp.html), [CVXPY solver options](https://www.cvxpy.org/tutorial/solvers/).
 

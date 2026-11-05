@@ -1,31 +1,20 @@
 """Derive iid sampling success curves from saved training diagnostic evidence."""
 
 import argparse
-import csv
 import hashlib
 import json
 from datetime import datetime, timezone
-from importlib.metadata import version
 from pathlib import Path
 
-from vqe_portfolio.sampling_allowance import (
+from vqe_portfolio.research.infrastructure import provenance, write_csv, write_json
+from vqe_portfolio.research.sampling_allowance import (
     sampling_rows,
     summarise_sampling,
     validate_draw_counts,
 )
-from vqe_portfolio.training_diagnostics import DIAGNOSTIC_METHODS
+from vqe_portfolio.research.training_diagnostics import DIAGNOSTIC_METHODS
 
-if __package__:
-    from .run_small_instance_validation import ROOT, provenance, write_json
-else:
-    from run_small_instance_validation import ROOT, provenance, write_json
-
-
-def write_csv(path, rows):
-    with path.open("w", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def plot_results(output, summaries, classical):
@@ -195,11 +184,7 @@ def main(argv=None):
     records = json.loads(inputs["pairs.json"])
     pairs, baselines = sampling_rows(source, records, draws)
     summaries, classical = summarise_sampling(pairs, baselines)
-    environment = provenance()
-    environment["packages"]["matplotlib"] = version("matplotlib")
-    environment["source_sha256"][str(Path(__file__).relative_to(ROOT))] = (
-        hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-    )
+    environment = provenance(ROOT, Path(__file__), extra_packages=("matplotlib",))
     manifest = {
         "schema_version": 1,
         "study": "iid_sampling_allowance",

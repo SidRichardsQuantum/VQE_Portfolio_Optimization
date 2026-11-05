@@ -2,6 +2,7 @@
 
 ```{include} ../README.md
 :start-after: "# Portfolio Optimization via VQE"
+:relative-docs: docs/
 ```
 
 ```{toctree}
@@ -10,9 +11,9 @@
 :titlesonly:
 :caption: User Guide
 
-Overview <user/readme>
-Usage <user/usage>
-Theory <user/theory>
+Usage <USAGE>
+Theory <THEORY>
+Architecture and development <architecture>
 Results <results>
 Quantum advantage research <QUANTUM_ADVANTAGE>
 ```

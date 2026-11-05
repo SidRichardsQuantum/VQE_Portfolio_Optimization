@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from dataclasses import replace
 from pathlib import Path
 from typing import Iterable, TypeVar
 
@@ -69,3 +70,8 @@ def topk_onehot(scores: np.ndarray, k: int) -> np.ndarray:
     x = np.zeros_like(s, dtype=float)
     x[idx] = 1.0
     return x
+
+
+def seeded_config(cfg, seed: int):
+    """Return a dataclass config copy with an updated seed."""
+    return replace(cfg, seed=seed)

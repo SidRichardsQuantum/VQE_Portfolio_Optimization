@@ -102,8 +102,8 @@ def test_strong_classical_benchmark(tmp_path):
 def test_strong_classical_failures_are_preserved(monkeypatch):
     import numpy as np
 
-    import scripts.generate_comparison_results as benchmark
-    from vqe_portfolio.classical import ClassicalResult
+    from vqe_portfolio.baselines import ClassicalResult
+    from vqe_portfolio.research import comparison as benchmark
 
     def failed(*a, **kw):
         return ClassicalResult(None, None, "limit", lower_bound=-3.0)

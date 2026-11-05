@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from vqe_portfolio.classical import (
+from vqe_portfolio.baselines import (
     convex_markowitz_baseline,
     local_search_binary_baseline,
     mixed_integer_binary_baseline,

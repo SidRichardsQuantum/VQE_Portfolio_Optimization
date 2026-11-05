@@ -1,36 +1,23 @@
 """Investigate XY reachability and VQE depth/penalty failures on frozen inputs."""
 
 import argparse
-import csv
 import hashlib
 import json
 from datetime import datetime, timezone
-from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 
-from vqe_portfolio.failure_diagnostics import (
+from vqe_portfolio.research.failure_diagnostics import (
     measure_variant,
     static_diagnostics,
     variant_plan,
 )
-from vqe_portfolio.training_effort import summarise_effort
-from vqe_portfolio.validation import ValidationConfig, trial_plan
+from vqe_portfolio.research.infrastructure import provenance, write_csv, write_json
+from vqe_portfolio.research.training_effort import summarise_effort
+from vqe_portfolio.research.validation import ValidationConfig, trial_plan
 
-if __package__:
-    from .run_small_instance_validation import ROOT, provenance, write_json
-else:
-    from run_small_instance_validation import ROOT, provenance, write_json
-
-
-def write_csv(path, rows):
-    if rows:
-        with path.open("w", newline="") as stream:
-            fields = list(dict.fromkeys(k for row in rows for k in row))
-            writer = csv.DictWriter(stream, fieldnames=fields)
-            writer.writeheader()
-            writer.writerows(rows)
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def plot_results(
@@ -368,11 +355,7 @@ def main(argv=None):
     if not instances:
         raise ValueError("No frozen instances at the requested size.")
     steps, draws = source["checkpoint_steps"], source["draw_counts"]
-    environment = provenance()
-    environment["packages"]["matplotlib"] = version("matplotlib")
-    environment["source_sha256"][str(Path(__file__).relative_to(ROOT))] = (
-        hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-    )
+    environment = provenance(ROOT, Path(__file__), extra_packages=("matplotlib",))
     identity = {
         "schema_version": 1,
         "study": "binary_failure_diagnostics",

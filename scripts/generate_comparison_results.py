@@ -10,317 +10,58 @@ downloads, or optional solver dependencies. Opt into stronger solvers with
 from __future__ import annotations
 
 import argparse
-import csv
 import json
-import time
-from dataclasses import replace
 from pathlib import Path
 
-import numpy as np
-
-from vqe_portfolio import (
-    BinaryVQEConfig,
-    FractionalVQEConfig,
-    QAOAConfig,
-    run_binary_vqe,
-    run_fractional_vqe,
-    run_qaoa,
-)
-from vqe_portfolio import comparison as _comparison
-from vqe_portfolio.benchmark import CandidateTrial, comparison_rows
-from vqe_portfolio.classical import (
-    convex_markowitz_baseline,
-    local_search_binary_baseline,
-    mixed_integer_binary_baseline,
-)
+from vqe_portfolio import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
 from vqe_portfolio.comparison import (
+    binary_objective,
+    bitstring,
     equal_weight_baseline,
     exact_long_only_markowitz_baseline,
     exhaustive_binary_baseline,
     feasible_sample_rate,
+    fractional_objective,
     minimum_variance_binary_baseline,
+    selected_equal_weight,
     top_return_baseline,
+    weights_string,
 )
 from vqe_portfolio.problem import PortfolioProblem
+from vqe_portfolio.research.comparison import (
+    FIELDNAMES,
+    TRIAL_FIELDNAMES,
+    add_binary_vqe_row,
+    add_classical_rows,
+    add_fractional_vqe_row,
+    add_qaoa_row,
+    add_solver_rows,
+    synthetic_problem,
+)
+from vqe_portfolio.research.infrastructure import write_csv
 
-# Preserve helpers previously defined here for notebook/external callers.
-binary_objective = _comparison.binary_objective
-fractional_objective = _comparison.fractional_objective
-selected_equal_weight = _comparison.selected_equal_weight
-weights_string = _comparison.weights_string
-bitstring = _comparison.bitstring
-
-FIELDNAMES = [
-    "dataset",
-    "n_assets",
-    "k",
-    "method",
-    "type",
-    "lambda",
-    "objective_family",
-    "reported_weighting",
-    "seed_count",
-    "best_objective",
-    "mean_objective",
-    "std_objective",
-    "mean_return",
-    "mean_risk",
-    "feasible_rate",
-    "mean_runtime_seconds",
-    "best_selection_or_weights",
-    "notes",
-    "solver_status",
-    "lower_bound",
-    "mip_gap",
-    "problem_id",
-    "sample_feasible_rate",
+__all__ = [
+    "FIELDNAMES",
+    "TRIAL_FIELDNAMES",
+    "add_binary_vqe_row",
+    "add_classical_rows",
+    "add_fractional_vqe_row",
+    "add_qaoa_row",
+    "add_solver_rows",
+    "binary_objective",
+    "bitstring",
+    "equal_weight_baseline",
+    "exact_long_only_markowitz_baseline",
+    "exhaustive_binary_baseline",
+    "feasible_sample_rate",
+    "fractional_objective",
+    "main",
+    "minimum_variance_binary_baseline",
+    "selected_equal_weight",
+    "synthetic_problem",
+    "top_return_baseline",
+    "weights_string",
 ]
-
-TRIAL_FIELDNAMES = [
-    "dataset",
-    "n_assets",
-    "k",
-    "method",
-    "type",
-    "lambda",
-    "objective_family",
-    "reported_weighting",
-    "seed",
-    "objective",
-    "return",
-    "risk",
-    "feasible_rate",
-    "runtime_seconds",
-    "selection_or_weights",
-    "notes",
-    "solver_status",
-    "lower_bound",
-    "mip_gap",
-    "problem_id",
-    "sample_feasible_rate",
-]
-
-TRIAL_FIELDNAMES += ["penalized_energy", "validation_error"]
-
-
-def synthetic_problem(n_assets: int, seed: int = 123) -> tuple[np.ndarray, np.ndarray]:
-    rng = np.random.default_rng(seed + n_assets)
-    mu = np.linspace(0.07, 0.18, n_assets) + rng.normal(0.0, 0.008, n_assets)
-    factors = rng.normal(0.0, 0.08, size=(n_assets, min(3, n_assets)))
-    Sigma = factors @ factors.T + np.diag(np.linspace(0.03, 0.09, n_assets))
-    return mu.astype(float), Sigma.astype(float)
-
-
-def _append(
-    rows, trial_rows, problem, trials, dataset, method, method_type, alpha=None
-):
-    summary, runs = comparison_rows(
-        problem,
-        trials,
-        dataset=dataset,
-        method=method,
-        method_type=method_type,
-        alpha=alpha,
-    )
-    rows.append(summary)
-    trial_rows.extend(runs)
-
-
-def add_classical_rows(rows, trial_rows, dataset, mu, Sigma, lam, alpha, k):
-    binary = PortfolioProblem(mu, Sigma, lam, "binary_qubo", k)
-    fractional = PortfolioProblem(mu, Sigma, lam, "fractional_simplex")
-    for method, baseline, problem, method_type in [
-        (
-            "Classical exhaustive search",
-            exhaustive_binary_baseline,
-            binary,
-            "classical",
-        ),
-        (
-            "Classical top-return heuristic",
-            top_return_baseline,
-            binary,
-            "classical heuristic",
-        ),
-        (
-            "Classical minimum-variance subset",
-            minimum_variance_binary_baseline,
-            binary,
-            "classical heuristic",
-        ),
-        (
-            "Classical equal weight",
-            equal_weight_baseline,
-            fractional,
-            "classical heuristic",
-        ),
-        (
-            "Classical exact Markowitz",
-            exact_long_only_markowitz_baseline,
-            fractional,
-            "classical",
-        ),
-    ]:
-        kwargs = {"alpha": alpha, "k": k} if problem.k is not None else {}
-        started = time.perf_counter()
-        candidate, _ = baseline(problem.mu, problem.Sigma, lam=problem.lam, **kwargs)
-        trial = CandidateTrial(candidate, time.perf_counter() - started)
-        _append(
-            rows,
-            trial_rows,
-            problem,
-            [trial],
-            dataset,
-            method,
-            method_type,
-            alpha if problem.k is not None else None,
-        )
-
-
-def add_solver_rows(
-    rows, trial_rows, dataset, mu, Sigma, lam, k, seeds, time_limit=60.0, restarts=16
-):
-    binary = PortfolioProblem(mu, Sigma, lam, "binary_qubo", k)
-    fractional = PortfolioProblem(mu, Sigma, lam, "fractional_simplex")
-    for method, problem, run_seeds, solve in [
-        (
-            "Classical convex Markowitz (OSQP)",
-            fractional,
-            ["-"],
-            lambda p, seed: convex_markowitz_baseline(p.mu, p.Sigma, p.lam),
-        ),
-        (
-            "Classical mixed integer (HiGHS)",
-            binary,
-            ["-"],
-            lambda p, seed: mixed_integer_binary_baseline(
-                p.mu, p.Sigma, p.lam, p.k, time_limit=time_limit
-            ),
-        ),
-        (
-            "Classical multistart swap search",
-            binary,
-            seeds,
-            lambda p, seed: local_search_binary_baseline(
-                p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
-            ),
-        ),
-    ]:
-        trials = []
-        for seed in run_seeds:
-            started = time.perf_counter()
-            result = solve(problem, seed)
-            trials.append(
-                CandidateTrial(
-                    result.candidate,
-                    time.perf_counter() - started,
-                    seed=seed,
-                    status=result.status,
-                    lower_bound=result.lower_bound,
-                    mip_gap=result.mip_gap,
-                    notes=result.message,
-                )
-            )
-        _append(
-            rows,
-            trial_rows,
-            problem,
-            trials,
-            dataset,
-            method,
-            "classical heuristic" if method.endswith("search") else "classical",
-        )
-
-
-def _add_quantum_row(
-    rows, trial_rows, dataset, mu, Sigma, cfg, seeds, solve, method, binary
-):
-    problem = PortfolioProblem(
-        mu,
-        Sigma,
-        cfg.lam,
-        "binary_qubo" if binary else "fractional_simplex",
-        cfg.k if binary else None,
-    )
-    trials = []
-    for seed in seeds:
-        started = time.perf_counter()
-        result = solve(problem.mu, problem.Sigma, replace(cfg, seed=seed))
-        if binary:
-            fallback = result.x_best_feasible is None
-            candidate = result.x_topk if fallback else result.x_best_feasible
-            sample_rate = feasible_sample_rate(result.sample_counts, problem.k)
-            notes = "Top-K fallback" if fallback else "Best feasible sampled candidate"
-        else:
-            candidate, sample_rate, notes = (
-                result.weights,
-                None,
-                "Returned simplex allocation",
-            )
-        trials.append(
-            CandidateTrial(
-                candidate,
-                time.perf_counter() - started,
-                seed=seed,
-                sample_feasible_rate=sample_rate,
-                notes=notes,
-            )
-        )
-    _append(
-        rows,
-        trial_rows,
-        problem,
-        trials,
-        dataset,
-        method,
-        "quantum",
-        cfg.alpha if binary else None,
-    )
-
-
-def add_binary_vqe_row(rows, trial_rows, dataset, mu, Sigma, base_cfg, seeds):
-    _add_quantum_row(
-        rows,
-        trial_rows,
-        dataset,
-        mu,
-        Sigma,
-        base_cfg,
-        seeds,
-        run_binary_vqe,
-        "Binary VQE best feasible",
-        True,
-    )
-
-
-def add_qaoa_row(rows, trial_rows, dataset, mu, Sigma, base_cfg, seeds):
-    _add_quantum_row(
-        rows,
-        trial_rows,
-        dataset,
-        mu,
-        Sigma,
-        base_cfg,
-        seeds,
-        run_qaoa,
-        f"QAOA {base_cfg.mixer.upper()} best feasible",
-        True,
-    )
-
-
-def add_fractional_vqe_row(rows, trial_rows, dataset, mu, Sigma, base_cfg, seeds):
-    _add_quantum_row(
-        rows,
-        trial_rows,
-        dataset,
-        mu,
-        Sigma,
-        base_cfg,
-        seeds,
-        run_fractional_vqe,
-        "Fractional VQE",
-        False,
-    )
 
 
 def parse_int_list(value: str) -> list[int]:
@@ -507,17 +248,11 @@ def main(argv: list[str] | None = None) -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     snapshot_path = output.with_suffix(".problems.json")
     snapshot_path.write_text(json.dumps(snapshots, indent=2, allow_nan=False) + "\n")
-    with output.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv(output, rows, fieldnames=FIELDNAMES)
 
     trials_output = Path(args.trials_output)
     trials_output.parent.mkdir(parents=True, exist_ok=True)
-    with trials_output.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=TRIAL_FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(trial_rows)
+    write_csv(trials_output, trial_rows, fieldnames=TRIAL_FIELDNAMES)
 
     print(f"Wrote {len(rows)} summary rows to {output}")
     print(f"Wrote {len(trial_rows)} trial rows to {trials_output}")

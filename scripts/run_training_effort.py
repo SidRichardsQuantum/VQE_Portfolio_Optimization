@@ -1,23 +1,25 @@
 """Checkpoint one continuous training run at several optimisation efforts."""
 
 import argparse
-import csv
 import hashlib
 import json
 from dataclasses import replace
 from datetime import datetime, timezone
-from importlib.metadata import version
 from pathlib import Path
 
-from vqe_portfolio.sampling_allowance import sampling_rows, validate_draw_counts
-from vqe_portfolio.training_diagnostics import DIAGNOSTIC_METHODS, validate_checkpoints
-from vqe_portfolio.training_effort import measure_trajectory, summarise_effort
-from vqe_portfolio.validation import ValidationConfig, trial_plan
+from vqe_portfolio.research.infrastructure import provenance, write_csv, write_json
+from vqe_portfolio.research.sampling_allowance import (
+    sampling_rows,
+    validate_draw_counts,
+)
+from vqe_portfolio.research.training_diagnostics import (
+    DIAGNOSTIC_METHODS,
+    validate_checkpoints,
+)
+from vqe_portfolio.research.training_effort import measure_trajectory, summarise_effort
+from vqe_portfolio.research.validation import ValidationConfig, trial_plan
 
-if __package__:
-    from .run_small_instance_validation import ROOT, provenance, write_json
-else:
-    from run_small_instance_validation import ROOT, provenance, write_json
+ROOT = Path(__file__).resolve().parents[1]
 
 
 COLORS = ("#2563eb", "#b45309", "#15803d")
@@ -159,11 +161,7 @@ def export_results(output, trajectories, steps, draws, expected):
         ("summary.csv", summaries),
         ("paired_summary.csv", paired),
     ):
-        if records:
-            with (output / filename).open("w", newline="") as stream:
-                writer = csv.DictWriter(stream, fieldnames=list(records[0]))
-                writer.writeheader()
-                writer.writerows(records)
+        write_csv(output / filename, records)
 
     def percent(p):
         return "—" if p is None else "<1e-10%" if 0 < p < 1e-12 else f"{100*p:.4g}%"
@@ -243,11 +241,7 @@ def main(argv=None):
     config = replace(ValidationConfig(**source["config"]), steps=max(steps))
     if set(config.methods) - set(DIAGNOSTIC_METHODS):
         raise ValueError("Source must contain only the binary diagnostic methods.")
-    environment = provenance()
-    environment["packages"]["matplotlib"] = version("matplotlib")
-    environment["source_sha256"][str(Path(__file__).relative_to(ROOT))] = (
-        hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-    )
+    environment = provenance(ROOT, Path(__file__), extra_packages=("matplotlib",))
     identity = {
         "schema_version": 1,
         "study": "continuous_training_effort",
