@@ -11,7 +11,8 @@ and generate study reports.
 | `problem.py` | Problem snapshots, original objectives, and independent feasibility evaluation |
 | `types.py` | Quantum solver configurations and results |
 | `binary.py`, `qaoa.py`, `fractional.py` | Quantum solver implementations |
-| `ansatz.py`, `optimize.py` | Shared circuits and optimizer loop |
+| `ansatz.py`, `optimize.py`, `reliability.py` | Shared circuits, optimizer loop, and reference-free reliability controls |
+| `execution.py` | Isolated-process deadlines, incumbent delivery, and common termination metadata |
 | `baselines/reference.py` | NumPy reference enumeration and simple heuristics |
 | `baselines/solvers.py` | Optional classical solvers and their termination metadata |
 | `benchmark.py` | Candidate trial records, independent evaluation, and common reporting helpers |
@@ -21,6 +22,7 @@ and generate study reports.
 | `research/training_effort.py` | Continuous training trajectories and paired comparisons |
 | `research/sampling_allowance.py` | Analytical sampling success from frozen distributions |
 | `research/failure_diagnostics.py` | Reachability, depth, and penalty analysis |
+| `research/reliability.py`, `research/budget.py` | Controlled solver comparisons and fixed-deadline trial evaluation |
 | `research/infrastructure.py` | Provenance, atomic JSON checkpoints, and CSV exports |
 | `scripts/` | CLI entry points, study-specific plots, and report generation |
 
@@ -85,3 +87,18 @@ The root `README.md`, `USAGE.md`, `THEORY.md`, `RESULTS.md`, and
 its navigation uses `index`, `USAGE`, `THEORY`, `results`, and
 `QUANTUM_ADVANTAGE`. This page documents package organization and contributor
 checks directly in Sphinx.
+
+## v0.3.1 execution and reliability
+
+Solver defaults retain the legacy circuit and penalty choices. Explicit XY
+initial-state/topology options and Binary VQE penalty, restart, normalization,
+best-iterate, and learning-rate controls support controlled comparisons.
+`run_budgeted` owns the end-to-end wall clock and enforces deadlines in spawned
+processes; only independently valid candidates received on time can become
+incumbents. Reference targets are used by research evaluation after execution,
+never by optimizers or worker dispatch. See the [usage guide](USAGE.md) for timing
+boundaries, callback overhead, and spawn entry-point requirements.
+
+Optimizer logs now evaluate the post-update cost matching each snapshot and
+always include the last update. Historical evidence is preserved; changed costs
+and finite-shot random streams require fresh study output directories.

@@ -115,6 +115,52 @@ def _write_output(out_path: Optional[str], payload: Dict[str, Any]) -> None:
         print(text)
 
 
+def _alpha(value):
+    return "auto" if value == "auto" else float(value)
+
+
+def _execute(mu, sigma, cfg, solver, args):
+    if args.budget_seconds is None:
+        return solver(mu=mu, Sigma=sigma, cfg=cfg)
+    from .execution import run_budgeted
+    from .problem import PortfolioProblem
+    from .types import BinaryVQEConfig, QAOAConfig
+
+    binary = isinstance(cfg, (BinaryVQEConfig, QAOAConfig))
+    problem = PortfolioProblem(
+        mu,
+        sigma,
+        cfg.lam,
+        "binary_qubo" if binary else "fractional_simplex",
+        cfg.k if binary else None,
+    )
+    method = (
+        "binary-vqe"
+        if isinstance(cfg, BinaryVQEConfig)
+        else f"qaoa-{cfg.mixer}" if isinstance(cfg, QAOAConfig) else "fractional-vqe"
+    )
+    return run_budgeted(problem, method, args.budget_seconds, config=cfg)
+
+
+def _cmd_budget(args):
+    from .execution import BUDGET_METHODS, run_budgeted
+    from .problem import PortfolioProblem
+
+    mu, sigma = _load_mu_sigma(args)
+    family = BUDGET_METHODS[args.method]
+    problem = PortfolioProblem(
+        mu, sigma, args.lam, family, args.k if family == "binary_qubo" else None
+    )
+    result = run_budgeted(
+        problem,
+        args.method,
+        10.0 if args.budget_seconds is None else args.budget_seconds,
+        seed=args.seed,
+    )
+    _write_output(args.out, {"method": args.method, "result": result})
+    return 0
+
+
 def _cmd_binary(args: argparse.Namespace) -> int:
     from vqe_portfolio.binary import run_binary_vqe
     from vqe_portfolio.types import BinaryVQEConfig
@@ -122,6 +168,10 @@ def _cmd_binary(args: argparse.Namespace) -> int:
     mu, Sigma = _load_mu_sigma(args)
 
     cfg = BinaryVQEConfig(
+        restarts=args.restarts,
+        normalize_energy=args.normalize_energy,
+        keep_best=args.keep_best,
+        stepsize_decay=args.stepsize_decay,
         depth=args.depth,
         ansatz=args.ansatz,
         steps=args.steps,
@@ -136,7 +186,7 @@ def _cmd_binary(args: argparse.Namespace) -> int:
         k=args.k,
     )
 
-    res = run_binary_vqe(mu=mu, Sigma=Sigma, cfg=cfg)
+    res = _execute(mu, Sigma, cfg, run_binary_vqe, args)
 
     payload = {
         "method": "binary",
@@ -154,6 +204,8 @@ def _cmd_qaoa(args: argparse.Namespace) -> int:
     mu, Sigma = _load_mu_sigma(args)
 
     cfg = QAOAConfig(
+        xy_initial_state=args.xy_initial_state,
+        xy_topology=args.xy_topology,
         p=args.p,
         steps=args.steps,
         stepsize=args.stepsize,
@@ -168,7 +220,7 @@ def _cmd_qaoa(args: argparse.Namespace) -> int:
         mixer=args.mixer,
     )
 
-    res = run_qaoa(mu=mu, Sigma=Sigma, cfg=cfg)
+    res = _execute(mu, Sigma, cfg, run_qaoa, args)
 
     payload = {
         "method": "qaoa",
@@ -197,7 +249,7 @@ def _cmd_fractional(args: argparse.Namespace) -> int:
         lam=args.lam,
     )
 
-    res = run_fractional_vqe(mu=mu, Sigma=Sigma, cfg=cfg)
+    res = _execute(mu, Sigma, cfg, run_fractional_vqe, args)
 
     payload = {
         "method": "fractional",
@@ -215,6 +267,10 @@ def _cmd_binary_data(args: argparse.Namespace) -> int:
     mu, Sigma, prices, tickers = _load_mu_sigma_from_market(args)
 
     cfg = BinaryVQEConfig(
+        restarts=args.restarts,
+        normalize_energy=args.normalize_energy,
+        keep_best=args.keep_best,
+        stepsize_decay=args.stepsize_decay,
         depth=args.depth,
         ansatz=args.ansatz,
         steps=args.steps,
@@ -229,7 +285,7 @@ def _cmd_binary_data(args: argparse.Namespace) -> int:
         seed=args.seed,
     )
 
-    res = run_binary_vqe(mu=mu, Sigma=Sigma, cfg=cfg)
+    res = _execute(mu, Sigma, cfg, run_binary_vqe, args)
 
     payload = {
         "method": "binary",
@@ -266,6 +322,8 @@ def _cmd_qaoa_data(args: argparse.Namespace) -> int:
     mu, Sigma, prices, tickers = _load_mu_sigma_from_market(args)
 
     cfg = QAOAConfig(
+        xy_initial_state=args.xy_initial_state,
+        xy_topology=args.xy_topology,
         p=args.p,
         steps=args.steps,
         stepsize=args.stepsize,
@@ -280,7 +338,7 @@ def _cmd_qaoa_data(args: argparse.Namespace) -> int:
         seed=args.seed,
     )
 
-    res = run_qaoa(mu=mu, Sigma=Sigma, cfg=cfg)
+    res = _execute(mu, Sigma, cfg, run_qaoa, args)
 
     payload = {
         "method": "qaoa",
@@ -328,7 +386,7 @@ def _cmd_fractional_data(args: argparse.Namespace) -> int:
         seed=args.seed,
     )
 
-    res = run_fractional_vqe(mu=mu, Sigma=Sigma, cfg=cfg)
+    res = _execute(mu, Sigma, cfg, run_fractional_vqe, args)
 
     payload = {
         "method": "fractional",
@@ -368,6 +426,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def add_output_only(sp: argparse.ArgumentParser) -> None:
+        sp.add_argument(
+            "--budget-seconds",
+            type=float,
+            default=None,
+            help="End-to-end deadline, including isolated worker startup.",
+        )
         o = sp.add_argument_group("output")
         o.add_argument(
             "--out",
@@ -402,6 +466,10 @@ def build_parser() -> argparse.ArgumentParser:
         from vqe_portfolio.ansatz import BINARY_ANSATZES
 
         g = sp.add_argument_group("binary-vqe")
+        g.add_argument("--restarts", type=int, default=1)
+        g.add_argument("--normalize-energy", action="store_true")
+        g.add_argument("--keep-best", action="store_true")
+        g.add_argument("--stepsize-decay", type=float, default=0.0)
         g.add_argument("--depth", type=int, default=2)
         g.add_argument(
             "--ansatz",
@@ -420,6 +488,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     def add_common_qaoa(sp: argparse.ArgumentParser) -> None:
         g = sp.add_argument_group("qaoa")
+        g.add_argument(
+            "--xy-initial-state", choices=["basis", "dicke"], default="basis"
+        )
+        g.add_argument("--xy-topology", choices=["ring", "complete"], default="ring")
         g.add_argument("--p", type=int, default=2)
         g.add_argument("--steps", type=int, default=100)
         g.add_argument("--stepsize", type=float, default=0.25)
@@ -536,7 +608,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sp_b.add_argument(
         "--alpha",
-        type=float,
+        type=_alpha,
         default=10.0,
         help="Penalty weight (cfg.alpha).",
     )
@@ -562,7 +634,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sp_q.add_argument(
         "--alpha",
-        type=float,
+        type=_alpha,
         default=10.0,
         help="Penalty weight (cfg.alpha).",
     )
@@ -591,7 +663,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_market_data_args(sp_bd)
     sp_bd.add_argument("--k", type=int, required=True)
     sp_bd.add_argument("--lam", type=float, required=True)
-    sp_bd.add_argument("--alpha", type=float, default=10.0)
+    sp_bd.add_argument("--alpha", type=_alpha, default=10.0)
     sp_bd.set_defaults(func=_cmd_binary_data)
 
     sp_qd = sub.add_parser(
@@ -603,7 +675,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_market_data_args(sp_qd)
     sp_qd.add_argument("--k", type=int, required=True)
     sp_qd.add_argument("--lam", type=float, required=True)
-    sp_qd.add_argument("--alpha", type=float, default=10.0)
+    sp_qd.add_argument("--alpha", type=_alpha, default=10.0)
     sp_qd.set_defaults(func=_cmd_qaoa_data)
 
     sp_fd = sub.add_parser(
@@ -616,6 +688,17 @@ def build_parser() -> argparse.ArgumentParser:
     sp_fd.add_argument("--lam", type=float, required=True)
     sp_fd.set_defaults(func=_cmd_fractional_data)
 
+    sp_budget = sub.add_parser(
+        "budget", help="Run a classical or quantum method within a deadline."
+    )
+    add_common_io(sp_budget)
+    from .execution import BUDGET_METHODS
+
+    sp_budget.add_argument("--method", choices=tuple(BUDGET_METHODS), required=True)
+    sp_budget.add_argument("--k", type=int, default=None)
+    sp_budget.add_argument("--lam", type=float, required=True)
+    sp_budget.add_argument("--seed", type=int, default=0)
+    sp_budget.set_defaults(func=_cmd_budget)
     return p
 
 

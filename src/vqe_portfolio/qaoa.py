@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter
+from itertools import combinations
+from math import comb
 from typing import Optional
 
 import pennylane as qml
@@ -19,10 +21,10 @@ def _bitstring_array_from_index(index: int, n: int) -> np.ndarray:
     return bits
 
 
-def _sample_counts_to_counter(samples: np.ndarray) -> Counter[tuple[int, ...]]:
+def _sample_counts_to_counter(samples: np.ndarray, n=None) -> Counter[tuple[int, ...]]:
     rows = np.array(samples)
     if rows.ndim == 1:
-        rows = rows.reshape(1, -1)
+        rows = rows.reshape(-1, n) if n is not None else rows.reshape(1, -1)
     return Counter(tuple(map(int, row)) for row in rows)
 
 
@@ -60,13 +62,24 @@ def _objective_value(
     return float(lam * x @ Sigma @ x - mu @ x + alpha * (x.sum() - k) ** 2)
 
 
-def _prepare_initial_state(n: int, k: int, mixer: str) -> None:
+def _prepare_initial_state(
+    n: int, k: int, mixer: str, xy_initial_state="basis"
+) -> None:
     if mixer == "x":
         for i in range(n):
             qml.Hadamard(wires=i)
         return
 
     if mixer == "xy":
+        if xy_initial_state == "dicke":
+            amplitudes = np.zeros(2**n, requires_grad=False)
+            for selected in combinations(range(n), k):
+                index = sum(1 << (n - 1 - i) for i in selected)
+                amplitudes[index] = 1 / np.sqrt(comb(n, k))
+            qml.StatePrep(amplitudes, wires=range(n))
+            return
+        if xy_initial_state != "basis":
+            raise ValueError("xy_initial_state must be 'basis' or 'dicke'")
         basis = np.zeros(n, dtype=int)
         basis[:k] = 1
         qml.BasisState(basis, wires=range(n))
@@ -80,8 +93,12 @@ def _apply_x_mixer(beta: float, n: int) -> None:
         qml.RX(2.0 * beta, wires=i)
 
 
-def xy_mixer_edges(n: int) -> tuple[tuple[int, int], ...]:
+def xy_mixer_edges(n: int, topology="ring") -> tuple[tuple[int, int], ...]:
     """Ordered exchange edges shared by execution and reachability analysis."""
+    if topology not in {"ring", "complete"}:
+        raise ValueError("xy_topology must be 'ring' or 'complete'")
+    if topology == "complete":
+        return tuple(combinations(range(n), 2))
     if n <= 1:
         return ()
 
@@ -91,27 +108,32 @@ def xy_mixer_edges(n: int) -> tuple[tuple[int, int], ...]:
     return tuple(edges_even + edges_odd + ([(n - 1, 0)] if n > 2 else []))
 
 
-def _apply_xy_mixer(beta: float, n: int) -> None:
-    for i, j in xy_mixer_edges(n):
+def _apply_xy_mixer(beta: float, n: int, topology="ring") -> None:
+    for i, j in xy_mixer_edges(n, topology):
         qml.IsingXX(2.0 * beta, wires=[i, j])
         qml.IsingYY(2.0 * beta, wires=[i, j])
 
 
-def _apply_mixer(beta: float, n: int, mixer: str) -> None:
+def _apply_mixer(beta: float, n: int, mixer: str, xy_topology="ring") -> None:
     if mixer == "x":
         _apply_x_mixer(beta, n)
         return
     if mixer == "xy":
-        _apply_xy_mixer(beta, n)
+        _apply_xy_mixer(beta, n, xy_topology)
         return
     raise ValueError(f"Unsupported mixer '{mixer}'. Expected 'x' or 'xy'.")
 
 
 def _qaoa_layer(
-    gamma: float, beta: float, H_cost: qml.Hamiltonian, n: int, mixer: str
+    gamma: float,
+    beta: float,
+    H_cost: qml.Hamiltonian,
+    n: int,
+    mixer: str,
+    xy_topology="ring",
 ) -> None:
     qml.ApproxTimeEvolution(H_cost, gamma, 1)
-    _apply_mixer(beta, n, mixer)
+    _apply_mixer(beta, n, mixer, xy_topology)
 
 
 def _qaoa_ansatz(
@@ -120,14 +142,16 @@ def _qaoa_ansatz(
     n: int,
     k: int,
     mixer: str,
+    xy_initial_state="basis",
+    xy_topology="ring",
 ) -> None:
-    _prepare_initial_state(n=n, k=k, mixer=mixer)
+    _prepare_initial_state(n=n, k=k, mixer=mixer, xy_initial_state=xy_initial_state)
 
     gammas = params[:, 0]
     betas = params[:, 1]
 
     for gamma, beta in zip(gammas, betas):
-        _qaoa_layer(gamma, beta, H_cost, n, mixer)
+        _qaoa_layer(gamma, beta, H_cost, n, mixer, xy_topology)
 
 
 def _random_init(p: int, mixer: str) -> np.ndarray:
@@ -169,6 +193,16 @@ def _validate_inputs(
     if cfg.mixer not in {"x", "xy"}:
         raise ValueError(f"cfg.mixer must be 'x' or 'xy'; got {cfg.mixer!r}")
 
+    if cfg.xy_initial_state not in {"basis", "dicke"}:
+        raise ValueError("xy_initial_state must be 'basis' or 'dicke'")
+    if cfg.xy_topology not in {"ring", "complete"}:
+        raise ValueError("xy_topology must be 'ring' or 'complete'")
+    if cfg.mixer == "x" and (
+        cfg.xy_initial_state != "basis" or cfg.xy_topology != "ring"
+    ):
+        raise ValueError("XY state/topology options require mixer='xy'")
+    if type(cfg.shots_sample) is not int or cfg.shots_sample < 1:
+        raise ValueError("shots_sample must be a positive integer")
     return mu, Sigma, n
 
 
@@ -176,6 +210,8 @@ def run_qaoa(
     mu: np.ndarray,
     Sigma: np.ndarray,
     cfg: QAOAConfig = QAOAConfig(),
+    *,
+    candidate_callback=None,
 ) -> QAOAResult:
     set_global_seed(cfg.seed)
 
@@ -186,47 +222,95 @@ def run_qaoa(
 
     @qml.qnode(dev_train, interface="autograd")
     def energy(params: np.ndarray):
-        _qaoa_ansatz(params, H_cost=H_cost, n=n, k=cfg.k, mixer=cfg.mixer)
+        _qaoa_ansatz(
+            params,
+            H_cost=H_cost,
+            n=n,
+            k=cfg.k,
+            mixer=cfg.mixer,
+            xy_initial_state=cfg.xy_initial_state,
+            xy_topology=cfg.xy_topology,
+        )
         return qml.expval(H_cost)
 
     energy = qml.set_shots(energy, cfg.shots_train)
 
     init = _random_init(cfg.p, cfg.mixer)
+
+    dev_prob = qml.device(cfg.device, wires=n)
+
+    @qml.qnode(dev_prob)
+    def state_probs(params: np.ndarray):
+        _qaoa_ansatz(
+            params,
+            H_cost=H_cost,
+            n=n,
+            k=cfg.k,
+            mixer=cfg.mixer,
+            xy_initial_state=cfg.xy_initial_state,
+            xy_topology=cfg.xy_topology,
+        )
+        return qml.probs(wires=range(n))
+
+    dev_samp = qml.device(cfg.device, wires=n)
+
+    @qml.qnode(dev_samp)
+    def sample_bits(params: np.ndarray):
+        _qaoa_ansatz(
+            params,
+            H_cost=H_cost,
+            n=n,
+            k=cfg.k,
+            mixer=cfg.mixer,
+            xy_initial_state=cfg.xy_initial_state,
+            xy_topology=cfg.xy_topology,
+        )
+        return qml.sample(wires=range(n))
+
+    sample_bits = qml.set_shots(sample_bits, cfg.shots_sample)
+
+    def report(step, value, params):
+        if candidate_callback is not None:
+            checkpoint_probs = np.array(state_probs(params), requires_grad=False)
+            counts = _sample_counts_to_counter(sample_bits(params), n)
+            feasible = [bs for bs in counts if sum(bs) == cfg.k]
+            candidate = (
+                min(
+                    feasible,
+                    key=lambda bs: _objective_value(
+                        np.array(bs), mu, Sigma, cfg.lam, 0.0, cfg.k
+                    ),
+                )
+                if feasible
+                else _topk_project(
+                    _selection_prob_from_probs(checkpoint_probs, n), cfg.k
+                )
+            )
+            candidate_callback(
+                np.array(candidate),
+                {"step": step, "source": "sample" if feasible else "topk_fallback"},
+            )
+
     opt_res = adam_optimize(
         energy,
         init,
         steps=cfg.steps,
         stepsize=cfg.stepsize,
         log_every=cfg.log_every,
+        callback=report,
     )
 
     best_params = np.array(opt_res.params, requires_grad=False)
     gammas = np.array(best_params[:, 0], requires_grad=False)
     betas = np.array(best_params[:, 1], requires_grad=False)
 
-    dev_prob = qml.device(cfg.device, wires=n)
-
-    @qml.qnode(dev_prob)
-    def state_probs(params: np.ndarray):
-        _qaoa_ansatz(params, H_cost=H_cost, n=n, k=cfg.k, mixer=cfg.mixer)
-        return qml.probs(wires=range(n))
-
     probs = np.array(state_probs(best_params), requires_grad=False)
     x_prob = _selection_prob_from_probs(probs, n)
     x_round = (x_prob >= 0.5).astype(int)
     x_topk = _topk_project(x_prob, cfg.k)
 
-    dev_samp = qml.device(cfg.device, wires=n)
-
-    @qml.qnode(dev_samp)
-    def sample_bits(params: np.ndarray):
-        _qaoa_ansatz(params, H_cost=H_cost, n=n, k=cfg.k, mixer=cfg.mixer)
-        return qml.sample(wires=range(n))
-
-    sample_bits = qml.set_shots(sample_bits, cfg.shots_sample)
-
     samples = sample_bits(best_params)
-    counts = _sample_counts_to_counter(samples)
+    counts = _sample_counts_to_counter(samples, n)
 
     mode_bitstring = max(counts, key=counts.get)
     x_mode = np.array(mode_bitstring, dtype=int)
@@ -240,7 +324,7 @@ def run_qaoa(
                 mu=mu,
                 Sigma=Sigma,
                 lam=cfg.lam,
-                alpha=cfg.alpha,
+                alpha=0.0,
                 k=cfg.k,
             ),
         )
@@ -248,6 +332,15 @@ def run_qaoa(
     else:
         x_best_feasible = None
 
+    if candidate_callback is not None:
+        candidate_callback(
+            x_topk if x_best_feasible is None else x_best_feasible,
+            {
+                "step": cfg.steps,
+                "final": True,
+                "source": "topk_fallback" if x_best_feasible is None else "sample",
+            },
+        )
     return QAOAResult(
         params=best_params,
         gammas=gammas,
@@ -286,7 +379,15 @@ def qaoa_lambda_sweep(
 
         @qml.qnode(dev, interface="autograd")
         def energy(theta: np.ndarray):
-            _qaoa_ansatz(theta, H_cost=H_cost, n=n, k=cfg.k, mixer=cfg.mixer)
+            _qaoa_ansatz(
+                theta,
+                H_cost=H_cost,
+                n=n,
+                k=cfg.k,
+                mixer=cfg.mixer,
+                xy_initial_state=cfg.xy_initial_state,
+                xy_topology=cfg.xy_topology,
+            )
             return qml.expval(H_cost)
 
         energy = qml.set_shots(energy, cfg.shots_train)
@@ -307,7 +408,15 @@ def qaoa_lambda_sweep(
 
         @qml.qnode(dev)
         def state_probs(theta: np.ndarray):
-            _qaoa_ansatz(theta, H_cost=H_cost, n=n, k=cfg.k, mixer=cfg.mixer)
+            _qaoa_ansatz(
+                theta,
+                H_cost=H_cost,
+                n=n,
+                k=cfg.k,
+                mixer=cfg.mixer,
+                xy_initial_state=cfg.xy_initial_state,
+                xy_topology=cfg.xy_topology,
+            )
             return qml.probs(wires=range(n))
 
         probs = np.array(state_probs(params), dtype=float)

@@ -61,6 +61,7 @@ from .binary import (
     binary_lambda_sweep,
     run_binary_vqe,
 )
+from .execution import BudgetResult, CandidateSnapshot, run_budgeted
 from .fractional import (
     fractional_lambda_sweep,
     run_fractional_vqe,
@@ -113,6 +114,9 @@ __all__ = [
     "QAOAResult",
     "FractionalVQEResult",
     # --- algorithms ---
+    "run_budgeted",
+    "BudgetResult",
+    "CandidateSnapshot",
     "run_binary_vqe",
     "binary_lambda_sweep",
     "run_qaoa",

@@ -248,3 +248,78 @@ def test_cli_fractional_writes_output_file(tmp_path):
 
     payload = json.loads(out_path.read_text())
     assert payload["method"] == "fractional"
+
+
+def test_cli_reliability_and_budget_options(tmp_path):
+    from vqe_portfolio.cli import main
+
+    out = tmp_path / "reliable.json"
+    assert (
+        main(
+            [
+                "binary",
+                "--mu",
+                "0.1,0.2",
+                "--sigma",
+                "0.1,0;0,0.2",
+                "--k",
+                "1",
+                "--lam",
+                "1",
+                "--alpha",
+                "auto",
+                "--steps",
+                "1",
+                "--shots-sample",
+                "8",
+                "--restarts",
+                "2",
+                "--normalize-energy",
+                "--keep-best",
+                "--stepsize-decay",
+                "0.1",
+                "--out",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(out.read_text())
+    assert payload["result"]["effective_alpha"] > 0
+    assert len(payload["result"]["restart_energies"]) == 2
+    assert (
+        main(
+            [
+                "qaoa",
+                "--mu",
+                "0.1,0.2",
+                "--sigma",
+                "0.1,0;0,0.2",
+                "--k",
+                "1",
+                "--lam",
+                "1",
+                "--mixer",
+                "xy",
+                "--p",
+                "1",
+                "--steps",
+                "1",
+                "--shots-sample",
+                "8",
+                "--xy-initial-state",
+                "dicke",
+                "--xy-topology",
+                "complete",
+                "--budget-seconds",
+                "10",
+                "--out",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(out.read_text())
+    assert payload["result"]["status"] == "completed"
+    assert payload["result"]["candidate_seconds"] <= 10
+    assert "overrun_seconds" in payload["result"]

@@ -144,6 +144,38 @@ Alpha 0.05 is below the feasibility-sufficiency threshold for instance 202, wher
 
 The [support figure](results/failure_diagnostics/xy_support.png), [sensitivity figure](results/failure_diagnostics/failure_sensitivity.png), [VQE convergence figure](results/failure_diagnostics/vqe_convergence.png) and [full report](results/failure_diagnostics/report.md) separate structural exclusion, penalty adequacy and observed training behaviour. These development results do not establish a scaling law or quantum advantage, and settings chosen from this grid require fresh held-out evaluation.
 
+## v0.3.1 solver reliability and deadline pilots
+
+The [solver reliability study](results/solver_reliability/report.md) compares
+reference-free penalty selection, normalization, restarts, best-iterate selection,
+and learning-rate decay for Binary VQE, plus basis/Dicke initial states and
+ring/complete XY networks. Every variant receives the same total Adam updates;
+wall-clock time and circuit-evaluation counts are not equalized. Exact target
+probabilities are evaluated after training on the frozen original objectives.
+
+Across the three eight-asset development instances and three seeds, switching
+XY QAOA from basis/ring to Dicke/ring raises mean analytical success within
+64 draws from 0% to 90.96%; uniform exact-K sampling reaches 68.24%. The combined
+Binary VQE restart strategy reaches 11.89%, versus 0.19% for its legacy control.
+These results use 24 total Adam updates per run and do not establish runtime
+improvement or held-out performance.
+
+The [fixed-deadline pilot](results/budget_benchmark/report.md) evaluates portfolios
+received within explicit end-to-end allowances, including process startup,
+encoding, training, sampling, repair, and delivery. It retains failed returns,
+cleanup overruns, and incumbent trajectories. Per-instance T90 includes censored
+failures and is unreached when fewer than 90% succeed. Numerical references keep
+their numerical status. These development pilots provide no held-out statistical
+or quantum-advantage claim; historical reports above are unchanged.
+
+The committed deadline pilot uses one four-asset instance and one run per method
+and allowance to check execution behavior. Reproduce its frozen settings with:
+
+```bash
+python scripts/run_budget_benchmark.py --asset-counts 4 --instance-seeds 101 \
+  --seeds 0 --steps 24 --checkpoint-every 4 --budgets 1,10,60
+```
+
 ## Synthetic Results
 
 Synthetic examples use fixed in-notebook arrays and are therefore the best place for deterministic method-to-baseline comparisons.

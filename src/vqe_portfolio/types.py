@@ -16,7 +16,7 @@ class BinaryVQEConfig:
 
     # Constraint / objective params
     lam: float = 5.0
-    alpha: float = 2.0
+    alpha: float | str = 2.0
     k: int = 2
 
     # Quantum execution
@@ -26,6 +26,12 @@ class BinaryVQEConfig:
 
     # Reproducibility
     seed: int = 0
+
+    # Opt-in reliability controls; legacy defaults remain reproducible.
+    restarts: int = 1
+    normalize_energy: bool = False
+    keep_best: bool = False
+    stepsize_decay: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -37,7 +43,7 @@ class QAOAConfig:
 
     # Constraint / objective params
     lam: float = 5.0
-    alpha: float = 2.0
+    alpha: float | str = 2.0
     k: int = 2
 
     # Mixer: "x" for standard QAOA, "xy" for fixed-cardinality style mixing
@@ -50,6 +56,8 @@ class QAOAConfig:
 
     # Reproducibility
     seed: int = 0
+    xy_initial_state: str = "basis"  # "dicke": uniform exact-K superposition
+    xy_topology: str = "ring"  # or "complete"
 
 
 @dataclass(frozen=True)
@@ -99,6 +107,9 @@ class BinaryVQEResult:
     # Lambda sweep
     lambdas: np.ndarray | None = None
     probs_by_lambda: np.ndarray | None = None  # shape (L, n)
+    effective_alpha: float | None = None
+    energy_scale: float = 1.0
+    restart_energies: Sequence[float] = ()
 
 
 @dataclass(frozen=True)

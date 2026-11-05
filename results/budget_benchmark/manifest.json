@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "study": "fixed_deadline_simulator_pilot",
+  "settings": {
+    "asset_counts": "4",
+    "instance_seeds": "101",
+    "seeds": "0",
+    "methods": "binary-vqe,qaoa-x,qaoa-xy,highs,swap,random-k,fractional-vqe,osqp",
+    "budgets": "1,10,60",
+    "steps": 24,
+    "checkpoint_every": 4,
+    "stepsize": 0.3,
+    "stepsize_decay": 0.0,
+    "alpha": 5.0,
+    "restarts": 1,
+    "normalize_energy": false,
+    "keep_best": false,
+    "qaoa_p": 1,
+    "xy_initial_state": "basis",
+    "xy_topology": "ring",
+    "shots": 64,
+    "lam": 4.0,
+    "target_gap": 0.001
+  },
+  "environment": {
+    "python": "3.12.3",
+    "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "cpu_count": 2,
+    "cpu_affinity": [
+      0,
+      1
+    ],
+    "thread_environment": {
+      "OMP_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null
+    },
+    "packages": {
+      "vqe-portfolio": "0.3.1",
+      "numpy": "2.5.4",
+      "pennylane": "0.45.1",
+      "scipy": "1.18.1",
+      "cvxpy": "1.7.2",
+      "osqp": "0.6.7.post3",
+      "pennylane-lightning": "0.45.0"
+    },
+    "source_sha256": {
+      "scripts/run_budget_benchmark.py": "6c9c0280abbb66f28962e5934f43713acf9938ea4c243958e4eb13ecb6aa655c",
+      "src/vqe_portfolio/__init__.py": "4e3eb23632402ccd7cd80da203277542543706960387ab5959189e34bec57d94",
+      "src/vqe_portfolio/__main__.py": "40978f4504f1a9684198875035a1b3793baa7d95dfd05dbb022678663e4e1297",
+      "src/vqe_portfolio/ansatz.py": "04f141555d53744b0f84d757e7f32f8fa5274a7fe4634bf67264b2bb82b19f1e",
+      "src/vqe_portfolio/baselines/__init__.py": "f19922de1de03812b73852d7b35be0bbcd78b5d2c670332019c6a15596b3acec",
+      "src/vqe_portfolio/baselines/reference.py": "63fae38277ca6c45440a93a4b77f02eeafdd8a73eec60b7916d49858a75b07c8",
+      "src/vqe_portfolio/baselines/solvers.py": "e54d9331aaee53e539ccc765b957c0674754203a31d151b12229455598982feb",
+      "src/vqe_portfolio/benchmark.py": "1a33eb8faf669fc5e7b99196c701cdb6ff9cb6f85729f9d63dc8e527a08b91b9",
+      "src/vqe_portfolio/binary.py": "67b313d3489a73ab123a8542bf27a200ac364f33b783d793f0c45dbdc515c3f4",
+      "src/vqe_portfolio/classical.py": "7df1ac9cbe42101f1139fdf72c1afa219f5a64151c27a52caf8b61361409a5fb",
+      "src/vqe_portfolio/cli.py": "b383833390d7c9e7170e4ccc61d22711d59abcde2986491fd7d62c69114eaef7",
+      "src/vqe_portfolio/comparison.py": "0534599761c64f6189d4e3cbf6493e1e4bdd3a45c9d94df73de0591050833b1b",
+      "src/vqe_portfolio/data.py": "acf5da9ce850ffa3e27fe696715fa41c60e6b8455302eae48150bf62f25dfe6c",
+      "src/vqe_portfolio/execution.py": "0c86b0781f84304ea9656f966eff7366251e66814ca6773f4de21bf15478b78e",
+      "src/vqe_portfolio/failure_diagnostics.py": "68d15aacc35568eca82d9b25fac994123079079484e1124050c9e9fe29818ca2",
+      "src/vqe_portfolio/fractional.py": "0d7238d6fbe2127e27efab6962e27c23d977cf2aaa02b1dd09d155ed8a9bef62",
+      "src/vqe_portfolio/frontier.py": "879855288853afbbaef594156219cee5a0366771d78d28d4e77808f3960be1c6",
+      "src/vqe_portfolio/metrics.py": "11524a40ac678ae677b6dca6e075d4a37dca0b21f2765bc17f3ad91f250a7bf1",
+      "src/vqe_portfolio/optimize.py": "bda3243dc0889c0ba7eaa2823db999d3cbfe0877281fae97e6864af2a1e1524d",
+      "src/vqe_portfolio/plotting.py": "9b022393a9431ad94cba5f96a162b157e2a93117bea101d02b9ba608aaaca97b",
+      "src/vqe_portfolio/problem.py": "331b186d67a92ead67c7ac588f2d4e8ea98ddd5dcedf82f31add91c69ffd6d6d",
+      "src/vqe_portfolio/qaoa.py": "860961b98aaeff982653769becc578a4ed980be08fc44251552a7e13030e3f7b",
+      "src/vqe_portfolio/reliability.py": "c171e67a96fadfe607fccaacbe3553cbd0f3b6900e5f68bb11687ee1659fa0f5",
+      "src/vqe_portfolio/research/__init__.py": "2ce3630a42a6a7bc5252be774cc24954894ca475b75ef860280ee495e31a82a5",
+      "src/vqe_portfolio/research/budget.py": "119a5bd13abaec3eb16ee8cd9d32bea40d72610a4c4639150d613445c9b1fe5f",
+      "src/vqe_portfolio/research/comparison.py": "b4f002ebc0cea821803cf525eeff5a01a027327a3cd82d4acea906b8612f3d1b",
+      "src/vqe_portfolio/research/failure_diagnostics.py": "ed97fb39b627b6d3302153c8eb89ae0aa21da52d7557c3a32c45df9e576e3bf7",
+      "src/vqe_portfolio/research/infrastructure.py": "f78671c26d1972f9f5d652c7c2632e14576dcf2d9eb46201771560a78bab927c",
+      "src/vqe_portfolio/research/reliability.py": "75bcbba497fe586ac43e79e30efbfb8810ff8fc2a5a0451f27c19cb67114047b",
+      "src/vqe_portfolio/research/sampling_allowance.py": "b697104dee96ad323277ae9cf52feba57b06f11c84472fccd7330afb097776f1",
+      "src/vqe_portfolio/research/training_diagnostics.py": "c7c014fc3151059313e61499c992ddcff4d735cfa70fd7b9b095bbfdcd6d6a2a",
+      "src/vqe_portfolio/research/training_effort.py": "f0877edbe56e6d1afa9b9bda314417357eb59ea39d6ca565503b9e646002a358",
+      "src/vqe_portfolio/research/validation.py": "a4b81b18d0e8e5f82fd0d618bc07423a9b9a2fc5824530197373bfb7dd7a91b4",
+      "src/vqe_portfolio/sampling_allowance.py": "7145d47b91d1705b27c57a591268551163a84e9aa93c6e505bcbc507575cd748",
+      "src/vqe_portfolio/training_diagnostics.py": "8a394d26d340a94f6867ead9202c4a5a46d05069c951c3f216d5d4df5c82fe90",
+      "src/vqe_portfolio/training_effort.py": "bd77393af4db951ac15fcee2413330603e48cc8338a0ebdf1d20f3abf20d083d",
+      "src/vqe_portfolio/types.py": "1a4e1bf760657d409abb70221f58cc3eec94faf60d1dcac6cdd7a3c5f513cc88",
+      "src/vqe_portfolio/utils.py": "5677ddcb8464f77817cb3a8a2e8ec38466ca3f1af0c89a4dc8fd9b75cfcaeca9",
+      "src/vqe_portfolio/validation.py": "3749fc5714a5fd2891e0216d3b2823cb41658741e6540a761c68bea31cdcb926"
+    }
+  },
+  "instances": [
+    {
+      "problem_id": "6092fbb609fdf3985cc16dc5f037f7b9c33e527f96b7c2d7a6e16c62d2151a68",
+      "instance_seed": 101,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.1353124744010016,
+          0.12058947932078476,
+          0.17298917827989577,
+          0.1380304522497271
+        ],
+        "Sigma": [
+          [
+            0.0807586881921894,
+            0.00038354869521487866,
+            -0.021996418388139143,
+            -0.023164294737312074
+          ],
+          [
+            0.00038354869521487866,
+            0.04892518796312522,
+            -0.006528974609245365,
+            0.00468853884630561
+          ],
+          [
+            -0.021996418388139143,
+            -0.006528974609245365,
+            0.08056161862763478,
+            0.006052637740604925
+          ],
+          [
+            -0.023164294737312074,
+            0.00468853884630561,
+            0.006052637740604925,
+            0.06316122988851666
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "binary_qubo",
+        "k": 2,
+        "reported_weighting": "equal_weight_selected",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        1,
+        0,
+        0,
+        1
+      ],
+      "reference_objective": 0.11702238777359897,
+      "reference_runtime_seconds": 9.813599990593502e-05,
+      "objective_scale": 1.638117367634822,
+      "reference_kind": "exhaustive_binary"
+    },
+    {
+      "problem_id": "ed6393244c6ba6ef3cf750b3a1e0334578205191fd25166ae1522402d4b13eaf",
+      "instance_seed": 101,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.1353124744010016,
+          0.12058947932078476,
+          0.17298917827989577,
+          0.1380304522497271
+        ],
+        "Sigma": [
+          [
+            0.0807586881921894,
+            0.00038354869521487866,
+            -0.021996418388139143,
+            -0.023164294737312074
+          ],
+          [
+            0.00038354869521487866,
+            0.04892518796312522,
+            -0.006528974609245365,
+            0.00468853884630561
+          ],
+          [
+            -0.021996418388139143,
+            -0.006528974609245365,
+            0.08056161862763478,
+            0.006052637740604925
+          ],
+          [
+            -0.023164294737312074,
+            0.00468853884630561,
+            0.006052637740604925,
+            0.06316122988851666
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "fractional_simplex",
+        "k": null,
+        "reported_weighting": "simplex_weights",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        0.2817420660232987,
+        0.20151478412361218,
+        0.2720895745538058,
+        0.2446535752992833
+      ],
+      "reference_objective": -0.09457447749537712,
+      "reference_runtime_seconds": 0.0010290270001860335,
+      "objective_scale": 0.4960239310486534,
+      "reference_kind": "active_set_numerical"
+    }
+  ],
+  "timing": "Spawn startup, setup, encoding, training, sampling, repair, evaluation and delivery included; cleanup overrun reported separately."
+}

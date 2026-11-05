@@ -1,6 +1,6 @@
 # Quantum Advantage Research Protocol
 
-Status: prospective protocol. The existing results are exploratory examples, not evidence that these criteria have been met. This document defines the research question; the full fixed-budget study remains subsequent work. Shared problem snapshots, independent candidate evaluation, and stronger classical baselines are implemented; see [usage](USAGE.md#shared-problem-definitions-and-evaluation).
+Status: prospective protocol. The existing results are exploratory examples, not evidence that these criteria have been met. This document defines the research question; the full held-out fixed-budget study remains subsequent work. Version 0.3.1 implements an end-to-end deadline runner and a descriptive simulator pilot; the required held-out sample sizes, comparable tuning, uncertainty analysis, and hardware measurements remain outstanding. Shared problem snapshots, independent candidate evaluation, and stronger classical baselines are implemented; see [usage](USAGE.md#shared-problem-definitions-and-evaluation).
 
 ## Research question
 

@@ -89,7 +89,7 @@ tests/                               # Solver, research, CLI, compatibility test
 docs/                                 # Sphinx documentation
 ```
 
-See [architecture and development](docs/architecture.md) for module boundaries and the v0.3.0 migration notes. Existing public imports remain supported.
+See [architecture and development](docs/architecture.md) for module boundaries and the v0.3.0 migration notes. Existing public imports remain supported. Version 0.3.1 adds opt-in solver reliability controls and end-to-end execution budgets; see the [usage guide](USAGE.md#solver-reliability-controls-v031) and [changelog](CHANGELOG.md).
 
 ## Documentation and research
 
@@ -110,6 +110,8 @@ Saved study reports:
 - [Sampling allowances](results/sampling_allowance/report.md)
 - [Training effort](results/training_effort/report.md)
 - [Failure diagnostics](results/failure_diagnostics/report.md)
+- [Solver reliability controls](results/solver_reliability/report.md)
+- [Fixed-deadline simulator pilot](results/budget_benchmark/report.md)
 
 ## Author and support
 

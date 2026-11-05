@@ -153,7 +153,7 @@ def mixed_integer_binary_baseline(
 
 
 def local_search_binary_baseline(
-    mu, Sigma, lam, k, *, seed=0, restarts=16, max_swaps=1000
+    mu, Sigma, lam, k, *, seed=0, restarts=16, max_swaps=1000, candidate_callback=None
 ) -> ClassicalResult:
     """Multistart best-improvement one-for-one swaps preserving cardinality.
 
@@ -175,6 +175,8 @@ def local_search_binary_baseline(
     for selected in starts:
         x = np.zeros(len(mu), dtype=int)
         x[selected] = 1
+        if candidate_callback is not None:
+            candidate_callback(x.copy(), {"source": "swap_start"})
         for _ in range(max_swaps):
             inside, outside = np.flatnonzero(x), np.flatnonzero(1 - x)
             if not len(inside) or not len(outside):
@@ -191,6 +193,8 @@ def local_search_binary_baseline(
             if delta[a, b] >= -1e-12:
                 break
             x[inside[a]], x[outside[b]] = 0, 1
+            if candidate_callback is not None:
+                candidate_callback(x.copy(), {"source": "swap"})
         else:
             capped = True
         obj = _objective(x, mu, Sigma, lam)

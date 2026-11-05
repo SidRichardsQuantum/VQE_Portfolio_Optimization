@@ -180,3 +180,24 @@ Outputs include `static_analysis.json` (exact amplitude coefficients, support bo
 Use `--resume` to continue missing variants only when source hashes, settings and environment match. Finished errors remain recorded; interrupted trajectories restart from their seed with full Adam state reconstructed. Higher depth changes parameter dimension and the production random initialisation, so identical seed labels do not imply identical physical initial states. Results average seeds within each instance and then instances equally, retaining failure counts and coverage.
 
 This is exploratory diagnosis on the existing development set, with no confidence intervals, held-out tuning, scaling claims or quantum-advantage claims. See the [saved report and figures](../results/failure_diagnostics/report.md).
+
+## v0.3.1 reliability and execution-budget studies
+
+```bash
+python scripts/run_solver_reliability.py
+python scripts/run_budget_benchmark.py --budgets 1,10,60
+```
+
+Both runners freeze synthetic problem snapshots, references, settings, software,
+and recursive source hashes in `manifest.json`, checkpoint each trial, and accept
+`--resume` only when code, environment, and settings still match. Use separate
+output directories for different configurations.
+
+The [reliability study](../results/solver_reliability/report.md) compares eight
+Binary VQE and XY QAOA variants at equal total Adam updates, without claiming
+equal runtime or circuit counts. The [deadline pilot](../results/budget_benchmark/report.md)
+includes process startup and all candidate processing in each method's allowance;
+late output is excluded and failures remain in the denominators. Independent
+1/10/60-second runs retain incumbent trajectories and per-instance censored T90.
+These are small development studies, not the full held-out research protocol.
+See [usage](../USAGE.md) and [changelog](../CHANGELOG.md) for details.

@@ -618,3 +618,146 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 ```
 
 The runner preserves the frozen problem objectives and reuses verified baseline trajectories. New variants inherit 100-step effort and seeds. It saves exact amplitude polynomials, target-support comparisons, angle sensitivity, penalty sufficiency checks, VQE modal/gradient/swap diagnostics and figures. Use `--resume` to skip completed variants. See [the assumptions and reproduction details](experiments/README.md#eight-security-failure-diagnostics) and [saved report](results/failure_diagnostics/report.md). Higher-depth support bounds and illustrative swap barriers are not proofs of successful optimisation.
+
+## Solver reliability controls (v0.3.1)
+
+The default circuits, penalties, and single-start training remain available for
+comparison with historical experiments. New settings are explicit algorithm
+choices and must be frozen before evaluation.
+
+For XY QAOA, `xy_initial_state="dicke"` starts in a uniform superposition of all
+exact-K portfolios. This lets the first cost angle affect relative phases,
+whereas the legacy `"basis"` initial state makes that angle a global phase.
+`xy_topology="complete"` exchanges every pair of assets; `"ring"` retains the
+historical ordered even/odd/wrap edges. Both preserve cardinality. These settings
+also apply to QAOA lambda sweeps.
+
+```python
+from vqe_portfolio import QAOAConfig, run_qaoa
+
+config = QAOAConfig(k=2, p=1, mixer="xy", xy_initial_state="dicke",
+                    xy_topology="complete", steps=25, seed=0)
+result = run_qaoa(mu, sigma, config)
+```
+
+The Dicke implementation uses `StatePrep` with an explicit `2**n` amplitude vector.
+It supports small simulator experiments; hardware decomposition and its cost
+must be evaluated separately. Complete networks have `O(n**2)` exchange edges.
+Neither option guarantees better trained portfolios.
+
+Binary VQE adds these controls:
+
+| Setting | Behavior |
+| --- | --- |
+| `alpha="auto"` | Reference-free conservative sufficient penalty derived from a feasible upper score and a coefficient-wise lower bound |
+| `normalize_energy=True` | Divide training energy by the nonidentity Hamiltonian coefficient L1 norm; report traces in original energy units |
+| `restarts=3` | Train three initializations and select by observed penalized training energy |
+| `keep_best=True` | Return the best observed training-cost iterate, including initialization |
+| `stepsize_decay=0.03` | Use `stepsize / (1 + 0.03*t)` at zero-based update `t` |
+
+`steps` is **per restart**, so total updates are `steps * restarts`. Best-iterate
+selection and restart selection use training energy, never a reference optimum
+or target-quality score. On finite-shot training these are noisy observations.
+`effective_alpha`, `energy_scale`, and `restart_energies` record the resolved
+settings and restart scores. The energy trace describes the selected restart's
+trajectory, which can end after the returned best iterate. Auto penalties also
+work for QAOA, but a sufficient penalty guarantees only that the global
+penalized optimum is feasible; it does not guarantee optimizer convergence.
+
+For the auto penalty, write the original binary objective as linear coefficients
+`a_i` and pair coefficients `b_ij`. The lower bound is
+`L = sum(min(a_i,0)) + sum(min(b_ij,0))`; `U` is the score of a feasible top-return
+portfolio. Choosing `alpha > max(0,U-L)` is sufficient because every infeasible
+bitstring incurs at least one unit of squared cardinality violation. No
+exhaustive reference is used. This bound can be conservative, which motivates
+comparing normalization, penalties, and restart settings experimentally.
+
+```bash
+vqe-portfolio binary --mu "0.1,0.2,0.15" \
+  --sigma "0.1,0,0;0,0.2,0;0,0,0.1" --k 2 --lam 4 \
+  --alpha auto --normalize-energy --restarts 3 --keep-best --stepsize-decay 0.03
+
+vqe-portfolio qaoa --mu "0.1,0.2,0.15" \
+  --sigma "0.1,0,0;0,0.2,0;0,0,0.1" --k 2 --lam 4 --mixer xy \
+  --xy-initial-state dicke --xy-topology complete
+```
+
+Optimizer traces now report **post-update** costs at the logged parameter
+snapshot, including the final step even when it is not a logging multiple.
+Logging requires an additional cost evaluation. This changes runtime and can
+change finite-shot random streams; historical traces and timings are preserved.
+Use new output directories for studies after upgrading.
+
+## End-to-end execution budgets (v0.3.1)
+
+`run_budgeted(problem, method, budget_seconds, config=..., seed=...)` executes
+Binary VQE, QAOA X/XY, Fractional VQE, HiGHS, OSQP, swap search, or uniform exact-K
+sampling. An explicit quantum configuration supplies its own seed; the `seed` argument
+applies to classical methods and automatically constructed quantum configurations.
+It returns a common `BudgetResult` containing the best feasible
+candidate, its independently recomputed original objective, timestamped
+incumbents, termination status, native solver status, error, and runtime.
+
+```python
+from vqe_portfolio import PortfolioProblem, BinaryVQEConfig, run_budgeted
+
+# Put spawned execution behind this guard when running a Python script.
+if __name__ == "__main__":
+    problem = PortfolioProblem([0.1, 0.2], [[0.1, 0], [0, 0.2]],
+                               4.0, "binary_qubo", 1)
+    config = BinaryVQEConfig(k=1, lam=4.0, steps=10000, log_every=5,
+                             alpha="auto", shots_sample=64)
+    result = run_budgeted(problem, "binary-vqe", 10.0, config=config)
+    print(result.status, result.candidate, result.objective)
+```
+
+Runs use an isolated **spawned process**. The deadline starts before worker
+startup and includes imports, process communication, encoding, device setup,
+optimization, candidate measurement, sampling, repair, evaluation, and delivery.
+Market-data acquisition and preparation of a shared `PortfolioProblem` precede
+timing. Only independently feasible portfolios received by the parent before
+the deadline are eligible. A native solver call can be terminated even when it
+does not support callbacks. Pending native results are unavailable until they
+return; HiGHS/OSQP currently publish their final candidate only. Swap search
+publishes feasible starts and improving swaps; uniform sampling publishes
+improving exact-K samples throughout its allowance.
+
+Quantum methods publish candidates every `log_every` updates and at the end.
+Binary candidates come from the best feasible sample, with measured-marginal
+Top-K fallback if none is sampled. Fractional candidates use measured allocations.
+These evaluations consume the allowance and may change finite-shot streams, so
+freeze checkpoint cadence and shot counts as algorithm settings. The incumbent
+is ranked by the original feasible-portfolio objective, independently of energy
+or expected feasibility. Ordinary solver functions also accept an optional
+`candidate_callback(candidate, details)` for integrations without process budgets.
+
+`status` is `completed`, `time_limit`, or `error`; an error or timeout can retain
+an earlier feasible incumbent. A run with `candidate=None` is a failed return.
+`elapsed_seconds` includes worker shutdown; `overrun_seconds` explicitly reports
+cleanup beyond the allowance and never extends candidate eligibility. Process
+startup can consume an entire short allowance. This API does not assume a
+persistent worker, amortized startup, or QPU queue behavior, and requires a
+spawn-compatible Python entry point rather than an interactive REPL.
+
+The existing solver/data commands accept `--budget-seconds`. The `budget`
+subcommand also exposes classical methods, with a default allowance of 10 seconds:
+
+```bash
+vqe-portfolio budget --method swap --budget-seconds 10 --lam 4 --k 2 \
+  --mu "0.1,0.2,0.15" --sigma "0.1,0,0;0,0.2,0;0,0,0.1"
+```
+
+Reproduce fixed-budget runs with frozen references and resumable manifests:
+
+```bash
+python scripts/run_budget_benchmark.py --budgets 1,10,60
+python scripts/run_budget_benchmark.py --budgets 1,10,60 --resume
+python scripts/run_solver_reliability.py
+```
+
+The benchmark saves every failed run, incumbent trajectory, settings, reference
+kind, source hashes, and environment. `reliability.csv` reports empirical T90
+per instance, including censored failures; blank T90 means fewer than 90% reach
+the target within that allowance. Numerical fractional references retain their
+numerical status. These small development pilots do not satisfy the held-out
+sample sizes and uncertainty analysis in the full research protocol.

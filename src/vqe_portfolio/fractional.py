@@ -31,6 +31,8 @@ def run_fractional_vqe(
     mu: np.ndarray,
     Sigma: np.ndarray,
     cfg: FractionalVQEConfig = FractionalVQEConfig(),
+    *,
+    candidate_callback=None,
 ) -> FractionalVQEResult:
     set_global_seed(cfg.seed)
 
@@ -58,14 +60,30 @@ def run_fractional_vqe(
         risk = qml.math.dot(w, qml.math.dot(Sigma, w))
         return -ret + cfg.lam * risk
 
+    def report(step, value, params):
+        if candidate_callback is not None:
+            candidate_callback(
+                angles_to_weights(np.array(expvals_z(params))),
+                {"step": step, "source": "allocation"},
+            )
+
     init = np.array(np.random.uniform(0, np.pi, size=param_shape), requires_grad=True)
     opt_res = adam_optimize(
-        objective, init, steps=cfg.steps, stepsize=cfg.stepsize, log_every=cfg.log_every
+        objective,
+        init,
+        steps=cfg.steps,
+        stepsize=cfg.stepsize,
+        log_every=cfg.log_every,
+        callback=report,
     )
 
     z = np.array(expvals_z(opt_res.params))
     w = angles_to_weights(z)
 
+    if candidate_callback is not None:
+        candidate_callback(
+            w, {"step": cfg.steps, "source": "allocation", "final": True}
+        )
     return FractionalVQEResult(
         thetas=np.array(opt_res.params, requires_grad=False),
         cost_trace=OptimizeTrace(steps=opt_res.steps, values=opt_res.values),
