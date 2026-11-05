@@ -80,24 +80,21 @@ def _apply_x_mixer(beta: float, n: int) -> None:
         qml.RX(2.0 * beta, wires=i)
 
 
-def _apply_xy_mixer(beta: float, n: int) -> None:
+def xy_mixer_edges(n: int) -> tuple[tuple[int, int], ...]:
+    """Ordered exchange edges shared by execution and reachability analysis."""
     if n <= 1:
-        return
+        return ()
 
     edges_even = [(i, i + 1) for i in range(0, n - 1, 2)]
     edges_odd = [(i, i + 1) for i in range(1, n - 1, 2)]
 
-    for i, j in edges_even:
+    return tuple(edges_even + edges_odd + ([(n - 1, 0)] if n > 2 else []))
+
+
+def _apply_xy_mixer(beta: float, n: int) -> None:
+    for i, j in xy_mixer_edges(n):
         qml.IsingXX(2.0 * beta, wires=[i, j])
         qml.IsingYY(2.0 * beta, wires=[i, j])
-
-    for i, j in edges_odd:
-        qml.IsingXX(2.0 * beta, wires=[i, j])
-        qml.IsingYY(2.0 * beta, wires=[i, j])
-
-    if n > 2:
-        qml.IsingXX(2.0 * beta, wires=[n - 1, 0])
-        qml.IsingYY(2.0 * beta, wires=[n - 1, 0])
 
 
 def _apply_mixer(beta: float, n: int, mixer: str) -> None:

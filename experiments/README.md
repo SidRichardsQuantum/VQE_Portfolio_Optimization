@@ -151,3 +151,28 @@ Outputs include:
 Use `--resume` with identical inputs, settings, sources and recorded environment to skip completed trajectories. An interrupted trajectory restarts from its original seed; the runner does not resume Adam from a parameter snapshot without its moment estimates. Completed errors remain recorded. Failed trajectories have blank metrics at all checkpoints and are excluded from probability means, with coverage explicit. Only one process should write to an output directory.
 
 There are no confidence intervals, noise studies, scaling conclusions or advantage claims. The analysis determines whether extra training helps under these fixed settings; a later comparison of chosen settings must use fresh evaluation instances. See the [saved training-effort report](../results/training_effort/report.md).
+
+## Eight-security failure diagnostics
+
+This development study investigates the three frozen eight-security problems rather than increasing the universe size. It combines exact XY reachability analysis with a declared depth/penalty grid: XY QAOA depths 1, 2 and 3 at the inherited penalty of 5; Binary VQE depths 2 and 3 at penalties 0.05, 0.5 and 5. All variants use the original three seeds, 100-step Adam settings and checkpoints 0, 25 and 100. Of 81 variant trajectories, 18 reuse the completed depth-1 XY and depth-2/alpha-5 VQE baselines; 63 require new training. Cached distributions are checked against the production circuit. Historical and new runtimes are not treated as a speed comparison.
+
+```bash
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/run_failure_diagnostics.py \
+  --effort-dir results/training_effort \
+  --assets 8 --xy-depths 1,2,3 --vqe-depths 2,3 \
+  --penalties 0.05,0.5,5 --beta-points 257 \
+  --output-dir results/my_failure_diagnostics
+```
+
+At XY depth 1, the first diagonal cost layer applies only a global phase to the basis initial state. The ordered exchange gates then have amplitudes `cos(2*beta)` for staying and `-i*sin(2*beta)` for swapping unequal bits; equal bits are unchanged. Writing `z=exp(2i*beta)` gives Laurent polynomials with integer coefficients and a shared power-of-two denominator. Exact integer cancellation determines which basis amplitudes can be nonzero for any beta. This proves support exclusion independently of a finite angle scan. At higher depth, gate-path enumeration supplies only an upper bound: cost layers cannot add support, but interference and tied angles can remove states. Inclusion in that bound is not proof of reachability. The first gamma is globally redundant at every depth; generic perturbation probes verify its numerical invariance and test later angles.
+
+For each instance, exhaustive enumeration computes the strict sufficient penalty threshold `max(0, max_infeasible((f_star-f(x))/(sum(x)-K)^2))`. Alpha strictly above that threshold makes the global penalised optimum feasible, subject to floating-point evaluation; it does not guarantee optimisation success. A penalty below the threshold can change the penalised ground state to an infeasible portfolio. Every returned quality metric still uses the same original feasible-portfolio objective.
+
+Binary VQE expressivity is checked separately: placing `pi*x` in the first RY layer and zeroing later rotations represents any basis portfolio, since CZ gates affect phases only. Saved target-state constructions are evaluation evidence and never initialise training. For each trained VQE mode the diagnostic records feasibility, objective gap, analytic gradient norm and the best one-for-one feasible swap. For improving swaps it calculates the maximum energy rise along a specified two-rotation product-state path, using a separate product-state construction of the modal bitstring rather than the trained parameter vector. That barrier illustrates one path, not every possible entangled path, and neither it nor a small gradient certifies a local optimum or a trapping mechanism.
+
+Outputs include `static_analysis.json` (exact amplitude coefficients, support bounds and constructive VQE target parameters), support/parameter/beta-grid/penalty CSVs, raw `trajectories.json`, checkpoint and paired summary CSVs, and `vqe_modes.csv`. Three figures show support versus targets, the controlled sensitivity grid, and VQE convergence. The beta-grid maximum is exploratory rather than a certified global optimum; exact support exclusion is the basis for impossibility claims.
+
+Use `--resume` to continue missing variants only when source hashes, settings and environment match. Finished errors remain recorded; interrupted trajectories restart from their seed with full Adam state reconstructed. Higher depth changes parameter dimension and the production random initialisation, so identical seed labels do not imply identical physical initial states. Results average seeds within each instance and then instances equally, retaining failure counts and coverage.
+
+This is exploratory diagnosis on the existing development set, with no confidence intervals, held-out tuning, scaling claims or quantum-advantage claims. See the [saved report and figures](../results/failure_diagnostics/report.md).

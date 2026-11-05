@@ -272,6 +272,7 @@ See **[USAGE.md](USAGE.md)** for:
 - **Effect of quantum training**: [before/after diagnostic](experiments/README.md#before-and-after-training-diagnostic), [saved report](results/training_diagnostic/report.md)
 - **Sampling allowances**: [method and reproduction](experiments/README.md#sampling-allowance-diagnostic), [saved curves and report](results/sampling_allowance/report.md)
 - **Training effort**: [continuous-trajectory study](experiments/README.md#training-effort-development-study), [saved results and paired plots](results/training_effort/report.md)
+- **Failure diagnostics**: [XY reachability and VQE depth/penalty study](experiments/README.md#eight-security-failure-diagnostics), [saved report and figures](results/failure_diagnostics/report.md)
 
 ---
 

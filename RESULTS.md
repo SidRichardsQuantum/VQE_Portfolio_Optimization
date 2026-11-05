@@ -89,7 +89,7 @@ At eight securities, the expected success probabilities are:
 | QAOA XY, initial or trained | approximately zero | approximately zero | approximately zero |
 | Classical uniform feasible | 26.08% | 68.24% | 99.96% |
 
-Increasing the allowance to 512 makes QAOA X highly reliable in this small pilot, but the classical baseline matches or exceeds every circuit's mean success probability at every tested size and allowance. No sampling-reliability advantage is observed for these circuits and settings.
+Increasing the allowance to 512 makes QAOA X highly reliable in this small pilot, but the classical baseline matches or exceeds every original fixed-setting circuit's mean success probability at every tested size and allowance. No sampling-reliability advantage is observed for those circuits and settings.
 
 The before/after result depends on the allowance: Binary VQE at four and six securities has a higher mean single-draw target probability after training, yet its expected 512-draw success falls from 89.74% to 49.96% and from 68.85% to 34.05%, respectively. A few large single-draw gains coexist with runs where target probability becomes tiny. Evaluating the nonlinear success formula on the mean single-draw probability would hide that heterogeneity.
 
@@ -118,6 +118,31 @@ More training does not consistently improve reliability under these settings. At
 For eight securities, QAOA X's extra 75 steps improve expected 512-draw success by about 0.391 percentage points, while measured mean cumulative optimiser time rises from 2.11 to 8.17 seconds. Uniform feasible classical sampling from the prior allowance analysis reaches 99.96% at the same draw count, excluding execution/training costs. This does not establish quantum advantage or a fixed-time comparison.
 
 The [full report](results/training_effort/report.md) includes single-draw quality, feasibility, all three sampling allowances and cumulative times. [Paired plots](results/training_effort/training_pairs.png) show individual runs, and [summary plots](results/training_effort/training_effort.png) show means. Raw parameters/distributions, input/source hashes and paired changes are retained. This development study uses the existing small instance set; settings chosen from it need fresh held-out evaluation.
+
+### Eight-Security Failure Diagnostics
+
+The [failure study](experiments/README.md#eight-security-failure-diagnostics) completed 81 depth/penalty variants on the three frozen eight-security instances and three seeds: 18 verified baseline trajectories were reused and 63 new trajectories were trained. All use the inherited 100-step effort and checkpoints at 0, 25 and 100. No errors occurred. Exact support, penalty thresholds, raw distributions, modal portfolios, gradients and illustrative swap-path barriers are retained with input/source hashes.
+
+**XY QAOA has a structural depth-1 obstruction.** From its initial `11110000` portfolio, the ordered mixer can reach only `11110000`, `11101000`, `01110001` and `01101001` at depth 1. Exact integer Laurent-polynomial amplitudes establish that support for all beta angles. None of the target portfolios in any of the three instances is in that set. The first cost angle contributes only a global phase; extra optimisation cannot overcome this depth-1 exclusion.
+
+At depths 2 and 3, gate-path support upper bounds cover 66 and 70 of the 70 feasible bitstrings, respectively. These are bounds rather than exact higher-depth reachability claims. Actual initial distributions have positive target mass at the higher depths, demonstrating that targets can be reached, but the 100-step training sharply reduces it. At depth 3, expected 512-draw success is only 1.107% after training. Removing the depth-1 obstruction alone does not produce reliable optimisation under the tested settings.
+
+**Binary VQE has sufficient basis-state expressivity at both depths.** A direct RY parameter construction represents every basis portfolio, including the targets. The baseline penalty of 5 also exceeds all three exhaustive strict-sufficiency thresholds: approximately 0.02923, 0.06385 and 0.009771. Thus the baseline failure is not explained by unrepresentable target states or an infeasible global penalised optimum.
+
+At 100 steps, the VQE sensitivity results are:
+
+| Depth | Alpha | Mean feasibility | Expected success: 512 draws |
+| ---: | ---: | ---: | ---: |
+| 2 | 0.05 | 88.89% | 44.45% |
+| 2 | 0.5 | approximately 100% | approximately zero |
+| 2 | 5 | approximately 100% | approximately zero |
+| 3 | 0.05 | 66.71% | 65.54% |
+| 3 | 0.5 | approximately 100% | 11.11% |
+| 3 | 5 | approximately 100% | approximately zero |
+
+Alpha 0.05 is below the feasibility-sufficiency threshold for instance 202, where its penalised ground state is infeasible. Its improved sampling results are not a validated universal penalty choice. Quality always scores the original feasible objective; infeasible samples consume draws. All nine baseline VQE modal portfolios are feasible yet admit an improving one-for-one swap. Their measured gradients and barriers along a specified product-state swap path are diagnostics, not certificates of convergence, local minima or barriers along all possible entangled paths.
+
+The [support figure](results/failure_diagnostics/xy_support.png), [sensitivity figure](results/failure_diagnostics/failure_sensitivity.png), [VQE convergence figure](results/failure_diagnostics/vqe_convergence.png) and [full report](results/failure_diagnostics/report.md) separate structural exclusion, penalty adequacy and observed training behaviour. These development results do not establish a scaling law or quantum advantage, and settings chosen from this grid require fresh held-out evaluation.
 
 ## Synthetic Results
 

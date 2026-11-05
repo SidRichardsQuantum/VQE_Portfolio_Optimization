@@ -604,3 +604,17 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 ```
 
 The runner inherits the earlier diagnostic settings, checks the initial/25-step states against saved evidence, and records exact probabilities, sampling reliability and cumulative training times. Add `--resume` to skip completed trajectories; an interrupted trajectory restarts from its seed to preserve Adam's full state. See [the study design](experiments/README.md#training-effort-development-study) and [saved report and paired plots](results/training_effort/report.md). This is development sensitivity analysis, not a held-out or matched-budget advantage test.
+
+### Reachability, Depth and Penalty Diagnostics
+
+Investigate the eight-security failures using exact depth-1 XY support, higher-depth support bounds and controlled training variants:
+
+```bash
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/run_failure_diagnostics.py \
+  --effort-dir results/training_effort \
+  --xy-depths 1,2,3 --vqe-depths 2,3 --penalties 0.05,0.5,5 \
+  --output-dir results/my_failure_diagnostics
+```
+
+The runner preserves the frozen problem objectives and reuses verified baseline trajectories. New variants inherit 100-step effort and seeds. It saves exact amplitude polynomials, target-support comparisons, angle sensitivity, penalty sufficiency checks, VQE modal/gradient/swap diagnostics and figures. Use `--resume` to skip completed variants. See [the assumptions and reproduction details](experiments/README.md#eight-security-failure-diagnostics) and [saved report](results/failure_diagnostics/report.md). Higher-depth support bounds and illustrative swap barriers are not proofs of successful optimisation.
