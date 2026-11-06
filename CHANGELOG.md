@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.3
+
+- Add NumPy-only simulated annealing and tabu search for exact-K binary
+  selection, with seeded restarts, best-feasible incumbents, and callbacks.
+- Expose `anneal` and `tabu` in synthetic comparisons, small-instance validation,
+  and the budget CLI/runner. Include both in `classical-solvers`; allow individual
+  solver selection without loading unselected optional solvers.
+- Add a SCIP quadratic integer baseline with an unrestricted objective epigraph,
+  exact cardinality, native status/bound/gap metadata, and streaming feasible
+  incumbents. Expose `scip` in comparisons, validation, and execution budgets.
+- Include PySCIPOpt in the `classical` and `all` extras, add a standalone `scip`
+  extra, and record its version in new experiment manifests.
+
 ## v0.3.2
 
 - Add fresh-instance deadline comparisons of trained and untrained Dicke-ring

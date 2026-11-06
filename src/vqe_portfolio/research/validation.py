@@ -13,6 +13,9 @@ from ..baselines import (
     exhaustive_binary_baseline,
     local_search_binary_baseline,
     mixed_integer_binary_baseline,
+    scip_binary_baseline,
+    simulated_annealing_binary_baseline,
+    tabu_search_binary_baseline,
 )
 from ..benchmark import feasible_sample_rate
 from ..binary import run_binary_vqe
@@ -24,7 +27,10 @@ from ..types import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
 METHODS = {
     "exact-binary": ("binary_qubo", False),
     "highs": ("binary_qubo", False),
+    "scip": ("binary_qubo", False),
     "swap": ("binary_qubo", True),
+    "anneal": ("binary_qubo", True),
+    "tabu": ("binary_qubo", True),
     "random-k": ("binary_qubo", True),
     "binary-vqe": ("binary_qubo", True),
     "qaoa-x": ("binary_qubo", True),
@@ -193,15 +199,23 @@ def solve(problem, method, seed, config):
             "solver_status": "completed",
             "sample_feasible_rate": 1.0,
         }
-    if method in {"highs", "osqp", "swap"}:
-        if method == "highs":
-            result = mixed_integer_binary_baseline(
-                mu, sigma, lam, k, time_limit=config.solver_time_limit
+    if method in {"highs", "scip", "osqp", "swap", "anneal", "tabu"}:
+        if method in {"highs", "scip"}:
+            solver = (
+                mixed_integer_binary_baseline
+                if method == "highs"
+                else scip_binary_baseline
             )
+            result = solver(mu, sigma, lam, k, time_limit=config.solver_time_limit)
         elif method == "osqp":
             result = convex_markowitz_baseline(mu, sigma, lam)
         else:
-            result = local_search_binary_baseline(
+            solver = {
+                "swap": local_search_binary_baseline,
+                "anneal": simulated_annealing_binary_baseline,
+                "tabu": tabu_search_binary_baseline,
+            }[method]
+            result = solver(
                 mu, sigma, lam, k, seed=seed, restarts=config.local_restarts
             )
         return result.candidate, {

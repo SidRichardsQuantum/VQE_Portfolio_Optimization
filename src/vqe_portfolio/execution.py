@@ -23,7 +23,10 @@ BUDGET_METHODS = {
     "qaoa-xy-untrained": "binary_qubo",
     "qaoa-xy-trained": "binary_qubo",
     "highs": "binary_qubo",
+    "scip": "binary_qubo",
     "swap": "binary_qubo",
+    "anneal": "binary_qubo",
+    "tabu": "binary_qubo",
     "random-k": "binary_qubo",
     "fractional-vqe": "fractional_simplex",
     "osqp": "fractional_simplex",
@@ -172,22 +175,36 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
             convex_markowitz_baseline,
             local_search_binary_baseline,
             mixed_integer_binary_baseline,
+            scip_binary_baseline,
+            simulated_annealing_binary_baseline,
+            tabu_search_binary_baseline,
         )
 
         phase("optimization")
-        if method == "highs":
+        if method in {"highs", "scip"}:
             remaining = deadline - time.perf_counter()
             if remaining <= 0:
                 return "time_limit"
-            result = mixed_integer_binary_baseline(
-                mu, sigma, lam, k, time_limit=remaining
-            )
+            if method == "scip":
+                result = scip_binary_baseline(
+                    mu, sigma, lam, k, time_limit=remaining, candidate_callback=publish
+                )
+            else:
+                result = mixed_integer_binary_baseline(
+                    mu, sigma, lam, k, time_limit=remaining
+                )
         elif method == "osqp":
             result = convex_markowitz_baseline(mu, sigma, lam)
-        else:
+        elif method == "swap":
             result = local_search_binary_baseline(
                 mu, sigma, lam, k, seed=seed, candidate_callback=publish
             )
+        else:
+            solve = {
+                "anneal": simulated_annealing_binary_baseline,
+                "tabu": tabu_search_binary_baseline,
+            }[method]
+            result = solve(mu, sigma, lam, k, seed=seed, candidate_callback=publish)
         publish(result.candidate, {"source": method, "solver_status": result.status})
         return result.status
     return "completed"

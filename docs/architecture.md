@@ -14,7 +14,7 @@ and generate study reports.
 | `ansatz.py`, `optimize.py`, `reliability.py` | Shared circuits, optimizer loop, and reference-free reliability controls |
 | `execution.py` | Isolated-process deadlines, incumbent delivery, and common termination metadata |
 | `baselines/reference.py` | NumPy reference enumeration and simple heuristics |
-| `baselines/solvers.py` | Optional classical solvers and their termination metadata |
+| `baselines/solvers.py` | NumPy search heuristics, optional classical solvers, and termination metadata |
 | `benchmark.py` | Candidate trial records, independent evaluation, and common reporting helpers |
 | `research/comparison.py` | Synthetic and market-data comparison orchestration |
 | `research/validation.py` | Small-instance preparation, trial planning, and validation |

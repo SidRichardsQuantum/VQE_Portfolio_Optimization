@@ -45,7 +45,8 @@ Optional dependencies:
 
 ```bash
 pip install "vqe-portfolio[data]"       # Market data utilities
-pip install "vqe-portfolio[classical]"  # SciPy/HiGHS and CVXPY/OSQP baselines
+pip install "vqe-portfolio[classical]"  # HiGHS, OSQP, and SCIP baselines
+pip install "vqe-portfolio[scip]"       # SCIP only
 pip install -e ".[dev,docs]"           # Development and documentation
 ```
 
@@ -73,6 +74,11 @@ python -m vqe_portfolio --help
 
 See the [usage guide](USAGE.md) for complete API and CLI examples, ansatz options, real-data workflows, and efficient frontiers.
 
+Classical exact-K comparators include NumPy-only multistart swap search,
+simulated annealing, and tabu search, plus optional HiGHS linearised integer
+and SCIP quadratic integer optimisation. All support end-to-end execution
+budgets; see [classical baselines](USAGE.md#strong-classical-baselines).
+
 ## Repository structure
 
 ```text
@@ -93,6 +99,10 @@ docs/                                 # Sphinx documentation
 ```
 
 See [architecture and development](docs/architecture.md) for module boundaries and the v0.3.0 migration notes. Existing public imports remain supported. Version 0.3.1 adds opt-in solver reliability controls and end-to-end execution budgets; see the [usage guide](USAGE.md#solver-reliability-controls-v031) and [changelog](CHANGELOG.md).
+
+Version 0.3.3 adds simulated annealing, tabu search, and SCIP to the classical
+comparisons, small-instance validation, and budget CLI. Archived research
+results retain their original methods and provenance.
 
 ## Documentation and research
 

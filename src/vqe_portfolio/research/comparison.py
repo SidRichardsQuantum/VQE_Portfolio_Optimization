@@ -16,6 +16,9 @@ from ..baselines import (
     local_search_binary_baseline,
     minimum_variance_binary_baseline,
     mixed_integer_binary_baseline,
+    scip_binary_baseline,
+    simulated_annealing_binary_baseline,
+    tabu_search_binary_baseline,
     top_return_baseline,
 )
 from ..benchmark import (
@@ -159,18 +162,32 @@ def add_classical_rows(rows, trial_rows, dataset, mu, Sigma, lam, alpha, k):
 
 
 def add_solver_rows(
-    rows, trial_rows, dataset, mu, Sigma, lam, k, seeds, time_limit=60.0, restarts=16
+    rows,
+    trial_rows,
+    dataset,
+    mu,
+    Sigma,
+    lam,
+    k,
+    seeds,
+    time_limit=60.0,
+    restarts=16,
+    *,
+    methods=None,
 ):
+    """Add all strong baselines or select their budget-method IDs explicitly."""
     binary = PortfolioProblem(mu, Sigma, lam, "binary_qubo", k)
     fractional = PortfolioProblem(mu, Sigma, lam, "fractional_simplex")
-    for method, problem, run_seeds, solve in [
+    for method_id, method, problem, run_seeds, solve in [
         (
+            "osqp",
             "Classical convex Markowitz (OSQP)",
             fractional,
             ["-"],
             lambda p, seed: convex_markowitz_baseline(p.mu, p.Sigma, p.lam),
         ),
         (
+            "highs",
             "Classical mixed integer (HiGHS)",
             binary,
             ["-"],
@@ -179,6 +196,16 @@ def add_solver_rows(
             ),
         ),
         (
+            "scip",
+            "Classical quadratic integer (SCIP)",
+            binary,
+            ["-"],
+            lambda p, seed: scip_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, time_limit=time_limit
+            ),
+        ),
+        (
+            "swap",
             "Classical multistart swap search",
             binary,
             seeds,
@@ -186,7 +213,27 @@ def add_solver_rows(
                 p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
             ),
         ),
+        (
+            "anneal",
+            "Classical simulated annealing",
+            binary,
+            seeds,
+            lambda p, seed: simulated_annealing_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
+            ),
+        ),
+        (
+            "tabu",
+            "Classical tabu search",
+            binary,
+            seeds,
+            lambda p, seed: tabu_search_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
+            ),
+        ),
     ]:
+        if methods is not None and method_id not in methods:
+            continue
         trials = []
         for seed in run_seeds:
             started = time.perf_counter()
@@ -209,7 +256,11 @@ def add_solver_rows(
             trials,
             dataset,
             method,
-            "classical heuristic" if method.endswith("search") else "classical",
+            (
+                "classical heuristic"
+                if method_id in {"swap", "anneal", "tabu"}
+                else "classical"
+            ),
         )
 
 

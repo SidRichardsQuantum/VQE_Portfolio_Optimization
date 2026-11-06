@@ -22,7 +22,7 @@ python scripts/generate_comparison_results.py
 
 By default this writes `results/generated_comparison_summary.csv` with classical baselines, multi-seed quantum summaries, feasibility rates, objectives, risk/return metrics, and runtimes. It also writes `results/generated_repeatability_trials.csv` with one row per method/seed trial. Use `--asset-counts`, `--seeds`, `--steps`, and `--methods` to expand or tighten the run.
 
-Optional stronger baselines (OSQP, HiGHS, and multistart swap search) are available through `--methods classical-solvers`; see [usage](USAGE.md#strong-classical-baselines). The historical tables listed above predate these solvers and are not regenerated automatically. The separate small-instance validation pilot below includes them.
+Stronger baselines (OSQP, HiGHS, SCIP, multistart swap search, simulated annealing, and tabu search) are available through `--methods classical-solvers`; see [usage](USAGE.md#strong-classical-baselines). The historical tables listed above are not regenerated automatically. The separate small-instance validation pilot below includes OSQP, HiGHS, and swap search. SCIP, annealing, and tabu search were added in v0.3.3 and have not been added to those archived experiments.
 
 ## How to Read the Tables
 

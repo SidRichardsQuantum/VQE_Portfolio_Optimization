@@ -221,6 +221,46 @@ def test_random_baseline_matches_independent_uniform_subset_sampling():
     assert problem.evaluate(candidate).objective == pytest.approx(min(scores))
 
 
+def test_search_adapters_are_seeded_and_independently_evaluated():
+    config = v.ValidationConfig(
+        asset_counts=(4,),
+        instance_seeds=(11,),
+        solver_seeds=(0, 1),
+        methods=("anneal", "tabu"),
+        local_restarts=2,
+    )
+    instances = v.prepare_instances(config)
+    rows = [
+        v.evaluate_trial(key, instance, method, seed, config)
+        for key, instance, method, seed in v.trial_plan(instances, config)
+    ]
+    assert len(rows) == 4
+    assert [r["seed"] for r in rows] == [0, 1, 0, 1]
+    assert all(r["feasible"] and not r["error"] for r in rows)
+    assert all(r["normalised_gap"] >= -1e-8 for r in rows)
+    assert all(r["lower_bound"] is None and r["mip_gap"] is None for r in rows)
+
+
+def test_scip_adapter_is_run_once_per_instance_with_bound_metadata():
+    pytest.importorskip("pyscipopt")
+    config = v.ValidationConfig(
+        asset_counts=(4,),
+        instance_seeds=(11,),
+        solver_seeds=(0, 1),
+        methods=("scip",),
+    )
+    plan = list(v.trial_plan(v.prepare_instances(config), config))
+    assert len(plan) == 1
+    key, instance, method, seed = plan[0]
+    assert seed is None
+    row = v.evaluate_trial(key, instance, method, seed, config)
+    assert row["feasible"] and not row["error"]
+    assert row["solver_status"] == "optimal"
+    assert row["objective"] == pytest.approx(instance["reference_objective"])
+    assert row["lower_bound"] == pytest.approx(row["objective"], abs=1e-7)
+    assert row["mip_gap"] == pytest.approx(0, abs=1e-7)
+
+
 def test_checkpoint_resume_and_changed_config_refusal(tmp_path, monkeypatch):
     from scripts import run_small_instance_validation as runner
 

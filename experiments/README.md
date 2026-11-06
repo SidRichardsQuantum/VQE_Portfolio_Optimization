@@ -35,7 +35,9 @@ For an interrupted experiment, repeat the command with `--resume`. The runner re
 
 Change the configuration and use a new directory for sensitivity experiments. `k_fractions` can contain several fractions (for example, `[0.25, 0.5]`); cardinalities use `max(1, min(n - 1, floor(n * fraction)))` and duplicate cardinalities are collapsed. Fractional instances are included once per dataset, regardless of the number of binary cardinalities. Supported sizes are 2–16; enumeration and simulation become costly toward the upper end.
 
-To run without optional classical solver dependencies, remove `highs` and `osqp` from a copied configuration. Keep the exact references for validation. Higher step counts, circuit depths, shots, risk aversions and penalties should be separate declared sensitivity experiments, rather than tuned on the reported evaluation instances.
+Version 0.3.3 also supports `anneal`, `tabu`, and `scip` in copied validation configurations and the budget runner's `--methods` selection. Annealing and tabu search run once per solver seed; SCIP runs once per validation instance and records its native status, numerical bound, and gap. New manifests include the PySCIPOpt package version. Use a fresh output directory after changing methods or upgrading; the archived pilot does not include these additions.
+
+To run without optional classical solver dependencies, remove `highs`, `osqp`, and (if added) `scip` from a copied configuration. Keep the exact references for validation. Higher step counts, circuit depths, shots, risk aversions and penalties should be separate declared sensitivity experiments, rather than tuned on the reported evaluation instances.
 
 ## Outputs and interpretation
 

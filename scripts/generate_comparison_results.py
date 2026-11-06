@@ -101,18 +101,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--seeds",
         default="0,1,2",
-        help="Comma-separated quantum and local-search seeds.",
+        help="Comma-separated quantum and stochastic classical solver seeds.",
     )
     parser.add_argument(
         "--methods",
         default="all",
-        help="Comma-separated subset: classical,classical-solvers,binary-vqe,qaoa-x,qaoa-xy,fractional-vqe. all excludes optional classical-solvers.",
+        help="Comma-separated subset: classical,classical-solvers,osqp,highs,scip,swap,anneal,tabu,binary-vqe,qaoa-x,qaoa-xy,fractional-vqe. all excludes classical-solvers and individual solver IDs.",
     )
     parser.add_argument(
         "--solver-time-limit",
         type=float,
         default=60.0,
-        help="HiGHS solve limit in seconds (excludes model construction).",
+        help="HiGHS/SCIP solve limit in seconds (excludes model construction).",
     )
     parser.add_argument("--local-restarts", type=int, default=16)
     parser.add_argument(
@@ -141,6 +141,12 @@ def main(argv: list[str] | None = None) -> int:
     allowed = {
         "classical",
         "classical-solvers",
+        "osqp",
+        "highs",
+        "scip",
+        "swap",
+        "anneal",
+        "tabu",
         "binary-vqe",
         "qaoa-x",
         "qaoa-xy",
@@ -176,7 +182,8 @@ def main(argv: list[str] | None = None) -> int:
                 k,
             )
 
-        if "classical-solvers" in methods:
+        solver_methods = methods & {"osqp", "highs", "scip", "swap", "anneal", "tabu"}
+        if "classical-solvers" in methods or solver_methods:
             add_solver_rows(
                 rows,
                 trial_rows,
@@ -188,6 +195,7 @@ def main(argv: list[str] | None = None) -> int:
                 seeds,
                 args.solver_time_limit,
                 args.local_restarts,
+                methods=None if "classical-solvers" in methods else solver_methods,
             )
 
         if "binary-vqe" in methods:

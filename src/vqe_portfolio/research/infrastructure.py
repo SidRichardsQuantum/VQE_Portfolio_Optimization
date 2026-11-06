@@ -56,6 +56,7 @@ def provenance(root: Path, *runner_sources: Path, extra_packages=()) -> dict:
         "scipy",
         "cvxpy",
         "osqp",
+        "pyscipopt",
         "pennylane-lightning",
         *extra_packages,
     ):

@@ -506,19 +506,72 @@ The methods solve the same objectives as the existing comparison tracks:
 | --- | --- | --- |
 | Classical convex Markowitz (OSQP) | Convex quadratic objective with nonnegative weights summing to one, via CVXPY | Numerical optimum; tiny negative weights are clipped and weights renormalised before evaluation |
 | Classical mixed integer (HiGHS) | Exact-K binary selection with a sparse linearisation of pairwise products, via SciPy | Incumbent, solver status, lower bound, and relative MIP gap; a limit status does not certify optimality |
+| Classical quadratic integer (SCIP) | Exact-K binary selection with a quadratic objective epigraph, via PySCIPOpt | Incumbent, native status, numerical lower bound, and SCIP relative gap; streams feasible incumbents during solving |
 | Classical multistart swap search | Exact-K selection, best-improvement swaps from top-return, diagonal-cost, and random starts | Seeded heuristic with no global optimality guarantee |
+| Classical simulated annealing | Exact-K selection with random swaps and Metropolis acceptance under geometric cooling | Seeded heuristic that can accept uphill moves; retains the best feasible portfolio |
+| Classical tabu search | Exact-K selection with best-admissible swaps, reverse-move memory, and aspiration for a new best objective | Seeded heuristic that can move uphill; retains the best feasible portfolio |
 
 The HiGHS formulation introduces a continuous variable `y_ij` per pair, constrained by `y_ij <= x_i`, `y_ij <= x_j`, and `y_ij >= x_i + x_j - 1`, with all variables bounded in `[0, 1]` and `x` binary. This represents both positive and negative covariance couplings exactly. Its model size grows quadratically; it is a stronger general-purpose comparator, not a claim to be the best possible classical solver.
 
-`--solver-time-limit` limits the HiGHS solve only. Reported runtime includes the entire solver helper call, including model construction and candidate cleanup; it can exceed that limit. OSQP uses accuracy tolerances, and swap search uses restart/swap limits, not that time limit. These runs do **not** yet implement the fixed end-to-end budgets in the quantum-advantage protocol.
+`--solver-time-limit` limits each HiGHS/SCIP solve only. Reported runtime includes the entire solver helper call, including model construction and candidate cleanup; it can exceed that limit. OSQP uses accuracy tolerances, and the three search heuristics use restart/iteration limits, not that time limit. For end-to-end deadlines use `run_budgeted` or the budget runner shown below.
 
-`--seeds` controls independent multistart-search runs as well as quantum runs. Each local-search run uses `--local-restarts` starts (minimum two). `--k` fixes cardinality across requested sizes. Defaults remain compatible with the existing examples: `all` selects the original methods and excludes optional solvers. Use `--methods all,classical-solvers` to include the new methods alongside the original small-instance references and quantum methods. Avoid `classical`/`all` for large instances because the old exact references enumerate subsets.
+`--seeds` controls independent stochastic classical runs as well as quantum runs. Each search run uses `--local-restarts` starts (minimum two when including swap search). `--k` fixes cardinality across requested sizes. Defaults remain compatible with the existing examples: `all` selects the original methods and excludes the stronger solver group. `classical-solvers` selects OSQP, HiGHS, SCIP, swap search, annealing, and tabu search. Use `--methods all,classical-solvers` to include them alongside the original small-instance references and quantum methods. Individual solver IDs `osqp`, `highs`, `scip`, `swap`, `anneal`, and `tabu` are also accepted. Avoid `classical`/`all` for large instances because the old exact references enumerate subsets.
+
+Run just annealing and tabu search with NumPy, without optional classical solver dependencies:
+
+```bash
+python scripts/generate_comparison_results.py \
+  --methods anneal,tabu --asset-counts 8,16,32 --k 4 --seeds 0,1,2 \
+  --output results/heuristics_summary.csv \
+  --trials-output results/heuristics_trials.csv
+```
 
 The CSVs add `solver_status`, `lower_bound`, and `mip_gap`; legacy methods leave them blank. Trial rows retain unsuccessful solver returns with blank objective/portfolio values and zero feasibility. Summary quality statistics include feasible returns only, while runtime, trial count, and feasibility include failures. Inspect trial rows before drawing comparisons. A reported bound is the numerical solver bound, not an independent exact-arithmetic certificate. Missing dependencies or solver exceptions stop the run visibly rather than silently substituting a weaker solver.
 
 Programmatic entry points are `convex_markowitz_baseline`, `mixed_integer_binary_baseline`, and `local_search_binary_baseline` in `vqe_portfolio.baselines`. They return a `ClassicalResult` with the candidate, recomputed original objective, termination status, and available bound metadata. The local-search helper also accepts `max_swaps` (default 1,000 per restart).
 
-Solver interfaces: [SciPy/HiGHS MILP](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.milp.html), [CVXPY solver options](https://www.cvxpy.org/tutorial/solvers/).
+`scip_binary_baseline` solves the same binary objective using the quadratic constraint `f(x) <= z`, minimising a continuous `z` with no lower bound and enforcing `sum(x) == k`. It uses binary diagonal identities and introduces no pairwise product variables in the Python formulation; SCIP may reformulate the problem internally. The unrestricted `z` allows negative objective values. Install `.[classical]` for the full solver group, or `.[scip]` for SCIP alone:
+
+```bash
+pip install -e ".[scip]"
+python scripts/generate_comparison_results.py --methods scip \
+  --asset-counts 8,16,32 --k 4 --solver-time-limit 60 \
+  --output results/scip_summary.csv --trials-output results/scip_trials.csv
+```
+
+```python
+from vqe_portfolio.baselines import scip_binary_baseline
+
+result = scip_binary_baseline(mu, Sigma, lam=4.0, k=4,
+                              time_limit=60, mip_rel_gap=0.0)
+print(result.status, result.objective, result.lower_bound, result.mip_gap)
+```
+
+SCIP uses one solving thread and runs once per instance in validation and comparison tables. Its native statuses include `optimal`, `timelimit`, and `gaplimit`; a limit may return a feasible incumbent or no candidate. Returned selections are checked for numerical integrality and exact cardinality before the original objective is recomputed. Unavailable or infinite native bounds/gaps are reported as missing. Bounds and optimality remain numerical. SCIP defines its relative gap using the smaller absolute primal/dual bound in the denominator, so its gap column should not be interpreted as using the same formula as HiGHS. The optional `candidate_callback(candidate, details)` receives independently scored improving feasible incumbents during solving; callback errors interrupt SCIP and propagate to the caller.
+
+The NumPy-only `simulated_annealing_binary_baseline` and `tabu_search_binary_baseline` use the same `ClassicalResult` interface. Both preserve exact cardinality throughout and optimise the original binary objective without a penalty. Each starts from top returns, then diagonal costs, then seeded random subsets. Both accept `seed`, `restarts` (default 16, minimum one), `max_iterations`, and `candidate_callback(candidate, details)`. Callbacks receive independent copies only when the best objective improves, including initial incumbents. Neither method supplies an optimality bound.
+
+```python
+from vqe_portfolio.baselines import (
+    simulated_annealing_binary_baseline,
+    tabu_search_binary_baseline,
+)
+
+annealed = simulated_annealing_binary_baseline(
+    mu, Sigma, lam=4.0, k=4, seed=0, restarts=16,
+    max_iterations=1000, initial_temperature=None, cooling_rate=0.99,
+)
+tabu = tabu_search_binary_baseline(
+    mu, Sigma, lam=4.0, k=4, seed=0, restarts=16,
+    max_iterations=200, tabu_tenure=7,
+)
+```
+
+Annealing proposes 1,000 swaps per restart by default. Its automatic initial temperature is the largest absolute swap cost at the starting portfolio, with a positive numerical floor for a flat objective. Temperature resets at each restart and decreases by `cooling_rate` after each proposal. An explicit `initial_temperature` must be finite and positive; `cooling_rate` must lie strictly between zero and one.
+
+Tabu search takes up to 200 moves per restart by default. Reversing a swap is forbidden for the next `tabu_tenure` iterations (default seven), unless the reversal produces a new best objective across all restarts. Tenure must be a positive integer. A restart stops early if no admissible move remains. Its status is `iteration_limit` if any restart reaches the cap, otherwise `tabu_exhausted`. Annealing reports `iteration_limit` after its scheduled proposals. Both report `trivial` for `k=0` or `k=n`, where there is only one feasible portfolio. Search stopping statuses do not certify global optimality for nontrivial portfolios.
+
+Solver interfaces: [SciPy/HiGHS MILP](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.milp.html), [CVXPY solver options](https://www.cvxpy.org/tutorial/solvers/), [PySCIPOpt quadratic expressions](https://pyscipopt.readthedocs.io/en/stable/tutorials/expressions.html), [SCIP status and gap API](https://pyscipopt.readthedocs.io/en/stable/api/model.html).
 
 
 ## Shared Problem Definitions and Evaluation
@@ -691,8 +744,8 @@ Use new output directories for studies after upgrading.
 ## End-to-end execution budgets (v0.3.1)
 
 `run_budgeted(problem, method, budget_seconds, config=..., seed=...)` executes
-Binary VQE, QAOA X/XY, Fractional VQE, HiGHS, OSQP, swap search, or uniform exact-K
-sampling. An explicit quantum configuration supplies its own seed; the `seed` argument
+Binary VQE, QAOA X/XY, Fractional VQE, HiGHS, SCIP, OSQP, swap search, simulated
+annealing, tabu search, or uniform exact-K sampling. An explicit quantum configuration supplies its own seed; the `seed` argument
 applies to classical methods and automatically constructed quantum configurations.
 It returns a common `BudgetResult` containing the best feasible
 candidate, its independently recomputed original objective, timestamped
@@ -718,7 +771,8 @@ Market-data acquisition and preparation of a shared `PortfolioProblem` precede
 timing. Only independently feasible portfolios received by the parent before
 the deadline are eligible. A native solver call can be terminated even when it
 does not support callbacks. Pending native results are unavailable until they
-return; HiGHS/OSQP currently publish their final candidate only. Swap search
+return; HiGHS/OSQP currently publish their final candidate only. SCIP, simulated
+annealing, and tabu search publish improving feasible incumbents. Swap search
 publishes feasible starts and improving swaps; uniform sampling publishes
 improving exact-K samples throughout its allowance.
 
@@ -747,12 +801,21 @@ vqe-portfolio budget --method swap --budget-seconds 10 --lam 4 --k 2 \
   --mu "0.1,0.2,0.15" --sigma "0.1,0,0;0,0.2,0;0,0,0.1"
 ```
 
+Use `--method anneal` or `--method tabu` for the new heuristics, or `--method scip` for the quadratic integer solver. All three publish improving incumbents during search so a timeout can retain the best portfolio received before the deadline. The budget interface uses the heuristics' default search settings and may finish before the allowance when the iteration cap is reached.
+
 Reproduce fixed-budget runs with frozen references and resumable manifests:
 
 ```bash
 python scripts/run_budget_benchmark.py --budgets 1,10,60
 python scripts/run_budget_benchmark.py --budgets 1,10,60 --resume
 python scripts/run_solver_reliability.py
+```
+
+To compare just these heuristics under fixed deadlines, use a fresh output directory:
+
+```bash
+python scripts/run_budget_benchmark.py --methods anneal,tabu \
+  --budgets 1,10,60 --output-dir results/heuristics_budget
 ```
 
 The benchmark saves every failed run, incumbent trajectory, settings, reference

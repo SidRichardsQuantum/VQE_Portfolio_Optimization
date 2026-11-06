@@ -15,6 +15,9 @@ from .solvers import (
     convex_markowitz_baseline,
     local_search_binary_baseline,
     mixed_integer_binary_baseline,
+    scip_binary_baseline,
+    simulated_annealing_binary_baseline,
+    tabu_search_binary_baseline,
 )
 
 __all__ = [
@@ -27,4 +30,7 @@ __all__ = [
     "convex_markowitz_baseline",
     "local_search_binary_baseline",
     "mixed_integer_binary_baseline",
+    "scip_binary_baseline",
+    "simulated_annealing_binary_baseline",
+    "tabu_search_binary_baseline",
 ]

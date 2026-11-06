@@ -77,13 +77,18 @@ def test_error_keeps_incumbent_and_rejects_invalid_output(monkeypatch, problem):
         "random-k",
         "fractional-vqe",
         "swap",
+        "anneal",
+        "tabu",
         "highs",
+        "scip",
         "osqp",
     ],
 )
 def test_real_budget_workers_return_feasible_portfolios(method, problem):
     if method in {"highs", "swap"}:
         pytest.importorskip("scipy")
+    if method == "scip":
+        pytest.importorskip("pyscipopt")
     if method == "osqp":
         pytest.importorskip("cvxpy")
         pytest.importorskip("osqp")

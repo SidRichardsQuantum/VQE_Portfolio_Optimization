@@ -70,6 +70,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     config = ValidationConfig(**json.loads(args.config.read_text()))
     # Fail visibly for absent optional dependencies before creating a study.
+    if "scip" in config.methods:
+        import pyscipopt  # noqa: F401
     if "osqp" in config.methods:
         import cvxpy  # noqa: F401
         import osqp  # noqa: F401
