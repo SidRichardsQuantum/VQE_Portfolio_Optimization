@@ -354,7 +354,13 @@ def main(argv=None):
         write_csv(
             output / "trials.csv",
             trials,
-            json_fields=("candidate", "incumbents", "solver_config", "timings"),
+            json_fields=(
+                "candidate",
+                "incumbents",
+                "solver_config",
+                "timings",
+                "solver_diagnostics",
+            ),
         )
         write_csv(output / "summary.csv", summary)
         write_csv(output / "reliability.csv", reliability)

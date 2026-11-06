@@ -141,6 +141,7 @@ def test_all_adapters_share_problem_and_ignore_solver_scores(monkeypatch, toy_pr
     monkeypatch.setattr(benchmark, "scip_binary_baseline", strong_binary)
     monkeypatch.setattr(benchmark, "local_search_binary_baseline", strong_binary)
     monkeypatch.setattr(benchmark, "simulated_annealing_binary_baseline", strong_binary)
+    monkeypatch.setattr(benchmark, "parallel_tempering_binary_baseline", strong_binary)
     monkeypatch.setattr(benchmark, "tabu_search_binary_baseline", strong_binary)
     monkeypatch.setattr(benchmark, "memetic_genetic_binary_baseline", strong_binary)
     monkeypatch.setattr(

@@ -1,4 +1,5 @@
 import json
+import csv
 
 import pytest
 
@@ -39,7 +40,7 @@ def test_reliability_runner_freezes_settings_and_resumes_without_retraining(
         runner.main(args)
 
 
-@pytest.mark.parametrize("method", ["swap", "frank-wolfe"])
+@pytest.mark.parametrize("method", ["swap", "frank-wolfe", "parallel-tempering"])
 def test_budget_runner_saves_incumbents_and_refuses_changed_settings(
     tmp_path, monkeypatch, method
 ):
@@ -63,6 +64,14 @@ def test_budget_runner_saves_incumbents_and_refuses_changed_settings(
     rows = json.loads((tmp_path / "trials.json").read_text())
     assert len(rows) == 1 and rows[0]["feasible"]
     assert rows[0]["incumbents"]
+    if method == "parallel-tempering":
+        assert rows[0]["solver_diagnostics"]["exchange_attempts"] > 0
+        with (tmp_path / "trials.csv").open() as stream:
+            csv_rows = list(csv.DictReader(stream))
+        assert (
+            json.loads(csv_rows[0]["solver_diagnostics"])
+            == rows[0]["solver_diagnostics"]
+        )
 
     def unexpected(*args):
         pytest.fail("A resumed completed run repeated a solver")
@@ -74,6 +83,33 @@ def test_budget_runner_saves_incumbents_and_refuses_changed_settings(
     (tmp_path / "trials.json").write_text(json.dumps(rows * 2))
     with pytest.raises(ValueError, match="Duplicate"):
         runner.main(args + ["--resume"])
+
+
+def test_validation_csv_preserves_parallel_tempering_diagnostics(tmp_path):
+    from scripts.run_small_instance_validation import export_results
+    from vqe_portfolio.research.validation import (
+        ValidationConfig,
+        prepare_instances,
+        trial_plan,
+        evaluate_trial,
+    )
+
+    config = ValidationConfig(
+        asset_counts=(3,),
+        instance_seeds=(11,),
+        solver_seeds=(0,),
+        methods=("parallel-tempering",),
+        local_restarts=2,
+    )
+    trials = [
+        evaluate_trial(key, instance, method, seed, config)
+        for key, instance, method, seed in trial_plan(prepare_instances(config), config)
+    ]
+    assert trials[0]["feasible"] and not trials[0]["error"]
+    export_results(tmp_path, trials, len(trials))
+    with (tmp_path / "trials.csv").open() as stream:
+        rows = list(csv.DictReader(stream))
+    assert json.loads(rows[0]["solver_diagnostics"]) == trials[0]["solver_diagnostics"]
 
 
 def test_fresh_budget_config_pairs_initialization_and_refuses_overlap(tmp_path):

@@ -21,7 +21,9 @@ ROOT = Path(__file__).resolve().parents[1]
 def export_results(output, trials, expected):
     summaries = summarise_trials(trials)
     for filename, rows in (("trials.csv", trials), ("summary.csv", summaries)):
-        write_csv(output / filename, rows, json_fields=("candidate",))
+        write_csv(
+            output / filename, rows, json_fields=("candidate", "solver_diagnostics")
+        )
     lines = [
         "# Small-instance validation pilot",
         "",

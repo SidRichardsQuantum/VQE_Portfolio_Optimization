@@ -111,7 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--methods",
         default="all",
-        help="Comma-separated subset: classical,classical-solvers,osqp,pgd,frank-wolfe,highs,scip,qp-round,swap,anneal,tabu,memetic,ils,grasp,vns,binary-vqe,f-vqe,qaoa-x,qaoa-xy,variational-allocator (legacy: fractional-vqe). all excludes classical-solvers and individual solver IDs.",
+        help="Comma-separated subset: classical,classical-solvers,osqp,pgd,frank-wolfe,highs,scip,qp-round,swap,anneal,parallel-tempering,tabu,memetic,ils,grasp,vns,binary-vqe,f-vqe,qaoa-x,qaoa-xy,variational-allocator (legacy: fractional-vqe). all excludes classical-solvers and individual solver IDs.",
     )
     parser.add_argument(
         "--solver-time-limit",
@@ -152,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
         "qp-round",
         "swap",
         "anneal",
+        "parallel-tempering",
         "tabu",
         "memetic",
         "ils",
@@ -202,6 +203,7 @@ def main(argv: list[str] | None = None) -> int:
             "qp-round",
             "swap",
             "anneal",
+            "parallel-tempering",
             "tabu",
             "memetic",
             "ils",

@@ -19,7 +19,15 @@ def worker_incumbent_then_block(
     connection, snapshot, method, config, seed, started, budget
 ):
     connection.send(
-        ("candidate", CandidateSnapshot(time.perf_counter() - started, [1, 0, 0], -999))
+        (
+            "candidate",
+            CandidateSnapshot(
+                time.perf_counter() - started,
+                [1, 0, 0],
+                -999,
+                {"solver_diagnostics": {"local_proposals": 2}},
+            ),
+        )
     )
     time.sleep(budget + 1)
 
@@ -52,6 +60,8 @@ def test_timeout_retains_only_independently_scored_incumbent(monkeypatch, proble
     assert 0 < result.candidate_seconds <= 5
     assert result.elapsed_seconds < 6.5
     assert result.overrun_seconds >= 0
+    assert result.solver_diagnostics == {}
+    assert result.incumbents[0].details["solver_diagnostics"] == {"local_proposals": 2}
 
 
 def test_late_candidate_is_never_scored(monkeypatch, problem):
@@ -85,6 +95,7 @@ def test_error_keeps_incumbent_and_rejects_invalid_output(monkeypatch, problem):
         "variational-allocator",
         "swap",
         "anneal",
+        "parallel-tempering",
         "tabu",
         "memetic",
         "ils",
@@ -139,6 +150,10 @@ def test_real_budget_workers_return_feasible_portfolios(method, problem):
         problem = PortfolioProblem(problem.mu, problem.Sigma, 1.0, "fractional_simplex")
     result = run_budgeted(problem, method, 15, config=config)
     assert result.status == "completed", result.error
+    if method == "parallel-tempering":
+        assert result.solver_diagnostics["local_proposals"] == 16 * 8 * 1000
+        assert result.solver_diagnostics["completed_restarts"] == 16
+        assert result.solver_diagnostics["exchange_attempts"] > 0
     assert result.timings["startup_seconds"] > 0
     assert result.timings["setup_seconds"] > 0
     assert result.timings["parent_evaluation_seconds"] > 0

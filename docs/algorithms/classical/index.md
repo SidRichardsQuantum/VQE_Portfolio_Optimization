@@ -17,6 +17,7 @@ Entries without a study method ID remain available through the Python API.
 - [QP relaxation, rounding, and refinement](qp-rounding.md)
 - [Multistart swap local search](swap-search.md)
 - [Simulated annealing](simulated-annealing.md)
+- [Parallel tempering / replica exchange](parallel-tempering.md)
 - [Tabu search](tabu-search.md)
 - [Memetic genetic algorithm](memetic-genetic.md)
 - [Iterated local search](iterated-local-search.md)
@@ -47,6 +48,7 @@ scip
 qp-rounding
 swap-search
 simulated-annealing
+parallel-tempering
 tabu-search
 memetic-genetic
 iterated-local-search

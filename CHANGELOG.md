@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.7
+
+- Add NumPy-only parallel tempering for exact-K binary selection, with fixed
+  temperature replicas, Metropolis swaps, alternating neighboring exchanges,
+  copied best-feasible incumbents, and acceptance/work diagnostics.
+- Expose `parallel-tempering` in comparisons, validation, and the budget CLI and
+  runner. Preserve structured solver diagnostics in completed budget results,
+  validation outputs, and JSON-encoded CSV fields; incumbent snapshots retain
+  partial diagnostics when a deadline interrupts execution.
+
 ## v0.3.6
 
 - Add NumPy-only Frank–Wolfe with away steps for long-only fractional allocation,

@@ -31,6 +31,39 @@ def test_cli_help():
     assert "usage" in p.stdout.lower()
 
 
+def test_parallel_tempering_budget_cli_reports_search_diagnostics():
+    p = _run(
+        [
+            "budget",
+            "--method",
+            "parallel-tempering",
+            "--mu",
+            "0.1,0.2,0.3",
+            "--sigma",
+            "0.1,0,0;0,0.2,0;0,0,0.3",
+            "--lam",
+            "1",
+            "--k",
+            "2",
+            "--seed",
+            "17",
+            "--budget-seconds",
+            "15",
+        ]
+    )
+    assert p.returncode == 0, p.stderr
+    result = json.loads(p.stdout)["result"]
+    assert result["status"] == "completed", result["error"]
+    assert result["solver_status"] == "iteration_limit"
+    assert sum(result["candidate"]) == 2
+    assert all(x in (0, 1) for x in result["candidate"])
+    assert result["solver_diagnostics"]["local_proposals"] == 16 * 8 * 1000
+    assert result["solver_diagnostics"]["exchange_attempts"] > 0
+    assert (
+        result["incumbents"][0]["details"]["solver_diagnostics"]["local_proposals"] == 0
+    )
+
+
 def test_frank_wolfe_budget_cli_needs_no_cardinality():
     p = _run(
         [

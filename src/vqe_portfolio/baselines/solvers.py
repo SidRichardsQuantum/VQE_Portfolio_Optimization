@@ -1,12 +1,13 @@
 """Classical portfolio solvers with explicit constraints and solver metadata.
 
-Swap search, annealing, tabu, memetic GA, ILS, GRASP, VNS, PGD, and Frank-Wolfe
-need only NumPy. Optional
-solvers are imported only when called. Install ``.[classical]`` for OSQP/CVXPY
+Swap search, annealing, parallel tempering, tabu, memetic GA, ILS, GRASP, VNS,
+PGD, and Frank-Wolfe need only NumPy. Optional solvers are imported only when
+called. Install ``.[classical]`` for OSQP/CVXPY
 and SciPy's HiGHS MILP interface, plus PySCIPOpt's quadratic integer solver.
 """
 
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -22,6 +23,7 @@ class ClassicalResult:
     lower_bound: float | None = None
     mip_gap: float | None = None
     message: str = ""
+    diagnostics: dict = field(default_factory=dict)
 
 
 def _problem(mu, Sigma, lam, k=None):
@@ -434,6 +436,227 @@ def simulated_annealing_binary_baseline(
         best_obj,
         "trivial" if k == 0 or k == len(mu) else "iteration_limit",
         message=f"seed={seed}; restarts={restarts}; max_iterations={max_iterations}; initial_temperature={initial_temperature}; cooling_rate={cooling_rate}",
+    )
+
+
+def _tempering_accept(log_ratio, rng):
+    """Metropolis test in log space, without exp overflow or log(0)."""
+    return log_ratio >= 0 or -rng.exponential() < log_ratio
+
+
+def _exchange_log_ratio(cold_energy, hot_energy, cold_temperature, hot_temperature):
+    """Log of the swapped/current product-Boltzmann weight ratio.
+
+    Equivalent to (1/T_cold - 1/T_hot)*(E_cold - E_hot). Factoring the
+    temperature ratio avoids subtracting overflowing inverse temperatures.
+    """
+    return ((cold_energy - hot_energy) / cold_temperature) * (
+        1 - cold_temperature / hot_temperature
+    )
+
+
+@dataclass
+class _TemperingReplica:
+    x: np.ndarray
+    gradient: np.ndarray
+    inside: np.ndarray
+    outside: np.ndarray
+    energy: float
+
+
+def parallel_tempering_binary_baseline(
+    mu,
+    Sigma,
+    lam,
+    k,
+    *,
+    seed=0,
+    restarts=16,
+    max_iterations=1000,
+    n_replicas=8,
+    temperatures=None,
+    exchange_interval=10,
+    candidate_callback=None,
+) -> ClassicalResult:
+    """Replica-exchange Metropolis search for the original exact-K objective.
+
+    Each iteration proposes one uniform selected/unselected swap per temperature
+    slot. Every exchange_interval iterations, attempt disjoint neighboring
+    exchanges, alternating even/odd edges (always edge 0 for two replicas).
+    Exchange complete states and caches, leaving temperatures fixed. Replica
+    updates execute serially; parallel tempering names the algorithm, not threads.
+
+    The default fixed geometric ladder spans 0.01*S to S, where S is the largest
+    absolute swap cost at the top-return start (1 for a flat start, with a small
+    numerical floor). A supplied ladder must have n_replicas distinct, positive,
+    finite ascending temperatures. Restarts create independent ladders of states;
+    all starts together are top returns, diagonal costs, then random exact-K sets.
+
+    Return the best state from every slot and restart, publishing copied strictly
+    improving incumbents. Diagnostics count local proposals/accepts by temperature,
+    exchanges by edge, and actual objective evaluations, including initialization.
+    This finite heuristic supplies no global optimality bound. NumPy only.
+    """
+    if k is None:
+        raise ValueError("k must be an integer between zero and n_assets.")
+    mu, Sigma = _problem(mu, Sigma, lam, k)
+    for name, value in (
+        ("restarts", restarts),
+        ("max_iterations", max_iterations),
+        ("n_replicas", n_replicas),
+        ("exchange_interval", exchange_interval),
+    ):
+        _positive_integer(name, value)
+    if n_replicas < 2:
+        raise ValueError("n_replicas must be at least two.")
+    Q = lam * Sigma
+    scale_evaluations = 0
+    if temperatures is None:
+        x = np.zeros(len(mu), dtype=int)
+        x[np.argsort(-mu)[:k]] = 1
+        scale = 1.0
+        if 0 < k < len(mu):
+            inside, outside = np.flatnonzero(x), np.flatnonzero(1 - x)
+            deltas = _swap_deltas(Q, 2 * Q @ x - mu, inside, outside)
+            scale_evaluations = deltas.size
+            scale = float(np.max(abs(deltas)))
+            if not np.isfinite(scale):
+                raise ValueError("Swap costs must be finite to construct temperatures.")
+            scale = max(scale, np.finfo(float).tiny * 100) if scale else 1.0
+        temperatures = np.geomspace(0.01 * scale, scale, n_replicas)
+    if np.iscomplexobj(temperatures):
+        raise ValueError("temperatures must be real.")
+    ladder = np.array(temperatures, dtype=float, copy=True)
+    if (
+        ladder.shape != (n_replicas,)
+        or not np.all(np.isfinite(ladder))
+        or np.any(ladder <= 0)
+        or np.any(np.diff(ladder) <= 0)
+    ):
+        raise ValueError(
+            "temperatures must contain n_replicas finite positive ascending values."
+        )
+    # Python floats avoid NumPy overflow warnings for log ratios at extreme T.
+    ladder = ladder.tolist()
+    rng = np.random.default_rng(seed)
+    starts = iter(_search_starts(mu, Q, k, rng, restarts * n_replicas))
+    local_proposals = np.zeros(n_replicas, dtype=int)
+    local_accepts = np.zeros(n_replicas, dtype=int)
+    exchange_attempts = np.zeros(n_replicas - 1, dtype=int)
+    exchange_accepts = np.zeros(n_replicas - 1, dtype=int)
+    objective_evaluations = iterations = completed_restarts = 0
+    best, best_obj = None, np.inf
+
+    def diagnostics():
+        def rates(accepts, attempts):
+            return [int(a) / int(b) if b else None for a, b in zip(accepts, attempts)]
+
+        return {
+            "temperatures": list(ladder),
+            "n_replicas": int(n_replicas),
+            "restarts": int(restarts),
+            "max_iterations": int(max_iterations),
+            "exchange_interval": int(exchange_interval),
+            "completed_restarts": completed_restarts,
+            "iterations": iterations,
+            "local_proposals": int(local_proposals.sum()),
+            "local_accepts": int(local_accepts.sum()),
+            "local_proposals_by_temperature": local_proposals.tolist(),
+            "local_accepts_by_temperature": local_accepts.tolist(),
+            "local_acceptance_rates": rates(local_accepts, local_proposals),
+            "exchange_attempts": int(exchange_attempts.sum()),
+            "exchange_accepts": int(exchange_accepts.sum()),
+            "exchange_attempts_by_edge": exchange_attempts.tolist(),
+            "exchange_accepts_by_edge": exchange_accepts.tolist(),
+            "exchange_acceptance_rates": rates(exchange_accepts, exchange_attempts),
+            "objective_evaluations": objective_evaluations,
+            "temperature_scale_swap_evaluations": int(scale_evaluations),
+        }
+
+    def consider(x, energy, restart, iteration, slot):
+        nonlocal best, best_obj
+        if energy < best_obj:
+            best, best_obj = x.copy(), energy
+            if candidate_callback is not None:
+                candidate_callback(
+                    best.copy(),
+                    {
+                        "source": "parallel-tempering",
+                        "restart": restart,
+                        "iteration": iteration,
+                        "temperature_slot": slot,
+                        "solver_diagnostics": diagnostics(),
+                    },
+                )
+
+    for restart in range(restarts):
+        replicas = []
+        for slot in range(n_replicas):
+            x = next(starts)
+            energy = _objective(x, mu, Sigma, lam)
+            objective_evaluations += 1
+            if not np.isfinite(energy):
+                raise ValueError("Portfolio energies must be finite.")
+            consider(x, energy, restart, 0, slot)
+            replicas.append(
+                _TemperingReplica(
+                    x, 2 * Q @ x - mu, np.flatnonzero(x), np.flatnonzero(1 - x), energy
+                )
+            )
+            if k == 0 or k == len(mu):
+                break
+        if k == 0 or k == len(mu):
+            break
+        for iteration in range(1, max_iterations + 1):
+            for slot, state in enumerate(replicas):
+                a, b = rng.integers(k), rng.integers(len(mu) - k)
+                i, j = state.inside[a], state.outside[b]
+                delta = float(
+                    state.gradient[j]
+                    - state.gradient[i]
+                    + Q[i, i]
+                    + Q[j, j]
+                    - 2 * Q[i, j]
+                )
+                if not np.isfinite(delta):
+                    raise ValueError("Swap costs must be finite.")
+                local_proposals[slot] += 1
+                if _tempering_accept(-delta / ladder[slot], rng):
+                    local_accepts[slot] += 1
+                    state.x[i], state.x[j] = 0, 1
+                    state.inside[a], state.outside[b] = j, i
+                    state.gradient += 2 * (Q[:, j] - Q[:, i])
+                    state.energy = _objective(state.x, mu, Sigma, lam)
+                    objective_evaluations += 1
+                    if not np.isfinite(state.energy):
+                        raise ValueError("Portfolio energies must be finite.")
+                    consider(state.x, state.energy, restart, iteration, slot)
+            iterations += 1
+            if iteration % exchange_interval == 0:
+                round_index = iteration // exchange_interval - 1
+                parity = round_index % 2 if n_replicas > 2 else 0
+                for slot in range(parity, n_replicas - 1, 2):
+                    exchange_attempts[slot] += 1
+                    log_ratio = _exchange_log_ratio(
+                        replicas[slot].energy,
+                        replicas[slot + 1].energy,
+                        ladder[slot],
+                        ladder[slot + 1],
+                    )
+                    if _tempering_accept(log_ratio, rng):
+                        exchange_accepts[slot] += 1
+                        replicas[slot], replicas[slot + 1] = (
+                            replicas[slot + 1],
+                            replicas[slot],
+                        )
+        completed_restarts += 1
+    details = diagnostics()
+    return ClassicalResult(
+        best,
+        best_obj,
+        "trivial" if k == 0 or k == len(mu) else "iteration_limit",
+        message=f"seed={seed}; diagnostics={json.dumps(details, sort_keys=True)}; no certified bound",
+        diagnostics=details,
     )
 
 

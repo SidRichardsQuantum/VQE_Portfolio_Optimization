@@ -20,6 +20,7 @@ from ..baselines import (
     memetic_genetic_binary_baseline,
     minimum_variance_binary_baseline,
     mixed_integer_binary_baseline,
+    parallel_tempering_binary_baseline,
     projected_gradient_descent_baseline,
     relaxation_rounding_binary_baseline,
     scip_binary_baseline,
@@ -299,6 +300,15 @@ def add_solver_rows(
             ["-"],
             lambda p, seed: frank_wolfe_baseline(p.mu, p.Sigma, p.lam),
         ),
+        (
+            "parallel-tempering",
+            "Classical parallel tempering",
+            binary,
+            seeds,
+            lambda p, seed: parallel_tempering_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
+            ),
+        ),
     ]:
         if methods is not None and method_id not in methods:
             continue
@@ -331,6 +341,7 @@ def add_solver_rows(
                     "qp-round",
                     "swap",
                     "anneal",
+                    "parallel-tempering",
                     "tabu",
                     "memetic",
                     "ils",

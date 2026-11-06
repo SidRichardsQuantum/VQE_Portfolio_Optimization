@@ -226,7 +226,15 @@ def test_search_adapters_are_seeded_and_independently_evaluated():
         asset_counts=(4,),
         instance_seeds=(11,),
         solver_seeds=(0, 1),
-        methods=("anneal", "tabu", "memetic", "ils", "grasp", "vns"),
+        methods=(
+            "anneal",
+            "tabu",
+            "memetic",
+            "ils",
+            "grasp",
+            "vns",
+            "parallel-tempering",
+        ),
         local_restarts=2,
     )
     instances = v.prepare_instances(config)
@@ -234,11 +242,15 @@ def test_search_adapters_are_seeded_and_independently_evaluated():
         v.evaluate_trial(key, instance, method, seed, config)
         for key, instance, method, seed in v.trial_plan(instances, config)
     ]
-    assert len(rows) == 12
-    assert [r["seed"] for r in rows] == [0, 1] * 6
+    assert len(rows) == 14
+    assert [r["seed"] for r in rows] == [0, 1] * 7
     assert all(r["feasible"] and not r["error"] for r in rows)
     assert all(r["normalised_gap"] >= -1e-8 for r in rows)
     assert all(r["lower_bound"] is None and r["mip_gap"] is None for r in rows)
+    for row in rows:
+        if row["method"] == "parallel-tempering":
+            assert row["solver_diagnostics"]["local_proposals"] == 2 * 8 * 1000
+            assert "exchange_attempts" in row["solver_message"]
 
 
 def test_scip_adapter_is_run_once_per_instance_with_bound_metadata():

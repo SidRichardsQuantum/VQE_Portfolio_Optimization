@@ -51,7 +51,9 @@ For every addition:
     not constitute an exact-cardinality guarantee.
   - Reference: [Lacoste-Julien and Jaggi, Frank–Wolfe variants](https://papers.neurips.cc/paper_files/paper/2015/hash/c058f544c737782deacefa532d9add4c-Abstract.html).
 
-- [ ] **Parallel tempering / replica exchange — binary selection**
+- [x] **Parallel tempering / replica exchange — binary selection**
+  - Implemented as `parallel_tempering_binary_baseline` with method ID
+    `parallel-tempering`. See the [algorithm guide](docs/algorithms/classical/parallel-tempering.md).
   - Maintain replicas at distinct temperatures, use exact-`K` swap proposals
     within replicas, and implement temperature-dependent Metropolis acceptance.
   - Exchange configurations between replicas using the replica-exchange
@@ -138,7 +140,7 @@ For every addition:
 
 ## Suggested implementation order
 
-Frank–Wolfe is implemented. Continue with parallel tempering, then VarQITE and
+Frank–Wolfe and parallel tempering are implemented. Continue with VarQITE and
 ADAPT-QAOA.
 Follow with cross-entropy search and digitized annealing. SDP relaxation and
 Grover adaptive search require additional solver or arithmetic infrastructure

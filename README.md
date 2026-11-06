@@ -89,7 +89,8 @@ python -m vqe_portfolio --help
 See the [usage guide](USAGE.md) for complete API and CLI examples, ansatz options, real-data workflows, and efficient frontiers.
 
 Classical exact-K comparators include NumPy-only multistart swap search,
-simulated annealing, tabu search, memetic genetic search, iterated local search
+simulated annealing, [parallel tempering](docs/algorithms/classical/parallel-tempering.md),
+tabu search, memetic genetic search, iterated local search
 (ILS), GRASP, and variable neighbourhood search (VNS), plus optional QP relaxation with rounding and swap refinement,
 HiGHS linearised integer and SCIP quadratic integer optimisation. All support end-to-end execution
 budgets; see [classical baselines](USAGE.md#strong-classical-baselines).
@@ -133,6 +134,9 @@ Adam or finite-shot SPSA optimization and objective metadata in solver results.
 Version 0.3.6 adds Filtering VQE and NumPy-only Frank–Wolfe with away steps,
 including comparison, validation, and execution-budget integration. The
 [roadmap](ROADMAP.md) lists further algorithms and implementation requirements.
+
+Version 0.3.7 adds NumPy-only parallel tempering for exact-K binary selection,
+with comparison, validation, execution budgets, and acceptance/work diagnostics.
 
 ## Documentation and research
 

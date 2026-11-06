@@ -17,6 +17,7 @@ from ..baselines import (
     local_search_binary_baseline,
     memetic_genetic_binary_baseline,
     mixed_integer_binary_baseline,
+    parallel_tempering_binary_baseline,
     projected_gradient_descent_baseline,
     relaxation_rounding_binary_baseline,
     scip_binary_baseline,
@@ -41,6 +42,7 @@ METHODS = {
     "qp-round": ("binary_qubo", False),
     "swap": ("binary_qubo", True),
     "anneal": ("binary_qubo", True),
+    "parallel-tempering": ("binary_qubo", True),
     "tabu": ("binary_qubo", True),
     "memetic": ("binary_qubo", True),
     "ils": ("binary_qubo", True),
@@ -228,6 +230,7 @@ def solve(problem, method, seed, config):
         "osqp",
         "swap",
         "anneal",
+        "parallel-tempering",
         "tabu",
         "memetic",
         "ils",
@@ -255,6 +258,7 @@ def solve(problem, method, seed, config):
             solver = {
                 "swap": local_search_binary_baseline,
                 "anneal": simulated_annealing_binary_baseline,
+                "parallel-tempering": parallel_tempering_binary_baseline,
                 "tabu": tabu_search_binary_baseline,
                 "memetic": memetic_genetic_binary_baseline,
                 "ils": iterated_local_search_binary_baseline,
@@ -271,6 +275,9 @@ def solve(problem, method, seed, config):
         }
         if method in {"qp-round", "pgd", "frank-wolfe"}:
             diagnostics["solver_message"] = result.message
+        if result.diagnostics:
+            diagnostics["solver_message"] = result.message
+            diagnostics["solver_diagnostics"] = result.diagnostics
         return result.candidate, diagnostics
     common = {
         "steps": config.steps,

@@ -28,6 +28,7 @@ BUDGET_METHODS = {
     "qp-round": "binary_qubo",
     "swap": "binary_qubo",
     "anneal": "binary_qubo",
+    "parallel-tempering": "binary_qubo",
     "tabu": "binary_qubo",
     "memetic": "binary_qubo",
     "ils": "binary_qubo",
@@ -67,6 +68,7 @@ class BudgetResult:
     late_candidates: int = 0
     worker_exitcode: int | None = None
     timings: dict = field(default_factory=dict)
+    solver_diagnostics: dict = field(default_factory=dict)
     overrun_seconds: float = field(init=False)
 
     def __post_init__(self):
@@ -194,6 +196,7 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
             local_search_binary_baseline,
             memetic_genetic_binary_baseline,
             mixed_integer_binary_baseline,
+            parallel_tempering_binary_baseline,
             projected_gradient_descent_baseline,
             relaxation_rounding_binary_baseline,
             scip_binary_baseline,
@@ -234,6 +237,7 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
         else:
             solve = {
                 "anneal": simulated_annealing_binary_baseline,
+                "parallel-tempering": parallel_tempering_binary_baseline,
                 "tabu": tabu_search_binary_baseline,
                 "memetic": memetic_genetic_binary_baseline,
                 "ils": iterated_local_search_binary_baseline,
@@ -242,7 +246,9 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
             }[method]
             result = solve(mu, sigma, lam, k, seed=seed, candidate_callback=publish)
         publish(result.candidate, {"source": method, "solver_status": result.status})
-        return result.status
+        return (
+            (result.status, result.diagnostics) if result.diagnostics else result.status
+        )
     return "completed"
 
 
@@ -286,8 +292,11 @@ def _budget_worker(connection, snapshot, method, config, seed, started, budget):
             phase(previous_phase)
 
         status = _solve(problem, method, config, seed, started + budget, publish, phase)
+        diagnostics = {}
+        if isinstance(status, tuple):
+            status, diagnostics = status
         phase("finished")
-        connection.send(("done", (status, "")))
+        connection.send(("done", (status, "", diagnostics)))
     except Exception as exc:
         phase("finished")
         connection.send(("done", ("error", f"{type(exc).__name__}: {exc}")))
@@ -327,6 +336,7 @@ def run_budgeted(
     incumbents = []
     invalid, late = 0, 0
     status, solver_status, error = "time_limit", "", ""
+    solver_diagnostics = {}
     timing = _PhaseTimings()
     delivery_times = []
     parent_evaluation_seconds = 0.0
@@ -396,7 +406,8 @@ def run_budgeted(
                 invalid += 1
             elif kind == "done":
                 if received <= budget_seconds:
-                    solver_status, error = payload
+                    solver_status, error = payload[:2]
+                    solver_diagnostics = payload[2] if len(payload) > 2 else {}
                     status = "error" if error else "completed"
                 break
     except Exception as exc:
@@ -448,6 +459,7 @@ def run_budgeted(
         late,
         worker.exitcode,
         timings,
+        solver_diagnostics=solver_diagnostics,
     )
     worker.close()
     return result
