@@ -76,12 +76,19 @@ def test_error_keeps_incumbent_and_rejects_invalid_output(monkeypatch, problem):
         "qaoa-xy-trained",
         "random-k",
         "fractional-vqe",
+        "variational-allocator",
         "swap",
         "anneal",
         "tabu",
+        "memetic",
+        "ils",
+        "grasp",
         "highs",
         "scip",
         "osqp",
+        "qp-round",
+        "vns",
+        "pgd",
     ],
 )
 def test_real_budget_workers_return_feasible_portfolios(method, problem):
@@ -89,7 +96,7 @@ def test_real_budget_workers_return_feasible_portfolios(method, problem):
         pytest.importorskip("scipy")
     if method == "scip":
         pytest.importorskip("pyscipopt")
-    if method == "osqp":
+    if method in {"osqp", "qp-round"}:
         pytest.importorskip("cvxpy")
         pytest.importorskip("osqp")
     config = None
@@ -109,9 +116,9 @@ def test_real_budget_workers_return_feasible_portfolios(method, problem):
             mixer="xy" if xy else "x",
             xy_initial_state="dicke" if xy else "basis",
         )
-    elif method == "fractional-vqe":
+    elif method in {"fractional-vqe", "variational-allocator"}:
         config = FractionalVQEConfig(lam=1, steps=1, log_every=1)
-    if method in {"fractional-vqe", "osqp"}:
+    if method in {"fractional-vqe", "variational-allocator", "osqp", "pgd"}:
         problem = PortfolioProblem(problem.mu, problem.Sigma, 1.0, "fractional_simplex")
     result = run_budgeted(problem, method, 15, config=config)
     assert result.status == "completed", result.error

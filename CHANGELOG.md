@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.3.4
+
+- Add individual quantum and classical algorithm pages, shared examples, and
+  documentation navigation under `docs/algorithms/`.
+- Fix top-return selection at K=0 and validate its cardinality through the common
+  problem definition. Add boundary and invalid-input regression coverage.
+- Correct allocator normalisation to `(s+epsilon/n)/(sum(s)+epsilon)`, including
+  zero measured mass, and test analytic/finite-difference gradients and shots.
+- Introduce `run_variational_allocator`, allocator config/result/sweep names,
+  `allocator` CLI commands, and `variational-allocator` study IDs. Retain the
+  fractional-VQE names as compatibility aliases and preserve historical outputs.
+- Clarify Hamiltonian VQE versus the custom allocator and ordered XY mixing;
+  test ideal exact-cardinality preservation and the exchange-gate product.
+- Save a fresh 128-trial correctness comparison across 4/6-asset binary and
+  fractional problems with source/environment provenance; all returns are
+  feasible, with zero solver errors or reference contradictions. Preserve
+  historical artifacts and distinguish target quality from feasibility.
+- Add NumPy-only memetic genetic search, iterated local search (ILS), and GRASP
+  for the existing exact-K binary objective. Reuse best-improvement swap
+  refinement and publish copied, improving feasible incumbents.
+- Expose `memetic`, `ils`, and `grasp` in comparison CSVs, small-instance
+  validation, and the budget CLI/runner; include all three in `classical-solvers`.
+- Add `qp-round`: solve the exact-K box QP relaxation with CVXPY/OSQP, round
+  deterministically, then refine using feasible swaps. Preserve the original
+  binary objective and publish copied improving incumbents; numerical
+  relaxation diagnostics are separate from optimality bounds.
+- Add NumPy-only VNS for exact-K binary selection and projected gradient
+  descent for the fractional simplex objective. Expose `vns` and `pgd` in
+  comparisons, validation, and execution budgets, with feasible incumbent
+  callbacks and explicit iteration/numerical stopping diagnostics.
+
 ## v0.3.3
 
 - Add NumPy-only simulated annealing and tabu search for exact-K binary

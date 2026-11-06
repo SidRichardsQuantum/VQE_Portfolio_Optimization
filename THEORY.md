@@ -3,6 +3,10 @@
 This document describes the mathematical formulation and quantum encodings used in the `vqe_portfolio` package.
 It focuses on **how classical portfolio optimization problems are mapped to quantum Hamiltonians** suitable for hybrid quantum–classical algorithms such as **VQE** and **QAOA**.
 
+It also describes a custom variational quantum allocator whose portfolio cost
+is a classical function of measured expectations, rather than a Hamiltonian
+expectation.
+
 ---
 
 ## 1. Classical Mean–Variance Portfolio Optimization
@@ -153,11 +157,28 @@ Promotes exploration across the full computational basis.
 $$
 H_M^{(XY)}
 =
-\sum_{i<j}
+\sum_{(i,j)\in E}
 (X_i X_j + Y_i Y_j)
 $$
 
-Preserves approximate Hamming-weight structure, making it useful for:
+Here E is the configured ring or complete exchange graph. The implemented
+mixer applies the ordered edge gates
+
+$$
+U_M(\beta)=\mathcal{P}_{(i,j)\in E}
+\left[e^{-i\beta X_iX_j}e^{-i\beta Y_iY_j}\right].
+$$
+
+The XX and YY terms on a single edge commute, but overlapping edges generally
+do not. This ordered exchange circuit is an alternating-operator variant;
+it is generally different from the exact exponential of the summed mixer
+Hamiltonian. The cost Hamiltonian contains commuting Z terms, so its
+single product-formula layer is exact up to numerical coefficient truncation
+and floating-point error.
+
+Starting from an exact-K basis or Dicke state, the ideal exchange circuit
+preserves Hamming weight exactly. Hardware noise and readout errors can still
+produce infeasible measured selections. This structure is useful for:
 
 - cardinality-constrained problems
 - constrained combinatorial search spaces
@@ -276,11 +297,18 @@ Post-processing extracts:
 
 ---
 
-## 5. Fractional Portfolio Optimization via Simplex Encoding
+## 5. Variational Quantum Allocation via Simplex Encoding
+
+This method was historically called "Fractional VQE". It trains a quantum
+circuit to parameterise allocation weights and evaluates the mean-variance
+objective classically. It does not minimise the expectation of a fixed
+portfolio Hamiltonian and is not conventional Hamiltonian VQE. The default
+product-RY circuit is readily classically simulable; optional entangling
+ansatzes do not by themselves establish a computational advantage.
 
 ### 5.1 Continuous parameterization
 
-Each qubit prepares:
+In the default product ansatz, each qubit prepares:
 
 $$
 |\psi_i\rangle = RY(\theta_i)|0\rangle
@@ -298,12 +326,14 @@ $$
 
 ### 5.2 Simplex normalization
 
-Weights:
+Finite physical measurement expectations lie in [-1, 1]. The implementation
+clips numerical overshoots within 1e-8 and rejects nonfinite or out-of-range
+inputs. Let epsilon = 1e-12. The corrected normalisation is:
 
 $$
 w_i
 =
-\frac{\tilde{w}_i}{\sum_j \tilde{w}_j}
+\frac{\tilde{w}_i+\epsilon/n}{\sum_j \tilde{w}_j+\epsilon}
 $$
 
 Properties:
@@ -311,7 +341,12 @@ Properties:
 - $ w_i \ge 0 $
 - $ \sum_i w_i = 1 $
 
-Constraints are satisfied by construction.
+These properties hold mathematically and are independently checked within
+numerical tolerance. When every mass is zero, the allocation is uniform.
+Adding epsilon only to the denominator, as in historical versions, did not
+normalise zero or near-zero mass correctly. Smoothing changes the map slightly
+even away from zero, so earlier optimisation trajectories and results must
+retain their original source provenance.
 
 ---
 
@@ -327,15 +362,19 @@ $$
 
 Advantages:
 
-- smooth landscape
+- differentiable normalisation on the physical interior, with boundary clipping
 - no penalty tuning
-- deterministic feasible solutions
+- simplex allocations within numerical tolerance, including zero measured mass
+
+Finite-shot estimates make training and returned allocations stochastic.
+Differentiability does not imply a convex landscape in circuit parameters or
+guaranteed convergence to the best classical allocation.
 
 ---
 
 ## 6. Binary vs Fractional Encodings
 
-| aspect              | binary (VQE / QAOA) | fractional VQE |
+| aspect              | binary (VQE / QAOA) | variational quantum allocator |
 | ------------------- | ------------------- | -------------- |
 | decision space      | discrete            | continuous     |
 | constraint handling | penalty             | structural     |
@@ -363,10 +402,10 @@ This project demonstrates three complementary quantum approaches:
 - natural fit for QUBO problems
 - interpretable circuit depth parameter
 
-#### Fractional VQE
+#### Variational quantum allocator (legacy name: Fractional VQE)
 
 - continuous parameterization
-- exact feasibility
+- smoothed simplex normalisation with independent numerical feasibility checks
 - efficient frontier construction
 
 Together they provide a consistent framework for studying how portfolio optimization behaves under quantum-native representations.

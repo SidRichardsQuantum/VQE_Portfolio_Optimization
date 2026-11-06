@@ -75,12 +75,12 @@ def fractional_ry_layer(thetas: np.ndarray, n_wires: int) -> None:
 
 
 def fractional_ry_cz_ring(params: np.ndarray, depth: int, n_wires: int) -> None:
-    """Fractional VQE ansatz: RY layers + CZ ring entanglement."""
+    """Variational allocator ansatz: RY layers + CZ ring entanglement."""
     binary_hwe_ry_cz_ring(params, depth=depth, n_wires=n_wires)
 
 
 def fractional_ry_rz_cz_ring(params: np.ndarray, depth: int, n_wires: int) -> None:
-    """Fractional VQE ansatz: RY/RZ layers + CZ ring entanglement."""
+    """Variational allocator ansatz: RY/RZ layers + CZ ring entanglement."""
     binary_hwe_ry_rz_cz_ring(params, depth=depth, n_wires=n_wires)
 
 

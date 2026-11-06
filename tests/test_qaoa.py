@@ -20,6 +20,56 @@ def _toy_problem():
     return mu, sigma
 
 
+@pytest.mark.parametrize("topology", ["ring", "complete"])
+@pytest.mark.parametrize("initial_state", ["basis", "dicke"])
+def test_xy_exchange_circuit_preserves_exact_cardinality(topology, initial_state):
+    import pennylane as qml
+    from vqe_portfolio.binary import build_ising_hamiltonian
+    from vqe_portfolio.qaoa import _qaoa_ansatz
+
+    n, k = 4, 2
+    h = build_ising_hamiltonian(np.arange(n) * 0.1, np.eye(n), 1, 2, k)
+    dev = qml.device("default.qubit", wires=n)
+
+    @qml.qnode(dev)
+    def probabilities():
+        _qaoa_ansatz(
+            np.array([[0.2, 0.4], [0.7, -0.3]]), h, n, k, "xy", initial_state, topology
+        )
+        return qml.probs(wires=range(n))
+
+    distribution = np.asarray(probabilities())
+    infeasible = [i for i in range(2**n) if bin(i).count("1") != k]
+    assert distribution[infeasible].sum() < 1e-12
+    assert distribution.sum() == pytest.approx(1)
+
+
+def test_xy_mixer_is_the_documented_ordered_exchange_product():
+    import pennylane as qml
+    from vqe_portfolio.qaoa import _apply_xy_mixer, xy_mixer_edges
+
+    n, beta = 3, 0.27
+    actual = qml.matrix(lambda: _apply_xy_mixer(beta, n, "ring"), wire_order=range(n))()
+    expected, summed = np.eye(2**n, dtype=complex), np.zeros(
+        (2**n, 2**n), dtype=complex
+    )
+    for i, j in xy_mixer_edges(n, "ring"):
+        xx = qml.matrix(qml.PauliX(i) @ qml.PauliX(j), wire_order=range(n))
+        yy = qml.matrix(qml.PauliY(i) @ qml.PauliY(j), wire_order=range(n))
+        # exp(-i beta P) = cos(beta) I - i sin(beta) P, since P^2=I.
+        identity = np.eye(2**n)
+        expected = (
+            (np.cos(beta) * identity - 1j * np.sin(beta) * yy)
+            @ (np.cos(beta) * identity - 1j * np.sin(beta) * xx)
+            @ expected
+        )
+        summed += xx + yy
+    np.testing.assert_allclose(actual, expected, atol=1e-12)
+    eigenvalues, vectors = np.linalg.eigh(summed)
+    simultaneous = (vectors * np.exp(-1j * beta * eigenvalues)) @ vectors.conj().T
+    assert not np.allclose(actual, simultaneous, atol=1e-6)
+
+
 def test_run_qaoa_smoke_x_mixer():
     mu, sigma = _toy_problem()
 

@@ -58,4 +58,4 @@ def test_generate_ansatz_comparison_smoke(tmp_path):
         "ry_rz_cz",
     ]
     assert rows[1]["method"] == "Binary VQE"
-    assert rows[5]["method"] == "Fractional VQE"
+    assert rows[5]["method"] == "Variational quantum allocator"

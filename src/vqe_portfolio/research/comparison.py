@@ -13,12 +13,18 @@ from ..baselines import (
     equal_weight_baseline,
     exact_long_only_markowitz_baseline,
     exhaustive_binary_baseline,
+    grasp_binary_baseline,
+    iterated_local_search_binary_baseline,
     local_search_binary_baseline,
+    memetic_genetic_binary_baseline,
     minimum_variance_binary_baseline,
     mixed_integer_binary_baseline,
+    projected_gradient_descent_baseline,
+    relaxation_rounding_binary_baseline,
     scip_binary_baseline,
     simulated_annealing_binary_baseline,
     tabu_search_binary_baseline,
+    variable_neighborhood_search_binary_baseline,
     top_return_baseline,
 )
 from ..benchmark import (
@@ -205,6 +211,15 @@ def add_solver_rows(
             ),
         ),
         (
+            "qp-round",
+            "Classical QP relaxation + rounding",
+            binary,
+            ["-"],
+            lambda p, seed: relaxation_rounding_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k
+            ),
+        ),
+        (
             "swap",
             "Classical multistart swap search",
             binary,
@@ -230,6 +245,49 @@ def add_solver_rows(
             lambda p, seed: tabu_search_binary_baseline(
                 p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
             ),
+        ),
+        (
+            "memetic",
+            "Classical memetic genetic algorithm",
+            binary,
+            seeds,
+            lambda p, seed: memetic_genetic_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
+            ),
+        ),
+        (
+            "ils",
+            "Classical iterated local search",
+            binary,
+            seeds,
+            lambda p, seed: iterated_local_search_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
+            ),
+        ),
+        (
+            "grasp",
+            "Classical GRASP",
+            binary,
+            seeds,
+            lambda p, seed: grasp_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
+            ),
+        ),
+        (
+            "vns",
+            "Classical variable neighborhood search",
+            binary,
+            seeds,
+            lambda p, seed: variable_neighborhood_search_binary_baseline(
+                p.mu, p.Sigma, p.lam, p.k, seed=seed, restarts=restarts
+            ),
+        ),
+        (
+            "pgd",
+            "Classical projected gradient descent",
+            fractional,
+            ["-"],
+            lambda p, seed: projected_gradient_descent_baseline(p.mu, p.Sigma, p.lam),
         ),
     ]:
         if methods is not None and method_id not in methods:
@@ -258,7 +316,17 @@ def add_solver_rows(
             method,
             (
                 "classical heuristic"
-                if method_id in {"swap", "anneal", "tabu"}
+                if method_id
+                in {
+                    "qp-round",
+                    "swap",
+                    "anneal",
+                    "tabu",
+                    "memetic",
+                    "ils",
+                    "grasp",
+                    "vns",
+                }
                 else "classical"
             ),
         )
@@ -350,7 +418,7 @@ def add_fractional_vqe_row(rows, trial_rows, dataset, mu, Sigma, base_cfg, seeds
         base_cfg,
         seeds,
         run_fractional_vqe,
-        "Fractional VQE",
+        "Variational quantum allocator",
         False,
     )
 
@@ -549,7 +617,7 @@ def real_data_comparison_rows(
     fractional_res = run_fractional_vqe(mu, Sigma, fractional_cfg)
     rows.append(
         weight_row(
-            "Fractional VQE",
+            "Variational quantum allocator",
             "quantum",
             fractional_res.weights,
             time.perf_counter() - started,

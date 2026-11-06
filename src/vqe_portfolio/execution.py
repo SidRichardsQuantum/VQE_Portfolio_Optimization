@@ -24,12 +24,19 @@ BUDGET_METHODS = {
     "qaoa-xy-trained": "binary_qubo",
     "highs": "binary_qubo",
     "scip": "binary_qubo",
+    "qp-round": "binary_qubo",
     "swap": "binary_qubo",
     "anneal": "binary_qubo",
     "tabu": "binary_qubo",
+    "memetic": "binary_qubo",
+    "ils": "binary_qubo",
+    "grasp": "binary_qubo",
+    "vns": "binary_qubo",
     "random-k": "binary_qubo",
     "fractional-vqe": "fractional_simplex",
+    "variational-allocator": "fractional_simplex",
     "osqp": "fractional_simplex",
+    "pgd": "fractional_simplex",
 }
 
 
@@ -100,6 +107,7 @@ def _configuration(problem, method, config, seed):
         "qaoa-xy-untrained": QAOAConfig,
         "qaoa-xy-trained": QAOAConfig,
         "fractional-vqe": FractionalVQEConfig,
+        "variational-allocator": FractionalVQEConfig,
     }.get(method)
     if expected is None:
         if config is not None:
@@ -150,7 +158,7 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
             return _sample_qaoa_parameters(
                 mu, sigma, config, result.params, deadline, publish, phase
             )
-    elif method == "fractional-vqe":
+    elif method in {"fractional-vqe", "variational-allocator"}:
         from .fractional import run_fractional_vqe
 
         run_fractional_vqe(
@@ -173,11 +181,17 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
     else:
         from .baselines.solvers import (
             convex_markowitz_baseline,
+            grasp_binary_baseline,
+            iterated_local_search_binary_baseline,
             local_search_binary_baseline,
+            memetic_genetic_binary_baseline,
             mixed_integer_binary_baseline,
+            projected_gradient_descent_baseline,
+            relaxation_rounding_binary_baseline,
             scip_binary_baseline,
             simulated_annealing_binary_baseline,
             tabu_search_binary_baseline,
+            variable_neighborhood_search_binary_baseline,
         )
 
         phase("optimization")
@@ -195,6 +209,14 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
                 )
         elif method == "osqp":
             result = convex_markowitz_baseline(mu, sigma, lam)
+        elif method == "pgd":
+            result = projected_gradient_descent_baseline(
+                mu, sigma, lam, candidate_callback=publish
+            )
+        elif method == "qp-round":
+            result = relaxation_rounding_binary_baseline(
+                mu, sigma, lam, k, candidate_callback=publish
+            )
         elif method == "swap":
             result = local_search_binary_baseline(
                 mu, sigma, lam, k, seed=seed, candidate_callback=publish
@@ -203,6 +225,10 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
             solve = {
                 "anneal": simulated_annealing_binary_baseline,
                 "tabu": tabu_search_binary_baseline,
+                "memetic": memetic_genetic_binary_baseline,
+                "ils": iterated_local_search_binary_baseline,
+                "grasp": grasp_binary_baseline,
+                "vns": variable_neighborhood_search_binary_baseline,
             }[method]
             result = solve(mu, sigma, lam, k, seed=seed, candidate_callback=publish)
         publish(result.candidate, {"source": method, "solver_status": result.status})

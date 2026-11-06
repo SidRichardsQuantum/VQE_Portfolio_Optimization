@@ -61,7 +61,7 @@ class QAOAConfig:
 
 
 @dataclass(frozen=True)
-class FractionalVQEConfig:
+class VariationalAllocatorConfig:
     depth: int = 1
     ansatz: str = "ry"
     steps: int = 75
@@ -74,6 +74,10 @@ class FractionalVQEConfig:
     shots: Optional[int] = None
 
     seed: int = 0
+
+
+# Compatibility alias for the historical allocator name.
+FractionalVQEConfig = VariationalAllocatorConfig
 
 
 @dataclass(frozen=True)
@@ -134,10 +138,13 @@ class QAOAResult:
 
 
 @dataclass(frozen=True)
-class FractionalVQEResult:
+class VariationalAllocatorResult:
     thetas: np.ndarray
     cost_trace: OptimizeTrace
     weights: np.ndarray
 
     lambdas: np.ndarray | None = None
     allocs_by_lambda: np.ndarray | None = None  # shape (L, n)
+
+
+FractionalVQEResult = VariationalAllocatorResult

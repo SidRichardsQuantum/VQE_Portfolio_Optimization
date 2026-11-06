@@ -4,7 +4,7 @@ import itertools
 
 import numpy as np
 
-from ..problem import binary_objective, fractional_objective
+from ..problem import PortfolioProblem, binary_objective, fractional_objective
 
 
 def exhaustive_binary_baseline(
@@ -35,7 +35,10 @@ def top_return_baseline(
     alpha: float,
     k: int,
 ) -> tuple[np.ndarray, float]:
-    selected = np.argsort(mu)[-k:]
+    """Select the K largest returns, including the empty portfolio for K=0."""
+    problem = PortfolioProblem(mu, Sigma, lam, "binary_qubo", k)
+    mu, Sigma, k = problem.mu, problem.Sigma, problem.k
+    selected = np.argsort(mu)[-k:] if k else np.array([], dtype=int)
     x = np.zeros(len(mu), dtype=int)
     x[selected] = 1
     return x, binary_objective(x, mu, Sigma, lam=lam, alpha=alpha, k=k)

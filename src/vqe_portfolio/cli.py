@@ -137,7 +137,15 @@ def _execute(mu, sigma, cfg, solver, args):
     method = (
         "binary-vqe"
         if isinstance(cfg, BinaryVQEConfig)
-        else f"qaoa-{cfg.mixer}" if isinstance(cfg, QAOAConfig) else "fractional-vqe"
+        else (
+            f"qaoa-{cfg.mixer}"
+            if isinstance(cfg, QAOAConfig)
+            else (
+                "fractional-vqe"
+                if args.cmd in {"fractional", "fractional-data"}
+                else "variational-allocator"
+            )
+        )
     )
     return run_budgeted(problem, method, args.budget_seconds, config=cfg)
 
@@ -252,7 +260,7 @@ def _cmd_fractional(args: argparse.Namespace) -> int:
     res = _execute(mu, Sigma, cfg, run_fractional_vqe, args)
 
     payload = {
-        "method": "fractional",
+        "method": "fractional" if args.cmd == "fractional" else "variational-allocator",
         "config": cfg,
         "result": res,
     }
@@ -389,7 +397,9 @@ def _cmd_fractional_data(args: argparse.Namespace) -> int:
     res = _execute(mu, Sigma, cfg, run_fractional_vqe, args)
 
     payload = {
-        "method": "fractional",
+        "method": (
+            "fractional" if args.cmd == "fractional-data" else "variational-allocator"
+        ),
         "mode": "market-data",
         "tickers": tickers,
         "start": args.start,
@@ -420,7 +430,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="vqe-portfolio",
         description=(
-            "Quantum portfolio optimization with Binary VQE, QAOA, and Fractional VQE."
+            "Portfolio optimization with Binary VQE, QAOA, and a variational quantum allocator."
         ),
     )
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -511,14 +521,14 @@ def build_parser() -> argparse.ArgumentParser:
     def add_common_fractional_vqe(sp: argparse.ArgumentParser) -> None:
         from vqe_portfolio.ansatz import FRACTIONAL_ANSATZES
 
-        g = sp.add_argument_group("fractional-vqe")
+        g = sp.add_argument_group("variational allocator")
         g.add_argument("--depth", type=int, default=1)
         g.add_argument(
             "--ansatz",
             type=str,
             default="ry",
             choices=FRACTIONAL_ANSATZES,
-            help="Fractional VQE circuit ansatz.",
+            help="Variational allocator circuit ansatz.",
         )
         g.add_argument("--steps", type=int, default=100)
         g.add_argument("--stepsize", type=float, default=0.25)
@@ -641,8 +651,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp_q.set_defaults(func=_cmd_qaoa)
 
     sp_f = sub.add_parser(
-        "fractional",
-        help="Run Fractional VQE (long-only allocation on the simplex).",
+        "allocator",
+        aliases=["fractional"],
+        help="Run the variational quantum allocator (legacy alias: fractional).",
     )
     add_common_io(sp_f)
     add_common_fractional_vqe(sp_f)
@@ -679,8 +690,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp_qd.set_defaults(func=_cmd_qaoa_data)
 
     sp_fd = sub.add_parser(
-        "fractional-data",
-        help="Run Fractional VQE using real market data (requires vqe-portfolio[data]).",
+        "allocator-data",
+        aliases=["fractional-data"],
+        help="Run the variational allocator on market data (legacy alias: fractional-data).",
     )
     add_output_only(sp_fd)
     add_common_fractional_vqe(sp_fd)

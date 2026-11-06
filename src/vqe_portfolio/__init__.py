@@ -6,7 +6,7 @@ Variational Quantum Eigensolver (VQE)–based portfolio optimization.
 This package provides:
 - Binary VQE for asset selection with cardinality constraints
 - QAOA for binary portfolio optimization with cardinality constraints
-- Fractional VQE for long-only portfolio allocation on the simplex
+- Variational quantum allocation on the long-only simplex
 - Classical utilities for evaluation (efficient frontiers, metrics)
 - Lightweight helpers for reproducibility and notebook workflows
 """
@@ -63,8 +63,10 @@ from .binary import (
 )
 from .execution import BudgetResult, CandidateSnapshot, run_budgeted
 from .fractional import (
+    allocator_lambda_sweep,
     fractional_lambda_sweep,
     run_fractional_vqe,
+    run_variational_allocator,
 )
 from .frontier import (
     Frontier,
@@ -87,6 +89,8 @@ from .types import (
     BinaryVQEResult,
     FractionalVQEConfig,
     FractionalVQEResult,
+    VariationalAllocatorConfig,
+    VariationalAllocatorResult,
     LambdaSweepConfig,
     QAOAConfig,
     QAOAResult,
@@ -109,10 +113,12 @@ __all__ = [
     "BinaryVQEConfig",
     "QAOAConfig",
     "FractionalVQEConfig",
+    "VariationalAllocatorConfig",
     "LambdaSweepConfig",
     "BinaryVQEResult",
     "QAOAResult",
     "FractionalVQEResult",
+    "VariationalAllocatorResult",
     # --- algorithms ---
     "run_budgeted",
     "BudgetResult",
@@ -122,7 +128,9 @@ __all__ = [
     "run_qaoa",
     "qaoa_lambda_sweep",
     "run_fractional_vqe",
+    "run_variational_allocator",
     "fractional_lambda_sweep",
+    "allocator_lambda_sweep",
     "BINARY_ANSATZES",
     "FRACTIONAL_ANSATZES",
     # --- evaluation ---

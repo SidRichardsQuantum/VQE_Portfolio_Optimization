@@ -13,11 +13,17 @@ from .reference import (
 from .solvers import (
     ClassicalResult,
     convex_markowitz_baseline,
+    grasp_binary_baseline,
+    iterated_local_search_binary_baseline,
     local_search_binary_baseline,
+    memetic_genetic_binary_baseline,
     mixed_integer_binary_baseline,
+    projected_gradient_descent_baseline,
+    relaxation_rounding_binary_baseline,
     scip_binary_baseline,
     simulated_annealing_binary_baseline,
     tabu_search_binary_baseline,
+    variable_neighborhood_search_binary_baseline,
 )
 
 __all__ = [
@@ -28,9 +34,15 @@ __all__ = [
     "top_return_baseline",
     "ClassicalResult",
     "convex_markowitz_baseline",
+    "grasp_binary_baseline",
+    "iterated_local_search_binary_baseline",
     "local_search_binary_baseline",
+    "memetic_genetic_binary_baseline",
     "mixed_integer_binary_baseline",
+    "projected_gradient_descent_baseline",
+    "relaxation_rounding_binary_baseline",
     "scip_binary_baseline",
     "simulated_annealing_binary_baseline",
     "tabu_search_binary_baseline",
+    "variable_neighborhood_search_binary_baseline",
 ]

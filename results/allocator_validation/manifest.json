@@ -1,0 +1,667 @@
+{
+  "schema_version": 1,
+  "config": {
+    "asset_counts": [
+      4,
+      6
+    ],
+    "instance_seeds": [
+      9101,
+      9202
+    ],
+    "solver_seeds": [
+      0,
+      1
+    ],
+    "k_fractions": [
+      0.5
+    ],
+    "methods": [
+      "exact-binary",
+      "top-return",
+      "highs",
+      "scip",
+      "qp-round",
+      "swap",
+      "anneal",
+      "tabu",
+      "memetic",
+      "ils",
+      "grasp",
+      "vns",
+      "random-k",
+      "binary-vqe",
+      "qaoa-x",
+      "qaoa-xy",
+      "exact-fractional",
+      "osqp",
+      "pgd",
+      "variational-allocator"
+    ],
+    "steps": 15,
+    "shots": 256,
+    "lam": 4.0,
+    "alpha": 5.0,
+    "binary_depth": 2,
+    "qaoa_p": 1,
+    "target_gap": 0.001,
+    "solver_time_limit": 10.0,
+    "local_restarts": 2
+  },
+  "environment": {
+    "python": "3.12.3",
+    "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "cpu_count": 2,
+    "cpu_affinity": [
+      0,
+      1
+    ],
+    "thread_environment": {
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": null
+    },
+    "packages": {
+      "vqe-portfolio": "0.3.3",
+      "numpy": "2.5.4",
+      "pennylane": "0.45.1",
+      "scipy": "1.18.1",
+      "cvxpy": "1.7.2",
+      "osqp": "0.6.7.post3",
+      "pyscipopt": "6.3.0",
+      "pennylane-lightning": "0.45.0"
+    },
+    "source_sha256": {
+      "scripts/run_small_instance_validation.py": "c9ab06b69273ecd1bfd086e87f3a6c43497985ca1791991936535a082d9ba8ee",
+      "src/vqe_portfolio/__init__.py": "1abdb52dca3818a2435a2f1baed67b3266eb843669310507e81ea67324aff581",
+      "src/vqe_portfolio/__main__.py": "40978f4504f1a9684198875035a1b3793baa7d95dfd05dbb022678663e4e1297",
+      "src/vqe_portfolio/ansatz.py": "d12f8f8e48596ff7090a0be9b25fc9272ee721e61d87c63ae8d5040ce7807593",
+      "src/vqe_portfolio/baselines/__init__.py": "a29fd82f8324841e3d2487f38bf685c9254293d1341de7164243dffc49629f87",
+      "src/vqe_portfolio/baselines/reference.py": "c0a24e52641d507f41345dadf77bac538f5c0a856475909d51f94755b7f7a9d5",
+      "src/vqe_portfolio/baselines/solvers.py": "02ee529db139d09301eae03c3003d29bd0765807e2f0150f55376660a93c9b57",
+      "src/vqe_portfolio/benchmark.py": "1a33eb8faf669fc5e7b99196c701cdb6ff9cb6f85729f9d63dc8e527a08b91b9",
+      "src/vqe_portfolio/binary.py": "90ce59229298499369916ba7f4a588fa9dd01957aba9dbb8e7b418fac987cf1d",
+      "src/vqe_portfolio/classical.py": "7df1ac9cbe42101f1139fdf72c1afa219f5a64151c27a52caf8b61361409a5fb",
+      "src/vqe_portfolio/cli.py": "b3f871e03bb41da82afab9656be06217a147b547641ce3dd12a5e4c27ab674d9",
+      "src/vqe_portfolio/comparison.py": "0534599761c64f6189d4e3cbf6493e1e4bdd3a45c9d94df73de0591050833b1b",
+      "src/vqe_portfolio/data.py": "acf5da9ce850ffa3e27fe696715fa41c60e6b8455302eae48150bf62f25dfe6c",
+      "src/vqe_portfolio/execution.py": "0b300babc76de3db7dc75de9d08b7a196ccb81aef67f39a9046e71b727f99c32",
+      "src/vqe_portfolio/failure_diagnostics.py": "68d15aacc35568eca82d9b25fac994123079079484e1124050c9e9fe29818ca2",
+      "src/vqe_portfolio/fractional.py": "7c9cd3db7787d1c686e7a86956032eafdbb8b619421f73ca574ace5274253258",
+      "src/vqe_portfolio/frontier.py": "879855288853afbbaef594156219cee5a0366771d78d28d4e77808f3960be1c6",
+      "src/vqe_portfolio/metrics.py": "11524a40ac678ae677b6dca6e075d4a37dca0b21f2765bc17f3ad91f250a7bf1",
+      "src/vqe_portfolio/optimize.py": "b65a79833f5265d10f3721ae70ce49e17751f524d223afefd3fa568ea4d670e2",
+      "src/vqe_portfolio/plotting.py": "a63eca9eb068f17ffa40d3c4912d37ec3a953b30a751def68f7203d1347f17e6",
+      "src/vqe_portfolio/problem.py": "331b186d67a92ead67c7ac588f2d4e8ea98ddd5dcedf82f31add91c69ffd6d6d",
+      "src/vqe_portfolio/qaoa.py": "8c0c2f2d1107617fc122dc4120d97f0073b1325cf3fd9b01da9677a0f0cd1016",
+      "src/vqe_portfolio/reliability.py": "c171e67a96fadfe607fccaacbe3553cbd0f3b6900e5f68bb11687ee1659fa0f5",
+      "src/vqe_portfolio/research/__init__.py": "2ce3630a42a6a7bc5252be774cc24954894ca475b75ef860280ee495e31a82a5",
+      "src/vqe_portfolio/research/budget.py": "99b394b0378989c133cbf24a77087831b01f3a212edbaa3d418137e93447d419",
+      "src/vqe_portfolio/research/comparison.py": "8183f4d6169ecc16db469cb9d3eeb0f5e5370f40d2eacc2617955b5523976142",
+      "src/vqe_portfolio/research/failure_diagnostics.py": "ed97fb39b627b6d3302153c8eb89ae0aa21da52d7557c3a32c45df9e576e3bf7",
+      "src/vqe_portfolio/research/infrastructure.py": "4b76a358e96964da6ccbfb72467712f5bb9fa21cdfbb8c08da75adadae769fa0",
+      "src/vqe_portfolio/research/reliability.py": "75bcbba497fe586ac43e79e30efbfb8810ff8fc2a5a0451f27c19cb67114047b",
+      "src/vqe_portfolio/research/sampling_allowance.py": "b697104dee96ad323277ae9cf52feba57b06f11c84472fccd7330afb097776f1",
+      "src/vqe_portfolio/research/training_diagnostics.py": "c7c014fc3151059313e61499c992ddcff4d735cfa70fd7b9b095bbfdcd6d6a2a",
+      "src/vqe_portfolio/research/training_effort.py": "f0877edbe56e6d1afa9b9bda314417357eb59ea39d6ca565503b9e646002a358",
+      "src/vqe_portfolio/research/validation.py": "047ec30963550fdb286812cdb7f589f24bbccae5336263f4880b5121ad6cb4fd",
+      "src/vqe_portfolio/sampling_allowance.py": "7145d47b91d1705b27c57a591268551163a84e9aa93c6e505bcbc507575cd748",
+      "src/vqe_portfolio/training_diagnostics.py": "8a394d26d340a94f6867ead9202c4a5a46d05069c951c3f216d5d4df5c82fe90",
+      "src/vqe_portfolio/training_effort.py": "bd77393af4db951ac15fcee2413330603e48cc8338a0ebdf1d20f3abf20d083d",
+      "src/vqe_portfolio/types.py": "4c5afa411f172f326fd6810994fae8014e2bc79bb2df87a4ede496a883fdf3b1",
+      "src/vqe_portfolio/utils.py": "5677ddcb8464f77817cb3a8a2e8ec38466ca3f1af0c89a4dc8fd9b75cfcaeca9",
+      "src/vqe_portfolio/validation.py": "3749fc5714a5fd2891e0216d3b2823cb41658741e6540a761c68bea31cdcb926"
+    }
+  },
+  "created_utc": "2026-11-06T02:10:08.869583+00:00",
+  "git_head": "2c7070525f87bbff16fc736981409ac1ed50da5d",
+  "execution": "serial, noiseless simulator, fixed optimisation steps; no end-to-end budget enforcement",
+  "instances": [
+    {
+      "problem_id": "71e2b0e24c0858fc21bdd035cfb30c521884b910c97cea2e8993b2230a1c73b7",
+      "instance_seed": 9101,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.18761899206271038,
+          0.10356097130447911,
+          0.057375469490002384,
+          0.13150371575852804
+        ],
+        "Sigma": [
+          [
+            0.02987671201885736,
+            0.013640778066722719,
+            0.002480330985067049,
+            0.0013419966243631456
+          ],
+          [
+            0.013640778066722719,
+            0.09744016029632693,
+            -0.006783156815954985,
+            0.006873397092230809
+          ],
+          [
+            0.002480330985067049,
+            -0.006783156815954985,
+            0.03806241778510628,
+            -0.002762484309974963
+          ],
+          [
+            0.0013419966243631456,
+            0.006873397092230809,
+            -0.002762484309974963,
+            0.030910832321367463
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "binary_qubo",
+        "k": 2,
+        "reported_weighting": "equal_weight_selected",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        1,
+        0,
+        0,
+        1
+      ],
+      "reference_objective": -0.06523655746543394,
+      "reference_runtime_seconds": 0.00013790800039714668,
+      "objective_scale": 1.9342805488666517,
+      "reference_kind": "exhaustive_binary"
+    },
+    {
+      "problem_id": "57a9c4de78e9c80a99372e22495e140d5528881174709bd44db973d060d3e6eb",
+      "instance_seed": 9101,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.18761899206271038,
+          0.10356097130447911,
+          0.057375469490002384,
+          0.13150371575852804
+        ],
+        "Sigma": [
+          [
+            0.02987671201885736,
+            0.013640778066722719,
+            0.002480330985067049,
+            0.0013419966243631456
+          ],
+          [
+            0.013640778066722719,
+            0.09744016029632693,
+            -0.006783156815954985,
+            0.006873397092230809
+          ],
+          [
+            0.002480330985067049,
+            -0.006783156815954985,
+            0.03806241778510628,
+            -0.002762484309974963
+          ],
+          [
+            0.0013419966243631456,
+            0.006873397092230809,
+            -0.002762484309974963,
+            0.030910832321367463
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "fractional_simplex",
+        "k": null,
+        "reported_weighting": "simplex_weights",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        0.6018200569498097,
+        0.0,
+        0.04640293585973168,
+        0.3517770071904586
+      ],
+      "reference_objective": -0.10045678827488774,
+      "reference_runtime_seconds": 0.0011963099996137316,
+      "objective_scale": 0.5773796332480181,
+      "reference_kind": "active_set_numerical"
+    },
+    {
+      "problem_id": "e470ac64f631d5a18da666b51b4a156e2ab825451b233bf67263972d4723a137",
+      "instance_seed": 9202,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.10170898798581984,
+          0.19185261370563864,
+          0.04430930910052206,
+          0.14685016907990053
+        ],
+        "Sigma": [
+          [
+            0.09268413097753009,
+            -0.03253511888341533,
+            0.01372327734320941,
+            -0.01587879484854021
+          ],
+          [
+            -0.03253511888341533,
+            0.03596672461642039,
+            -0.0004741547555089494,
+            0.006552002315321142
+          ],
+          [
+            0.01372327734320941,
+            -0.0004741547555089494,
+            0.03861648542705743,
+            -0.003334679217192007
+          ],
+          [
+            -0.01587879484854021,
+            0.006552002315321142,
+            -0.003334679217192007,
+            0.019809895444723464
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "binary_qubo",
+        "k": 2,
+        "reported_weighting": "equal_weight_selected",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        0,
+        1,
+        0,
+        1
+      ],
+      "reference_objective": -0.0631802840183946,
+      "reference_runtime_seconds": 6.263999966904521e-05,
+      "objective_scale": 1.8666513230517587,
+      "reference_kind": "exhaustive_binary"
+    },
+    {
+      "problem_id": "fc410bc42a228dda594431b1f9c19aaedaeae8f237b18b616a98a550a47bc4d1",
+      "instance_seed": 9202,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.10170898798581984,
+          0.19185261370563864,
+          0.04430930910052206,
+          0.14685016907990053
+        ],
+        "Sigma": [
+          [
+            0.09268413097753009,
+            -0.03253511888341533,
+            0.01372327734320941,
+            -0.01587879484854021
+          ],
+          [
+            -0.03253511888341533,
+            0.03596672461642039,
+            -0.0004741547555089494,
+            0.006552002315321142
+          ],
+          [
+            0.01372327734320941,
+            -0.0004741547555089494,
+            0.03861648542705743,
+            -0.003334679217192007
+          ],
+          [
+            -0.01587879484854021,
+            0.006552002315321142,
+            -0.003334679217192007,
+            0.019809895444723464
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "fractional_simplex",
+        "k": null,
+        "reported_weighting": "simplex_weights",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        0.21912544576967397,
+        0.4599643400500152,
+        0.0,
+        0.32091021418031085
+      ],
+      "reference_objective": -0.1286883893902248,
+      "reference_runtime_seconds": 0.0007847370006857091,
+      "objective_scale": 0.562589137615759,
+      "reference_kind": "active_set_numerical"
+    },
+    {
+      "problem_id": "7bbaf81f43e1da2ec6f7eb5fef2b70f0c6cce888d145f39fdbaa0df5889b2328",
+      "instance_seed": 9101,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.1671507914735816,
+          0.056126884369538124,
+          0.07897281142151817,
+          0.09029638158498399,
+          0.04242763626156178,
+          0.17749320350924438
+        ],
+        "Sigma": [
+          [
+            0.06508881189683033,
+            -0.01432352283231582,
+            0.011208071690032047,
+            0.0006412163052933312,
+            -0.0023796356147115344,
+            0.013622186234114955
+          ],
+          [
+            -0.01432352283231582,
+            0.05543500674518804,
+            -0.00988771272766106,
+            -0.001206778995767669,
+            0.00315010201035102,
+            -0.012880629901459453
+          ],
+          [
+            0.011208071690032047,
+            -0.00988771272766106,
+            0.06863328490290534,
+            -0.00247279149186372,
+            -0.015181729970359163,
+            0.0017604706053413633
+          ],
+          [
+            0.0006412163052933312,
+            -0.001206778995767669,
+            -0.00247279149186372,
+            0.02447295972986328,
+            -0.0002504848809566198,
+            0.003064789184049386
+          ],
+          [
+            -0.0023796356147115344,
+            0.00315010201035102,
+            -0.015181729970359163,
+            -0.0002504848809566198,
+            0.05034859102418579,
+            -0.0021980815933205994
+          ],
+          [
+            0.013622186234114955,
+            -0.012880629901459453,
+            0.0017604706053413633,
+            0.003064789184049386,
+            -0.0021980815933205994,
+            0.02868292922205739
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "binary_qubo",
+        "k": 3,
+        "reported_weighting": "equal_weight_selected",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        0,
+        1,
+        0,
+        1,
+        0,
+        1
+      ],
+      "reference_objective": 0.022266155619246386,
+      "reference_runtime_seconds": 0.00016538300042157061,
+      "objective_scale": 3.0032778670323252,
+      "reference_kind": "exhaustive_binary"
+    },
+    {
+      "problem_id": "b6038e29ad8f90abde40dbe3296267d0106344b1e285224fbdba07d777eb48e2",
+      "instance_seed": 9101,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.1671507914735816,
+          0.056126884369538124,
+          0.07897281142151817,
+          0.09029638158498399,
+          0.04242763626156178,
+          0.17749320350924438
+        ],
+        "Sigma": [
+          [
+            0.06508881189683033,
+            -0.01432352283231582,
+            0.011208071690032047,
+            0.0006412163052933312,
+            -0.0023796356147115344,
+            0.013622186234114955
+          ],
+          [
+            -0.01432352283231582,
+            0.05543500674518804,
+            -0.00988771272766106,
+            -0.001206778995767669,
+            0.00315010201035102,
+            -0.012880629901459453
+          ],
+          [
+            0.011208071690032047,
+            -0.00988771272766106,
+            0.06863328490290534,
+            -0.00247279149186372,
+            -0.015181729970359163,
+            0.0017604706053413633
+          ],
+          [
+            0.0006412163052933312,
+            -0.001206778995767669,
+            -0.00247279149186372,
+            0.02447295972986328,
+            -0.0002504848809566198,
+            0.003064789184049386
+          ],
+          [
+            -0.0023796356147115344,
+            0.00315010201035102,
+            -0.015181729970359163,
+            -0.0002504848809566198,
+            0.05034859102418579,
+            -0.0021980815933205994
+          ],
+          [
+            0.013622186234114955,
+            -0.012880629901459453,
+            0.0017604706053413633,
+            0.003064789184049386,
+            -0.0021980815933205994,
+            0.02868292922205739
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "fractional_simplex",
+        "k": null,
+        "reported_weighting": "simplex_weights",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        0.13441481996886462,
+        0.1710693247278588,
+        0.03776918804059776,
+        0.123793619886092,
+        0.00040455840914839465,
+        0.5325484889674384
+      ],
+      "reference_objective": -0.09774165674621024,
+      "reference_runtime_seconds": 0.0038454710002042702,
+      "objective_scale": 0.45202634312086576,
+      "reference_kind": "active_set_numerical"
+    },
+    {
+      "problem_id": "94ff36f8f138d110a8335bb156a14f165e7110ebe33f1283d76d956df4b3a059",
+      "instance_seed": 9202,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.08927058802463135,
+          0.1696823392245021,
+          0.1581303437886738,
+          0.14130005488207695,
+          0.08800349320181516,
+          0.10323209013411869
+        ],
+        "Sigma": [
+          [
+            0.03402339894773372,
+            -0.0003296090657678364,
+            0.011486392833543677,
+            0.0007950930627893089,
+            -0.005679296125495934,
+            0.019917750175241576
+          ],
+          [
+            -0.0003296090657678364,
+            0.059164401580942355,
+            0.0031222990451129327,
+            -0.0044021576177603145,
+            -4.6609138680387575e-05,
+            0.0017400878231534113
+          ],
+          [
+            0.011486392833543677,
+            0.0031222990451129327,
+            0.050971337404604966,
+            -0.0009430989468155049,
+            -0.00696746914042724,
+            0.021866561277724437
+          ],
+          [
+            0.0007950930627893089,
+            -0.0044021576177603145,
+            -0.0009430989468155049,
+            0.051427894565096055,
+            0.0006157306308955625,
+            -6.467716787889052e-05
+          ],
+          [
+            -0.005679296125495934,
+            -4.6609138680387575e-05,
+            -0.00696746914042724,
+            0.0006157306308955625,
+            0.02052925994523075,
+            -0.011358103041250343
+          ],
+          [
+            0.019917750175241576,
+            0.0017400878231534113,
+            0.021866561277724437,
+            -6.467716787889052e-05,
+            -0.011358103041250343,
+            0.0577527342678445
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "binary_qubo",
+        "k": 3,
+        "reported_weighting": "equal_weight_selected",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        0,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "reference_objective": 0.045921376136383696,
+      "reference_runtime_seconds": 0.00031430000035470584,
+      "objective_scale": 2.6389654745874314,
+      "reference_kind": "exhaustive_binary"
+    },
+    {
+      "problem_id": "41decef98542c5002fbccab4cb991fa651aee32a3f4d4e57d07f298e1eb52c54",
+      "instance_seed": 9202,
+      "snapshot": {
+        "schema_version": 1,
+        "mu": [
+          0.08927058802463135,
+          0.1696823392245021,
+          0.1581303437886738,
+          0.14130005488207695,
+          0.08800349320181516,
+          0.10323209013411869
+        ],
+        "Sigma": [
+          [
+            0.03402339894773372,
+            -0.0003296090657678364,
+            0.011486392833543677,
+            0.0007950930627893089,
+            -0.005679296125495934,
+            0.019917750175241576
+          ],
+          [
+            -0.0003296090657678364,
+            0.059164401580942355,
+            0.0031222990451129327,
+            -0.0044021576177603145,
+            -4.6609138680387575e-05,
+            0.0017400878231534113
+          ],
+          [
+            0.011486392833543677,
+            0.0031222990451129327,
+            0.050971337404604966,
+            -0.0009430989468155049,
+            -0.00696746914042724,
+            0.021866561277724437
+          ],
+          [
+            0.0007950930627893089,
+            -0.0044021576177603145,
+            -0.0009430989468155049,
+            0.051427894565096055,
+            0.0006157306308955625,
+            -6.467716787889052e-05
+          ],
+          [
+            -0.005679296125495934,
+            -4.6609138680387575e-05,
+            -0.00696746914042724,
+            0.0006157306308955625,
+            0.02052925994523075,
+            -0.011358103041250343
+          ],
+          [
+            0.019917750175241576,
+            0.0017400878231534113,
+            0.021866561277724437,
+            -6.467716787889052e-05,
+            -0.011358103041250343,
+            0.0577527342678445
+          ]
+        ],
+        "lam": 4.0,
+        "objective_family": "fractional_simplex",
+        "k": null,
+        "reported_weighting": "simplex_weights",
+        "simplex_tolerance": 1e-08
+      },
+      "reference_candidate": [
+        0.04114820290216584,
+        0.2286437810278705,
+        0.23777094797946183,
+        0.21111020706946446,
+        0.25459071102256864,
+        0.0267361499984686
+      ],
+      "reference_objective": -0.09892615761890078,
+      "reference_runtime_seconds": 0.0035934080005972646,
+      "objective_scale": 0.4063399455482715,
+      "reference_kind": "active_set_numerical"
+    }
+  ]
+}

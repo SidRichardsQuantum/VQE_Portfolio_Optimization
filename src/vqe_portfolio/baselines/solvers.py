@@ -1,6 +1,6 @@
 """Classical portfolio solvers with explicit constraints and solver metadata.
 
-Swap search, simulated annealing, and tabu search need only NumPy. Optional
+Swap search, annealing, tabu, memetic GA, ILS, GRASP, VNS, and PGD need only NumPy. Optional
 solvers are imported only when called. Install ``.[classical]`` for OSQP/CVXPY
 and SciPy's HiGHS MILP interface, plus PySCIPOpt's quadratic integer solver.
 """
@@ -514,4 +514,521 @@ def tabu_search_binary_baseline(
         best_obj,
         "trivial" if k == 0 or k == len(mu) else status,
         message=f"seed={seed}; restarts={restarts}; max_iterations={max_iterations}; tabu_tenure={tabu_tenure}",
+    )
+
+
+class _BinaryLocalSearch:
+    """Shared swap refinement and independently scored, copied incumbents."""
+
+    def __init__(self, mu, Sigma, lam, k, max_swaps, callback):
+        self.mu, self.Sigma = _problem(mu, Sigma, lam, k)
+        _positive_integer("max_swaps", max_swaps)
+        self.lam, self.Q = lam, lam * self.Sigma
+        self.max_swaps, self.callback = max_swaps, callback
+        self.best, self.best_obj = None, np.inf
+
+    def consider(self, x, source, **details):
+        score = _objective(x, self.mu, self.Sigma, self.lam)
+        if score < self.best_obj:
+            self.best, self.best_obj = x.copy(), score
+            if self.callback is not None:
+                self.callback(self.best.copy(), {"source": source, **details})
+        return score
+
+    def refine(self, x, source, **details):
+        x = x.copy()
+        self.consider(x, source, stage="start", **details)
+        for _ in range(self.max_swaps):
+            inside, outside = np.flatnonzero(x), np.flatnonzero(1 - x)
+            if not len(inside) or not len(outside):
+                break
+            delta = _swap_deltas(self.Q, 2 * self.Q @ x - self.mu, inside, outside)
+            a, b = np.unravel_index(np.argmin(delta), delta.shape)
+            if delta[a, b] >= -1e-12:
+                break
+            x[inside[a]], x[outside[b]] = 0, 1
+            self.consider(x, source, stage="swap", **details)
+        return x
+
+    def result(self, status, message):
+        return ClassicalResult(self.best.copy(), self.best_obj, status, message=message)
+
+
+def relaxation_rounding_binary_baseline(
+    mu,
+    Sigma,
+    lam,
+    k,
+    *,
+    max_swaps=1000,
+    qp_max_iter=100000,
+    candidate_callback=None,
+) -> ClassicalResult:
+    """Convex box relaxation, deterministic top-K rounding, then swap refinement.
+
+    Solve the original quadratic objective on 0 <= z <= 1, sum(z) == K using
+    CVXPY/OSQP. This retains quadratic diagonal terms and the binary track's raw
+    selection scale. A PSD covariance is required. Round the largest K entries
+    (asset-index order for exact ties), then perform up to ``max_swaps`` improving
+    exchanges. Only complete binary incumbents are published as copied arrays.
+
+    The numerical relaxation status and recomputed objective are diagnostic
+    notes, not a certified bound. ``rounded_and_refined`` is a heuristic status,
+    not integer optimality. Bad or missing relaxation output is returned visibly
+    without substituting another solver. Native solver exceptions propagate.
+    """
+    search = _BinaryLocalSearch(mu, Sigma, lam, k, max_swaps, candidate_callback)
+    _positive_integer("qp_max_iter", qp_max_iter)
+    try:
+        import cvxpy as cp
+    except ImportError as exc:
+        raise ImportError(
+            "Install vqe-portfolio[classical] or vqe-portfolio[markowitz] for QP rounding."
+        ) from exc
+
+    z = cp.Variable(len(search.mu))
+    relaxation = cp.Problem(
+        cp.Minimize(lam * cp.quad_form(z, search.Sigma) - search.mu @ z),
+        [z >= 0, z <= 1, cp.sum(z) == k],
+    )
+    if not relaxation.is_dcp():
+        raise ValueError("The QP relaxation requires a PSD covariance.")
+    if k == 0 or k == len(search.mu):
+        x = np.zeros(len(search.mu), dtype=int)
+        x[:k] = 1
+        search.consider(x, "qp-round", stage="trivial")
+        return search.result(
+            "trivial", "Single feasible selection; no relaxation solve required"
+        )
+
+    relaxation.solve(
+        solver="OSQP",
+        eps_abs=1e-9,
+        eps_rel=1e-9,
+        max_iter=int(qp_max_iter),
+        warm_start=False,
+    )
+    native_status = str(relaxation.status)
+    notes = f"relaxation_status={native_status}; qp_max_iter={qp_max_iter}; max_swaps={max_swaps}; no certified lower bound"
+    if z.value is None:
+        return ClassicalResult(None, None, native_status, message=notes)
+    raw = np.asarray(z.value)
+    if (
+        raw.shape != search.mu.shape
+        or np.iscomplexobj(raw)
+        or not np.all(np.isfinite(raw))
+        or raw.min() < -1e-8
+        or raw.max() > 1 + 1e-8
+        or abs(raw.sum() - k) > 1e-8
+    ):
+        return ClassicalResult(None, None, "invalid_relaxation", message=notes)
+    relaxed_objective = _objective(raw, search.mu, search.Sigma, lam)
+    if not np.isfinite(relaxed_objective):
+        return ClassicalResult(None, None, "invalid_relaxation", message=notes)
+    x = np.zeros(len(raw), dtype=int)
+    x[np.argsort(-np.clip(raw, 0, 1), kind="stable")[:k]] = 1
+    search.refine(x, "qp-round", relaxation_status=native_status)
+    return search.result(
+        "rounded_and_refined",
+        f"{notes}; relaxation_objective={relaxed_objective}",
+    )
+
+
+def _perturb_selection(x, rng, swaps):
+    """Exchange distinct assets simultaneously, clamping to the available sets."""
+    x = x.copy()
+    inside, outside = np.flatnonzero(x), np.flatnonzero(1 - x)
+    count = min(swaps, len(inside), len(outside))
+    x[rng.choice(inside, count, replace=False)] = 0
+    x[rng.choice(outside, count, replace=False)] = 1
+    return x
+
+
+def _subset_crossover(first, second, rng):
+    """Keep common assets and fill the remaining cardinality from the union."""
+    child = first & second
+    pool = np.flatnonzero(first ^ second)
+    count = int(first.sum() - child.sum())
+    child[rng.choice(pool, count, replace=False)] = 1
+    return child
+
+
+def memetic_genetic_binary_baseline(
+    mu,
+    Sigma,
+    lam,
+    k,
+    *,
+    seed=0,
+    restarts=16,
+    population_size=16,
+    generations=25,
+    mutation_rate=0.2,
+    tournament_size=3,
+    max_swaps=1000,
+    candidate_callback=None,
+) -> ClassicalResult:
+    """Exact-K genetic search with swap refinement, elitism, and immigration.
+
+    Each independent population starts with top returns, diagonal costs, then
+    random subsets. Every initial member and offspring receives up to
+    ``max_swaps`` best-improvement swaps. Parents are selected by tournaments
+    sampled with replacement. Crossover retains common assets and samples the
+    remaining assets from the parents' union. Mutation performs one exchange
+    with probability ``mutation_rate``. Each generation keeps its best member
+    and, for population sizes >= 3, includes one random immigrant.
+
+    Duplicates are allowed so populations can exceed the feasible-space size
+    without retry loops. Only improving feasible incumbents are published as
+    copies. Returns the best portfolio across populations; no optimality bound.
+    """
+    search = _BinaryLocalSearch(mu, Sigma, lam, k, max_swaps, candidate_callback)
+    for name, value in [
+        ("restarts", restarts),
+        ("population_size", population_size),
+        ("generations", generations),
+        ("tournament_size", tournament_size),
+    ]:
+        _positive_integer(name, value)
+    if population_size < 2:
+        raise ValueError("population_size must be at least two.")
+    if not np.isfinite(mutation_rate) or not 0 <= mutation_rate <= 1:
+        raise ValueError("mutation_rate must be finite and in [0, 1].")
+    rng = np.random.default_rng(seed)
+    trivial = k == 0 or k == len(search.mu)
+    for restart in range(restarts):
+        population, scores = [], []
+        for member, x in enumerate(
+            _search_starts(search.mu, search.Q, k, rng, population_size)
+        ):
+            x = search.refine(
+                x, "memetic", restart=restart, generation=0, member=member
+            )
+            population.append(x)
+            scores.append(search.consider(x, "memetic", restart=restart, generation=0))
+            if trivial:
+                break
+        if trivial:
+            break
+        for generation in range(1, generations + 1):
+            elite = int(np.argmin(scores))
+            offspring, next_scores = [population[elite].copy()], [scores[elite]]
+
+            def parent():
+                contestants = rng.integers(len(population), size=tournament_size)
+                return population[min(contestants, key=lambda i: scores[i])]
+
+            for member in range(1, population_size):
+                if population_size >= 3 and member == population_size - 1:
+                    child = np.zeros(len(search.mu), dtype=int)
+                    child[rng.choice(len(child), k, replace=False)] = 1
+                else:
+                    child = _subset_crossover(parent(), parent(), rng)
+                    if rng.random() < mutation_rate:
+                        child = _perturb_selection(child, rng, 1)
+                child = search.refine(
+                    child,
+                    "memetic",
+                    restart=restart,
+                    generation=generation,
+                    member=member,
+                )
+                offspring.append(child)
+                next_scores.append(
+                    search.consider(
+                        child, "memetic", restart=restart, generation=generation
+                    )
+                )
+            population, scores = offspring, next_scores
+    return search.result(
+        "trivial" if trivial else "generation_limit",
+        f"seed={seed}; restarts={restarts}; population_size={population_size}; generations={generations}; mutation_rate={mutation_rate}; tournament_size={tournament_size}; max_swaps={max_swaps}",
+    )
+
+
+def iterated_local_search_binary_baseline(
+    mu,
+    Sigma,
+    lam,
+    k,
+    *,
+    seed=0,
+    restarts=16,
+    max_iterations=100,
+    perturbation_size=2,
+    max_swaps=1000,
+    candidate_callback=None,
+) -> ClassicalResult:
+    """Perturb a locally refined portfolio, refine again, and accept improvements.
+
+    Starts are top returns, diagonal costs, then seeded random subsets. Each
+    iteration simultaneously replaces ``perturbation_size`` distinct selected
+    assets with unselected assets, clamped to min(K, n-K), then performs up to
+    ``max_swaps`` improving swaps. Strictly better refined portfolios replace
+    the current state; rejected perturbations never overwrite the incumbent.
+    Publishes improving feasible copies and returns the best across restarts.
+    Iteration limits imply no global optimality guarantee.
+    """
+    search = _BinaryLocalSearch(mu, Sigma, lam, k, max_swaps, candidate_callback)
+    for name, value in [
+        ("restarts", restarts),
+        ("max_iterations", max_iterations),
+        ("perturbation_size", perturbation_size),
+    ]:
+        _positive_integer(name, value)
+    rng = np.random.default_rng(seed)
+    trivial = k == 0 or k == len(search.mu)
+    for restart, x in enumerate(_search_starts(search.mu, search.Q, k, rng, restarts)):
+        current = search.refine(x, "ils", restart=restart, iteration=0)
+        current_obj = search.consider(current, "ils", restart=restart, iteration=0)
+        if trivial:
+            break
+        for iteration in range(1, max_iterations + 1):
+            x = _perturb_selection(current, rng, perturbation_size)
+            refined = search.refine(x, "ils", restart=restart, iteration=iteration)
+            score = search.consider(
+                refined, "ils", restart=restart, iteration=iteration
+            )
+            if score < current_obj - 1e-12:
+                current, current_obj = refined, score
+    return search.result(
+        "trivial" if trivial else "iteration_limit",
+        f"seed={seed}; restarts={restarts}; max_iterations={max_iterations}; perturbation_size={perturbation_size}; max_swaps={max_swaps}",
+    )
+
+
+def grasp_binary_baseline(
+    mu,
+    Sigma,
+    lam,
+    k,
+    *,
+    seed=0,
+    restarts=16,
+    rcl_alpha=0.3,
+    max_swaps=1000,
+    candidate_callback=None,
+) -> ClassicalResult:
+    """Greedy randomised construction followed by best-improvement swaps.
+
+    Build each exact-K subset from empty using the full objective's marginal
+    insertion costs. Sample uniformly from the restricted candidate list of
+    costs <= min_cost + rcl_alpha * (max_cost - min_cost). Alpha zero chooses
+    minimum-cost assets (random ties); alpha one permits every remaining asset.
+    Construction never publishes incomplete selections. Refine each completed
+    subset with up to ``max_swaps`` swaps and retain the best across restarts.
+    Published incumbents are copied and feasible; no global bound is implied.
+    """
+    search = _BinaryLocalSearch(mu, Sigma, lam, k, max_swaps, candidate_callback)
+    _positive_integer("restarts", restarts)
+    if not np.isfinite(rcl_alpha) or not 0 <= rcl_alpha <= 1:
+        raise ValueError("rcl_alpha must be finite and in [0, 1].")
+    rng = np.random.default_rng(seed)
+    trivial = k == 0 or k == len(search.mu)
+    for restart in range(restarts):
+        x = np.zeros(len(search.mu), dtype=int)
+        gradient = -search.mu.copy()
+        if trivial:
+            x[:k] = 1
+        for _ in range(0 if trivial else k):
+            remaining = np.flatnonzero(1 - x)
+            costs = gradient[remaining] + np.diag(search.Q)[remaining]
+            threshold = (
+                costs.max()
+                if rcl_alpha == 1
+                else costs.min() + rcl_alpha * (costs.max() - costs.min())
+            )
+            chosen = rng.choice(remaining[costs <= threshold])
+            x[chosen] = 1
+            gradient += 2 * search.Q[:, chosen]
+        search.refine(x, "grasp", restart=restart)
+        if trivial:
+            break
+    return search.result(
+        "trivial" if trivial else "restart_limit",
+        f"seed={seed}; restarts={restarts}; rcl_alpha={rcl_alpha}; max_swaps={max_swaps}",
+    )
+
+
+def variable_neighborhood_search_binary_baseline(
+    mu,
+    Sigma,
+    lam,
+    k,
+    *,
+    seed=0,
+    restarts=16,
+    max_iterations=100,
+    max_neighborhood=3,
+    max_swaps=1000,
+    candidate_callback=None,
+) -> ClassicalResult:
+    """Basic VNS: shake increasing exact-exchange neighbourhoods and refine.
+
+    Starts match swap search: top returns, diagonal costs, then random subsets.
+    At neighbourhood q, simultaneously exchange q distinct selected assets for
+    q distinct unselected assets, then apply best-improvement single swaps.
+    Strict improvement replaces the current portfolio and resets q to one;
+    otherwise advance q, wrapping to one after min(max_neighborhood, K, n-K).
+    Each restart gets at most max_iterations shake-and-refine attempts.
+
+    Only improving feasible incumbents are published as independent copies.
+    Neither the iteration cap nor local refinement implies global optimality.
+    """
+    search = _BinaryLocalSearch(mu, Sigma, lam, k, max_swaps, candidate_callback)
+    for name, value in [
+        ("restarts", restarts),
+        ("max_iterations", max_iterations),
+        ("max_neighborhood", max_neighborhood),
+    ]:
+        _positive_integer(name, value)
+    rng = np.random.default_rng(seed)
+    trivial = k == 0 or k == len(search.mu)
+    limit = min(max_neighborhood, k, len(search.mu) - k)
+    for restart, x in enumerate(_search_starts(search.mu, search.Q, k, rng, restarts)):
+        current = search.refine(x, "vns", restart=restart, iteration=0, neighborhood=0)
+        current_obj = search.consider(current, "vns", restart=restart, iteration=0)
+        if trivial:
+            break
+        neighborhood = 1
+        for iteration in range(1, max_iterations + 1):
+            shaken = _perturb_selection(current, rng, neighborhood)
+            refined = search.refine(
+                shaken,
+                "vns",
+                restart=restart,
+                iteration=iteration,
+                neighborhood=neighborhood,
+            )
+            score = search.consider(
+                refined, "vns", restart=restart, iteration=iteration
+            )
+            if score < current_obj - 1e-12:
+                current, current_obj, neighborhood = refined, score, 1
+            else:
+                neighborhood = neighborhood + 1 if neighborhood < limit else 1
+    return search.result(
+        "trivial" if trivial else "iteration_limit",
+        f"seed={seed}; restarts={restarts}; max_iterations={max_iterations}; max_neighborhood={max_neighborhood}; resolved_max_neighborhood={limit}; max_swaps={max_swaps}",
+    )
+
+
+def _project_simplex(vector):
+    """Euclidean projection onto nonnegative weights summing to one."""
+    # Translation leaves the projection unchanged and avoids losing the unit
+    # budget when all entries share a large constant offset.
+    shifted = vector - np.max(vector)
+    ordered = np.sort(shifted)[::-1]
+    cumulative = np.cumsum(ordered) - 1
+    sizes = np.arange(1, len(vector) + 1)
+    rho = np.flatnonzero(ordered - cumulative / sizes > 0)[-1]
+    weights = np.maximum(shifted - cumulative[rho] / (rho + 1), 0)
+    weights /= weights.sum()
+    return weights
+
+
+def projected_gradient_descent_baseline(
+    mu,
+    Sigma,
+    lam,
+    *,
+    max_iterations=10000,
+    tolerance=1e-8,
+    stepsize=None,
+    candidate_callback=None,
+) -> ClassicalResult:
+    """NumPy projected gradient descent for the long-only convex simplex QP.
+
+    Start at equal weights. Use 1/L for L=2*lam*lambda_max(Sigma), unless an
+    initial stepsize is supplied, and backtrack at most 60 times per iteration
+    until quadratic majorisation and numerical non-increase hold. Project each
+    trial onto the simplex. Zero-curvature objectives use their exact linear
+    simplex solution. Covariance eigenvalues below -1e-10 are rejected.
+
+    Stop when the returned best portfolio's numerical first-order gap is within
+    tolerance. The gap is grad(f)@w - min(grad(f)), not a certified bound. Keep
+    and publish only strictly improving feasible copies, including the initial
+    portfolio. Iteration and line-search limits can retain an incumbent.
+    """
+    mu, Sigma = _problem(mu, Sigma, lam)
+    _positive_integer("max_iterations", max_iterations)
+    if not np.isfinite(tolerance) or tolerance <= 0:
+        raise ValueError("tolerance must be finite and positive.")
+    if stepsize is not None and (not np.isfinite(stepsize) or stepsize <= 0):
+        raise ValueError("stepsize must be finite and positive.")
+    eigenvalues = np.linalg.eigvalsh(Sigma)
+    if eigenvalues[0] < -1e-10:
+        raise ValueError("Projected gradient descent requires a PSD covariance.")
+    Q = lam * Sigma
+    lipschitz = 2 * lam * max(0.0, float(eigenvalues[-1]))
+    step = (
+        float(stepsize)
+        if stepsize is not None
+        else (1 / lipschitz if lipschitz > 0 else 1.0)
+    )
+    current = np.full(len(mu), 1 / len(mu))
+    current /= current.sum()
+    best, best_obj = None, np.inf
+
+    def consider(w, iteration):
+        nonlocal best, best_obj
+        score = _objective(w, mu, Sigma, lam)
+        if score < best_obj:
+            best, best_obj = w.copy(), score
+            if candidate_callback is not None:
+                candidate_callback(
+                    best.copy(), {"source": "pgd", "iteration": iteration}
+                )
+        return score
+
+    objective = consider(current, 0)
+    if lipschitz == 0:
+        vertex = np.zeros(len(mu))
+        vertex[np.argmax(mu)] = 1
+        consider(vertex, 1)
+        status, iteration = "converged", 1
+    else:
+        status = "iteration_limit"
+        for iteration in range(max_iterations + 1):
+            gradient = 2 * Q @ current - mu
+            gap = float((gradient - gradient.min()) @ current)
+            if gap <= tolerance:
+                status = "converged"
+                break
+            if iteration == max_iterations:
+                break
+            for _ in range(60):
+                with np.errstate(over="ignore", invalid="ignore"):
+                    trial = current - step * gradient
+                if np.all(np.isfinite(trial)):
+                    candidate = _project_simplex(trial)
+                    candidate_obj = _objective(candidate, mu, Sigma, lam)
+                    delta = candidate - current
+                    model = objective + gradient @ delta + (delta @ delta) / (2 * step)
+                    slack = 1e-14 * max(1.0, abs(objective))
+                    if (
+                        np.isfinite(candidate_obj)
+                        and candidate_obj <= min(model, objective) + slack
+                    ):
+                        break
+                step *= 0.5
+                if step == 0:
+                    break
+            else:
+                status = "line_search_limit"
+                break
+            if step == 0:
+                status = "line_search_limit"
+                break
+            current, objective = candidate, candidate_obj
+            consider(current, iteration + 1)
+    gradient = 2 * Q @ best - mu
+    best_gap = float((gradient - gradient.min()) @ best)
+    if status == "converged" and best_gap > tolerance:
+        status = "numerical_limit"
+    return ClassicalResult(
+        best,
+        best_obj,
+        status,
+        message=f"iterations={iteration}; max_iterations={max_iterations}; tolerance={tolerance}; initial_stepsize={stepsize}; final_stepsize={step}; first_order_gap={best_gap}; no certified bound",
     )

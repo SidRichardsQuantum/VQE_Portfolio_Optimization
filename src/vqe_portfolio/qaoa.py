@@ -110,6 +110,11 @@ def xy_mixer_edges(n: int, topology="ring") -> tuple[tuple[int, int], ...]:
 
 
 def _apply_xy_mixer(beta: float, n: int, topology="ring") -> None:
+    """Ordered XX/YY exchange gates preserving ideal Hamming weight exactly.
+
+    Overlapping edges need not commute: this is an alternating-operator mixer,
+    not generally the exact exponential of their summed Hamiltonian.
+    """
     for i, j in xy_mixer_edges(n, topology):
         qml.IsingXX(2.0 * beta, wires=[i, j])
         qml.IsingYY(2.0 * beta, wires=[i, j])

@@ -226,7 +226,7 @@ def test_search_adapters_are_seeded_and_independently_evaluated():
         asset_counts=(4,),
         instance_seeds=(11,),
         solver_seeds=(0, 1),
-        methods=("anneal", "tabu"),
+        methods=("anneal", "tabu", "memetic", "ils", "grasp", "vns"),
         local_restarts=2,
     )
     instances = v.prepare_instances(config)
@@ -234,8 +234,8 @@ def test_search_adapters_are_seeded_and_independently_evaluated():
         v.evaluate_trial(key, instance, method, seed, config)
         for key, instance, method, seed in v.trial_plan(instances, config)
     ]
-    assert len(rows) == 4
-    assert [r["seed"] for r in rows] == [0, 1, 0, 1]
+    assert len(rows) == 12
+    assert [r["seed"] for r in rows] == [0, 1] * 6
     assert all(r["feasible"] and not r["error"] for r in rows)
     assert all(r["normalised_gap"] >= -1e-8 for r in rows)
     assert all(r["lower_bound"] is None and r["mip_gap"] is None for r in rows)
@@ -259,6 +259,84 @@ def test_scip_adapter_is_run_once_per_instance_with_bound_metadata():
     assert row["objective"] == pytest.approx(instance["reference_objective"])
     assert row["lower_bound"] == pytest.approx(row["objective"], abs=1e-7)
     assert row["mip_gap"] == pytest.approx(0, abs=1e-7)
+
+
+def test_qp_rounding_adapter_runs_once_per_instance_and_keeps_binary_objective():
+    pytest.importorskip("cvxpy")
+    pytest.importorskip("osqp")
+    config = v.ValidationConfig(
+        asset_counts=(4,),
+        instance_seeds=(11,),
+        solver_seeds=(0, 1),
+        methods=("qp-round",),
+    )
+    plan = list(v.trial_plan(v.prepare_instances(config), config))
+    assert len(plan) == 1
+    key, instance, method, seed = plan[0]
+    assert seed is None
+    row = v.evaluate_trial(key, instance, method, seed, config)
+    assert row["feasible"] and not row["error"]
+    assert row["solver_status"] == "rounded_and_refined"
+    assert "relaxation_status=optimal" in row["solver_message"]
+    assert row["objective_family"] == "binary_qubo"
+    assert row["normalised_gap"] >= -1e-8
+    assert row["lower_bound"] is None and row["mip_gap"] is None
+
+
+def test_pgd_adapter_runs_once_on_the_fractional_track():
+    config = v.ValidationConfig(
+        asset_counts=(4,),
+        instance_seeds=(11,),
+        solver_seeds=(0, 1),
+        methods=("pgd",),
+    )
+    plan = list(v.trial_plan(v.prepare_instances(config), config))
+    assert len(plan) == 1
+    key, instance, method, seed = plan[0]
+    assert seed is None
+    row = v.evaluate_trial(key, instance, method, seed, config)
+    assert row["feasible"] and not row["error"]
+    assert row["objective_family"] == "fractional_simplex"
+    assert row["objective"] == pytest.approx(instance["reference_objective"], abs=1e-7)
+    assert "first_order_gap=" in row["solver_message"]
+    assert row["lower_bound"] is None and row["mip_gap"] is None
+
+
+def test_allocator_method_aliases_return_the_same_candidate_without_duplicate_defaults():
+    config = v.ValidationConfig(
+        asset_counts=(3,),
+        instance_seeds=(919,),
+        solver_seeds=(0,),
+        steps=2,
+        shots=16,
+        methods=("variational-allocator",),
+    )
+    plan = list(v.trial_plan(v.prepare_instances(config), config))
+    assert len(plan) == 1
+    _, instance, _, _ = plan[0]
+    problem = PortfolioProblem.from_dict(instance["snapshot"])
+    canonical, _ = v.solve(problem, "variational-allocator", 0, config)
+    legacy, _ = v.solve(problem, "fractional-vqe", 0, config)
+    np.testing.assert_array_equal(canonical, legacy)
+    assert problem.evaluate(canonical).feasible
+    assert "variational-allocator" in v.ValidationConfig().methods
+    assert "fractional-vqe" not in v.ValidationConfig().methods
+
+
+def test_top_return_adapter_runs_once_and_is_independently_scored():
+    config = v.ValidationConfig(
+        asset_counts=(4,),
+        instance_seeds=(11,),
+        solver_seeds=(0, 1),
+        methods=("top-return",),
+    )
+    plan = list(v.trial_plan(v.prepare_instances(config), config))
+    assert len(plan) == 1
+    key, instance, method, seed = plan[0]
+    assert seed is None
+    row = v.evaluate_trial(key, instance, method, seed, config)
+    assert row["feasible"] and not row["error"]
+    assert row["normalised_gap"] >= -1e-8
 
 
 def test_checkpoint_resume_and_changed_config_refusal(tmp_path, monkeypatch):

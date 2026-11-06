@@ -31,6 +31,35 @@ def test_cli_help():
     assert "usage" in p.stdout.lower()
 
 
+def test_allocator_cli_uses_the_descriptive_name_and_simplex_weights():
+    p = _run(
+        [
+            "allocator",
+            "--mu",
+            "0.1,0.2",
+            "--sigma",
+            "0.1,0;0,0.2",
+            "--lam",
+            "0.5",
+            "--steps",
+            "2",
+            "--seed",
+            "0",
+        ]
+    )
+    assert p.returncode == 0, p.stderr
+    payload = json.loads(p.stdout)
+    assert payload["method"] == "variational-allocator"
+    assert abs(sum(payload["result"]["weights"]) - 1) < 1e-12
+
+
+def test_allocator_help_describes_the_model_and_keeps_old_command_aliases():
+    for command in ["allocator", "fractional", "allocator-data", "fractional-data"]:
+        p = _run([command, "--help"])
+        assert p.returncode == 0
+    assert "variational quantum allocator" in _run(["--help"]).stdout.lower()
+
+
 def test_cli_binary_smoke():
     p = _run(
         [

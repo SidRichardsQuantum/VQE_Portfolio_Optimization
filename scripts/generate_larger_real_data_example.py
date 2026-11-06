@@ -93,7 +93,12 @@ def _plot_fractional_weights(
         row
         for row in rows
         if row["objective_family"] == "fractional_simplex"
-        and row["method"] in {"Classical exact Markowitz", "Fractional VQE"}
+        and row["method"]
+        in {
+            "Classical exact Markowitz",
+            "Fractional VQE",
+            "Variational quantum allocator",
+        }
     ]
     labels = [row["method"] for row in weight_rows]
     weights = []

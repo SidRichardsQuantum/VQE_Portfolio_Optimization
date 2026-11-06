@@ -23,6 +23,10 @@ METHOD_COLORS = {
     "Fractional VQE (ry)": "#e377c2",
     "Fractional VQE (ry_cz)": "#f7b6d2",
     "Fractional VQE (ry_rz_cz)": "#bcbd22",
+    "Variational quantum allocator": "#e377c2",
+    "Variational quantum allocator (ry)": "#e377c2",
+    "Variational quantum allocator (ry_cz)": "#f7b6d2",
+    "Variational quantum allocator (ry_rz_cz)": "#bcbd22",
 }
 
 

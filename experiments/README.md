@@ -1,5 +1,35 @@
 # Small-instance validation
 
+Current allocator terminology is **variational quantum allocator**. The Python
+API is `run_variational_allocator` with `VariationalAllocatorConfig`; historical
+fractional-VQE names remain aliases. New method IDs use `variational-allocator`,
+while copied historical configurations with `fractional-vqe` remain accepted.
+New default method sets include the allocator once. Historical reports below
+retain the old labels and original parameterisation.
+
+To repeat the correctness comparison after the normalisation and naming fixes:
+
+```bash
+python scripts/run_small_instance_validation.py \
+  --config experiments/allocator_validation.json \
+  --output-dir results/allocator_validation
+```
+
+This uses 4 and 6 assets, two independent instance seeds and two solver seeds,
+15 quantum optimisation steps, and 256 binary extraction samples. It includes
+the corrected top-return control, the current quantum methods, and all added
+classical comparators. Binary and fractional references remain separate. Unit
+tests cover K=0 and zero/near-zero measured mass; this study exercises normal
+instances with the corrected map. It is a descriptive validation, with no
+matched-time, scaling, statistical-significance, or quantum-advantage claim.
+
+The saved [allocator validation report](../results/allocator_validation/report.md)
+completed all 128 trials with feasible returned portfolios, no solver errors,
+and no reference contradictions. Numerical quality is reported separately;
+the allocator hit its fractional target in 2 of 8 trials. The saved manifest,
+JSON checkpoint, and CSV exports retain frozen inputs and source/environment
+provenance. Earlier study artifacts remain unchanged.
+
 Study implementations live in `vqe_portfolio.research`. The executable scripts use shared provenance, atomic checkpoint writing, and CSV exports from `vqe_portfolio.research.infrastructure`; no runner imports another runner. Classical reference and optional solver implementations live in `vqe_portfolio.baselines`, and independent candidate reporting lives in `vqe_portfolio.benchmark`.
 
 As of v0.3.0, new manifests hash package sources recursively, including subpackages, and record the active runner and installed package version. Saved results retain their original manifests and source hashes. Pre-refactor checkpoints cannot be resumed with changed source code: use the original revision/environment to resume them, or a new output directory for v0.3.0. Downstream studies can still read the frozen schema-version-1 evidence.
@@ -37,7 +67,13 @@ Change the configuration and use a new directory for sensitivity experiments. `k
 
 Version 0.3.3 also supports `anneal`, `tabu`, and `scip` in copied validation configurations and the budget runner's `--methods` selection. Annealing and tabu search run once per solver seed; SCIP runs once per validation instance and records its native status, numerical bound, and gap. New manifests include the PySCIPOpt package version. Use a fresh output directory after changing methods or upgrading; the archived pilot does not include these additions.
 
-To run without optional classical solver dependencies, remove `highs`, `osqp`, and (if added) `scip` from a copied configuration. Keep the exact references for validation. Higher step counts, circuit depths, shots, risk aversions and penalties should be separate declared sensitivity experiments, rather than tuned on the reported evaluation instances.
+Version 0.3.4 adds `memetic`, `ils`, and `grasp` to both runners. Each is a seeded NumPy-only heuristic and runs once per solver seed in validation. `local_restarts` counts independent memetic populations, ILS starts, or GRASP constructions. Algorithm-specific defaults are documented in [usage](../USAGE.md#strong-classical-baselines); the budget runner uses the public helpers' defaults, including generation, perturbation, and construction settings. These methods preserve the existing exact-K objective and are absent from the archived pilot.
+
+`qp-round` is a further deterministic binary heuristic: solve the box relaxation with sum(z)=K using CVXPY/OSQP, round to K assets, then refine with swaps. It runs once per validation instance and reports no certified bound or MIP gap. The helper message, comparison CSV notes, and validation `solver_message` retain numerical relaxation diagnostics. It also supports budgeted execution, publishing improving binary incumbents after the relaxation returns. Install `.[classical]` or `.[markowitz]`; no new dependencies are introduced. It is absent from the archived experiments.
+
+NumPy-only `vns` and `pgd` are also available. VNS is an exact-K binary heuristic run per solver seed, with `local_restarts` controlling its starts. PGD is a deterministic fractional simplex solver run once per validation instance; its first-order stopping diagnostic is saved in `solver_message`. Both publish improving feasible incumbents in budgeted runs, use their documented public defaults, and report no certified bound or MIP gap. Keep their objective tracks separate and use a fresh output directory. Neither is included in the archived pilot.
+
+To run without optional classical solver dependencies, remove `highs`, `osqp`, and (if added) `scip` and `qp-round` from a copied configuration. Keep the exact references for validation. Higher step counts, circuit depths, shots, risk aversions and penalties should be separate declared sensitivity experiments, rather than tuned on the reported evaluation instances.
 
 ## Outputs and interpretation
 

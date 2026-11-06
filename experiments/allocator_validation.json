@@ -1,0 +1,21 @@
+{
+  "asset_counts": [4, 6],
+  "instance_seeds": [9101, 9202],
+  "solver_seeds": [0, 1],
+  "k_fractions": [0.5],
+  "methods": [
+    "exact-binary", "top-return", "highs", "scip", "qp-round", "swap",
+    "anneal", "tabu", "memetic", "ils", "grasp", "vns", "random-k",
+    "binary-vqe", "qaoa-x", "qaoa-xy",
+    "exact-fractional", "osqp", "pgd", "variational-allocator"
+  ],
+  "steps": 15,
+  "shots": 256,
+  "lam": 4.0,
+  "alpha": 5.0,
+  "binary_depth": 2,
+  "qaoa_p": 1,
+  "target_gap": 0.001,
+  "solver_time_limit": 10.0,
+  "local_restarts": 2
+}

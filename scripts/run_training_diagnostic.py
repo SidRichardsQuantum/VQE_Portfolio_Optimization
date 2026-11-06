@@ -103,7 +103,7 @@ def export_results(output, trials, expected):
         "",
         "pairs.csv also reports P(target | feasible), expected penalised energy before/after, and uniform-bitstring/uniform-feasible single-draw reference probabilities. Conditional probabilities average per-run ratios, rather than ratios of pooled means. A circuit can improve feasibility or its penalised training energy while making target portfolios less likely.",
         "",
-        "The checkpoint pairs.json retains initial/final parameters, full probability vectors in computational-basis order (wire 0 is the most significant bit), target basis indices, and actual solver configurations. The configured shots_sample value is inherited for traceability but is not used by this diagnostic. Sampling and depth/budget sweeps are outside this experiment. Fractional VQE returns an allocation rather than a sampled binary portfolio and is outside this diagnostic.",
+        "The checkpoint pairs.json retains initial/final parameters, full probability vectors in computational-basis order (wire 0 is the most significant bit), target basis indices, and actual solver configurations. The configured shots_sample value is inherited for traceability but is not used by this diagnostic. Sampling and depth/budget sweeps are outside this experiment. The variational quantum allocator returns an allocation rather than a sampled binary portfolio and is outside this diagnostic.",
         "",
         "These are exact evaluations of a noiseless simulator, not QPU measurements or evidence of computational advantage. Only three independent instances per size are used in the pilot, with three initialisation seeds each; no confidence intervals or scaling claims are made.",
         "",

@@ -9,13 +9,20 @@ import numpy as np
 
 from ..baselines import (
     convex_markowitz_baseline,
+    grasp_binary_baseline,
+    iterated_local_search_binary_baseline,
     exact_long_only_markowitz_baseline,
     exhaustive_binary_baseline,
     local_search_binary_baseline,
+    memetic_genetic_binary_baseline,
     mixed_integer_binary_baseline,
+    projected_gradient_descent_baseline,
+    relaxation_rounding_binary_baseline,
     scip_binary_baseline,
     simulated_annealing_binary_baseline,
     tabu_search_binary_baseline,
+    top_return_baseline,
+    variable_neighborhood_search_binary_baseline,
 )
 from ..benchmark import feasible_sample_rate
 from ..binary import run_binary_vqe
@@ -26,18 +33,26 @@ from ..types import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
 
 METHODS = {
     "exact-binary": ("binary_qubo", False),
+    "top-return": ("binary_qubo", False),
     "highs": ("binary_qubo", False),
     "scip": ("binary_qubo", False),
+    "qp-round": ("binary_qubo", False),
     "swap": ("binary_qubo", True),
     "anneal": ("binary_qubo", True),
     "tabu": ("binary_qubo", True),
+    "memetic": ("binary_qubo", True),
+    "ils": ("binary_qubo", True),
+    "grasp": ("binary_qubo", True),
+    "vns": ("binary_qubo", True),
     "random-k": ("binary_qubo", True),
     "binary-vqe": ("binary_qubo", True),
     "qaoa-x": ("binary_qubo", True),
     "qaoa-xy": ("binary_qubo", True),
     "exact-fractional": ("fractional_simplex", False),
     "osqp": ("fractional_simplex", False),
+    "pgd": ("fractional_simplex", False),
     "fractional-vqe": ("fractional_simplex", True),
+    "variational-allocator": ("fractional_simplex", True),
 }
 
 
@@ -47,7 +62,7 @@ class ValidationConfig:
     instance_seeds: tuple[int, ...] = (101, 202, 303)
     solver_seeds: tuple[int, ...] = (0, 1, 2)
     k_fractions: tuple[float, ...] = (0.5,)
-    methods: tuple[str, ...] = tuple(METHODS)
+    methods: tuple[str, ...] = tuple(m for m in METHODS if m != "fractional-vqe")
     steps: int = 25
     shots: int = 512
     lam: float = 4.0
@@ -186,6 +201,9 @@ def solve(problem, method, seed, config):
     if method.startswith("exact-"):
         candidate, _ = exact_reference(problem)
         return candidate, {"solver_status": "numerical_optimum"}
+    if method == "top-return":
+        candidate, _ = top_return_baseline(mu, sigma, lam, 0.0, k)
+        return candidate, {"solver_status": "heuristic"}
     if method == "random-k":
         rng = np.random.default_rng(seed)
         candidates = np.zeros((config.shots, len(mu)), dtype=int)
@@ -199,7 +217,20 @@ def solve(problem, method, seed, config):
             "solver_status": "completed",
             "sample_feasible_rate": 1.0,
         }
-    if method in {"highs", "scip", "osqp", "swap", "anneal", "tabu"}:
+    if method in {
+        "highs",
+        "scip",
+        "qp-round",
+        "osqp",
+        "swap",
+        "anneal",
+        "tabu",
+        "memetic",
+        "ils",
+        "grasp",
+        "vns",
+        "pgd",
+    }:
         if method in {"highs", "scip"}:
             solver = (
                 mixed_integer_binary_baseline
@@ -209,27 +240,38 @@ def solve(problem, method, seed, config):
             result = solver(mu, sigma, lam, k, time_limit=config.solver_time_limit)
         elif method == "osqp":
             result = convex_markowitz_baseline(mu, sigma, lam)
+        elif method == "pgd":
+            result = projected_gradient_descent_baseline(mu, sigma, lam)
+        elif method == "qp-round":
+            result = relaxation_rounding_binary_baseline(mu, sigma, lam, k)
         else:
             solver = {
                 "swap": local_search_binary_baseline,
                 "anneal": simulated_annealing_binary_baseline,
                 "tabu": tabu_search_binary_baseline,
+                "memetic": memetic_genetic_binary_baseline,
+                "ils": iterated_local_search_binary_baseline,
+                "grasp": grasp_binary_baseline,
+                "vns": variable_neighborhood_search_binary_baseline,
             }[method]
             result = solver(
                 mu, sigma, lam, k, seed=seed, restarts=config.local_restarts
             )
-        return result.candidate, {
+        diagnostics = {
             "solver_status": result.status,
             "lower_bound": result.lower_bound,
             "mip_gap": result.mip_gap,
         }
+        if method in {"qp-round", "pgd"}:
+            diagnostics["solver_message"] = result.message
+        return result.candidate, diagnostics
     common = {
         "steps": config.steps,
         "log_every": config.steps,
         "lam": lam,
         "seed": seed,
     }
-    if method == "fractional-vqe":
+    if method in {"fractional-vqe", "variational-allocator"}:
         result = run_fractional_vqe(
             mu, sigma, FractionalVQEConfig(**common, stepsize=0.3)
         )

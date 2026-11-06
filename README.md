@@ -28,7 +28,12 @@ PyPI: [https://pypi.org/project/vqe-portfolio/](https://pypi.org/project/vqe-por
 
 Website: [https://sidrichardsquantum.github.io/VQE_Portfolio_Optimization/](https://sidrichardsquantum.github.io/VQE_Portfolio_Optimization/)
 
-A Python library for portfolio optimization with PennyLane. It provides Binary VQE and QAOA for selecting a fixed number of assets, and Fractional VQE for long-only allocation. Classical baselines and independent candidate evaluation support reproducible comparisons.
+A Python library for portfolio optimization with PennyLane. It provides Binary VQE and QAOA for selecting a fixed number of assets, and a variational quantum allocator for long-only allocation. Classical baselines and independent candidate evaluation support reproducible comparisons.
+
+The allocator was historically called "Fractional VQE". It parameterises weights
+with a quantum circuit and evaluates the portfolio cost classically; it is not
+Hamiltonian-expectation VQE. Use `run_variational_allocator` and
+`VariationalAllocatorConfig`; the old Python and CLI names remain aliases.
 
 The experiments use quantum simulation and do not establish quantum advantage or production readiness.
 
@@ -75,9 +80,13 @@ python -m vqe_portfolio --help
 See the [usage guide](USAGE.md) for complete API and CLI examples, ansatz options, real-data workflows, and efficient frontiers.
 
 Classical exact-K comparators include NumPy-only multistart swap search,
-simulated annealing, and tabu search, plus optional HiGHS linearised integer
-and SCIP quadratic integer optimisation. All support end-to-end execution
+simulated annealing, tabu search, memetic genetic search, iterated local search
+(ILS), GRASP, and variable neighbourhood search (VNS), plus optional QP relaxation with rounding and swap refinement,
+HiGHS linearised integer and SCIP quadratic integer optimisation. All support end-to-end execution
 budgets; see [classical baselines](USAGE.md#strong-classical-baselines).
+
+NumPy projected gradient descent supplies an iterative classical comparator for
+the separate long-only fractional allocation track, alongside optional OSQP.
 
 ## Repository structure
 
@@ -101,8 +110,11 @@ docs/                                 # Sphinx documentation
 See [architecture and development](docs/architecture.md) for module boundaries and the v0.3.0 migration notes. Existing public imports remain supported. Version 0.3.1 adds opt-in solver reliability controls and end-to-end execution budgets; see the [usage guide](USAGE.md#solver-reliability-controls-v031) and [changelog](CHANGELOG.md).
 
 Version 0.3.3 adds simulated annealing, tabu search, and SCIP to the classical
-comparisons, small-instance validation, and budget CLI. Archived research
-results retain their original methods and provenance.
+comparisons, small-instance validation, and budget CLI. Version 0.3.4 adds
+memetic genetic search, ILS, GRASP, QP rounding, VNS, and projected gradient
+descent; fixes selection and allocator boundaries; and introduces the canonical
+allocator names and individual algorithm guides. Archived research results
+retain their original methods and provenance.
 
 ## Documentation and research
 
@@ -110,6 +122,7 @@ results retain their original methods and provenance.
 | --- | --- |
 | [Usage](USAGE.md) | Installation, API, CLI, benchmarks, and reproduction commands |
 | [Theory](THEORY.md) | Portfolio formulations, circuit mappings, and derivations |
+| [Algorithms](docs/algorithms/index.md) | Concise descriptions of quantum and classical methods |
 | [Results](RESULTS.md) | Committed benchmark and diagnostic findings |
 | [Research protocol](QUANTUM_ADVANTAGE.md) | Evaluation design and limits on advantage claims |
 | [Experiments](experiments/README.md) | Validation, training, sampling, and failure diagnostics |
@@ -119,6 +132,7 @@ Start with `notebooks/Binary.ipynb`, `notebooks/QAOA.ipynb`, or `notebooks/Fract
 Saved study reports:
 
 - [Small-instance validation](results/small_instance_validation/report.md)
+- [Allocator correction validation](results/allocator_validation/report.md)
 - [Before/after training](results/training_diagnostic/report.md)
 - [Sampling allowances](results/sampling_allowance/report.md)
 - [Training effort](results/training_effort/report.md)

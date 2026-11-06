@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Generate compact ansatz comparison CSVs for Binary and Fractional VQE."""
+"""Generate ansatz comparison CSVs for Binary VQE and the variational allocator."""
 
 from __future__ import annotations
 
@@ -154,7 +154,7 @@ def save_plots(rows: list[dict[str, str]], plot_dir: Path) -> None:
     plot_comparison_metric_bars(
         fractional_rows,
         metric="mean_objective",
-        title="Fractional VQE ansatz comparison",
+        title="Variational quantum allocator ansatz comparison",
         ylabel="Mean simplex objective",
         outpath=plot_dir / "Ansatz_Comparison_Fractional_Objective.png",
     )

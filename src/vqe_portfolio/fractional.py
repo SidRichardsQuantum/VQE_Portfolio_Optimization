@@ -1,3 +1,9 @@
+"""Variational quantum allocation, with legacy fractional-VQE API aliases.
+
+The circuit parameterises weights; the mean-variance cost is evaluated
+classically. This is not Hamiltonian-expectation VQE.
+"""
+
 from __future__ import annotations
 
 import pennylane as qml
@@ -7,34 +13,46 @@ from .ansatz import apply_fractional_ansatz, fractional_ansatz_shape
 from .metrics import symmetrize
 from .optimize import adam_optimize, report_phase
 from .types import (
-    FractionalVQEConfig,
-    FractionalVQEResult,
+    VariationalAllocatorConfig,
+    VariationalAllocatorResult,
     LambdaSweepConfig,
     OptimizeTrace,
 )
 from .utils import set_global_seed
 
+ALLOCATOR_SMOOTHING = 1e-12
+
 
 def angles_to_weights(expvals_z: np.ndarray) -> np.ndarray:
-    """
-    Given z_i = <Z_i>, map to simplex:
-      s_i = (1 - z_i)/2 in [0,1]
-      w_i = s_i / sum(s)
+    """Map physical Z expectations to a numerically feasible simplex allocation.
+
+    For s_i=(1-z_i)/2 and epsilon=1e-12, use
+    w_i=(s_i+epsilon/n)/(sum(s)+epsilon). Zero mass gives equal weights.
+    Clip only numerical expectation overshoots within 1e-8. The normalisation
+    is smooth in physical masses, with clipping at the measurement boundaries.
+    Concrete input checks do not replace the differentiable calculation.
     """
     z = np.array(expvals_z)
-    s = (1.0 - z) * 0.5
-    denom = np.sum(s) + 1e-12
-    return s / denom
+    concrete = qml.math.toarray(z)
+    if concrete.ndim != 1 or not concrete.size:
+        raise ValueError("Expected a nonempty vector of Z expectations.")
+    if np.iscomplexobj(concrete) or not np.all(np.isfinite(concrete)):
+        raise ValueError("Z expectations must be finite and real.")
+    if np.any(concrete < -1 - 1e-8) or np.any(concrete > 1 + 1e-8):
+        raise ValueError("Z expectations must lie in [-1, 1].")
+    s = (1.0 - np.clip(z, -1, 1)) * 0.5
+    return (s + ALLOCATOR_SMOOTHING / len(z)) / (np.sum(s) + ALLOCATOR_SMOOTHING)
 
 
-def run_fractional_vqe(
+def run_variational_allocator(
     mu: np.ndarray,
     Sigma: np.ndarray,
-    cfg: FractionalVQEConfig = FractionalVQEConfig(),
+    cfg: VariationalAllocatorConfig = VariationalAllocatorConfig(),
     *,
     candidate_callback=None,
     phase_callback=None,
-) -> FractionalVQEResult:
+) -> VariationalAllocatorResult:
+    """Train a quantum-circuit allocation map using the classical portfolio cost."""
     set_global_seed(cfg.seed)
 
     mu = np.array(mu, requires_grad=False)
@@ -89,19 +107,19 @@ def run_fractional_vqe(
         candidate_callback(
             w, {"step": cfg.steps, "source": "allocation", "final": True}
         )
-    return FractionalVQEResult(
+    return VariationalAllocatorResult(
         thetas=np.array(opt_res.params, requires_grad=False),
         cost_trace=OptimizeTrace(steps=opt_res.steps, values=opt_res.values),
         weights=np.array(w, requires_grad=False),
     )
 
 
-def fractional_lambda_sweep(
+def allocator_lambda_sweep(
     mu: np.ndarray,
     Sigma: np.ndarray,
-    cfg: FractionalVQEConfig,
+    cfg: VariationalAllocatorConfig,
     sweep: LambdaSweepConfig,
-) -> FractionalVQEResult:
+) -> VariationalAllocatorResult:
     """
     Warm-start optional sweep over lambda values.
     """
@@ -165,8 +183,17 @@ def fractional_lambda_sweep(
     base_dict.pop("lambdas", None)
     base_dict.pop("allocs_by_lambda", None)
 
-    return FractionalVQEResult(
+    return VariationalAllocatorResult(
         **base_dict,
         lambdas=lambdas,
         allocs_by_lambda=allocs_arr,
     )
+
+
+# Historical imports remain exact aliases, with no separate implementation.
+run_fractional_vqe = run_variational_allocator
+fractional_lambda_sweep = allocator_lambda_sweep
+
+# Preserve historical type imports from this module as well.
+FractionalVQEConfig = VariationalAllocatorConfig
+FractionalVQEResult = VariationalAllocatorResult

@@ -142,6 +142,18 @@ def test_all_adapters_share_problem_and_ignore_solver_scores(monkeypatch, toy_pr
     monkeypatch.setattr(benchmark, "local_search_binary_baseline", strong_binary)
     monkeypatch.setattr(benchmark, "simulated_annealing_binary_baseline", strong_binary)
     monkeypatch.setattr(benchmark, "tabu_search_binary_baseline", strong_binary)
+    monkeypatch.setattr(benchmark, "memetic_genetic_binary_baseline", strong_binary)
+    monkeypatch.setattr(
+        benchmark, "iterated_local_search_binary_baseline", strong_binary
+    )
+    monkeypatch.setattr(benchmark, "grasp_binary_baseline", strong_binary)
+    monkeypatch.setattr(benchmark, "relaxation_rounding_binary_baseline", strong_binary)
+    monkeypatch.setattr(
+        benchmark, "variable_neighborhood_search_binary_baseline", strong_binary
+    )
+    monkeypatch.setattr(
+        benchmark, "projected_gradient_descent_baseline", strong_fractional
+    )
     monkeypatch.setattr(benchmark, "convex_markowitz_baseline", strong_fractional)
 
     def quantum_binary(mu_input, sigma_input, cfg):

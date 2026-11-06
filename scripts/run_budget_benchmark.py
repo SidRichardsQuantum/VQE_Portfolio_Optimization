@@ -135,7 +135,7 @@ def solver_config(method, instance, seed, args):
         log_every=args.checkpoint_every,
         stepsize=args.stepsize,
     )
-    if method == "fractional-vqe":
+    if method in {"fractional-vqe", "variational-allocator"}:
         return FractionalVQEConfig(**common)
     if method not in {
         "binary-vqe",
@@ -176,7 +176,10 @@ def main(argv=None):
     parser.add_argument("--asset-counts", default="4,6,8")
     parser.add_argument("--instance-seeds", default="101,202,303")
     parser.add_argument("--seeds", default="0,1,2")
-    parser.add_argument("--methods", default=",".join(BUDGET_METHODS))
+    parser.add_argument(
+        "--methods",
+        default=",".join(m for m in BUDGET_METHODS if m != "fractional-vqe"),
+    )
     parser.add_argument(
         "--variants",
         default="",

@@ -76,8 +76,10 @@ def parse_methods(value: str) -> set[str]:
             "binary-vqe",
             "qaoa-x",
             "qaoa-xy",
-            "fractional-vqe",
+            "variational-allocator",
         }
+    if "fractional-vqe" in methods:
+        methods = (methods - {"fractional-vqe"}) | {"variational-allocator"}
     return methods
 
 
@@ -106,7 +108,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--methods",
         default="all",
-        help="Comma-separated subset: classical,classical-solvers,osqp,highs,scip,swap,anneal,tabu,binary-vqe,qaoa-x,qaoa-xy,fractional-vqe. all excludes classical-solvers and individual solver IDs.",
+        help="Comma-separated subset: classical,classical-solvers,osqp,pgd,highs,scip,qp-round,swap,anneal,tabu,memetic,ils,grasp,vns,binary-vqe,qaoa-x,qaoa-xy,variational-allocator (legacy: fractional-vqe). all excludes classical-solvers and individual solver IDs.",
     )
     parser.add_argument(
         "--solver-time-limit",
@@ -144,13 +146,19 @@ def main(argv: list[str] | None = None) -> int:
         "osqp",
         "highs",
         "scip",
+        "qp-round",
         "swap",
         "anneal",
         "tabu",
+        "memetic",
+        "ils",
+        "grasp",
+        "vns",
+        "pgd",
         "binary-vqe",
         "qaoa-x",
         "qaoa-xy",
-        "fractional-vqe",
+        "variational-allocator",
     }
     if not methods or methods - allowed:
         raise ValueError("Unknown or empty method selection.")
@@ -182,7 +190,20 @@ def main(argv: list[str] | None = None) -> int:
                 k,
             )
 
-        solver_methods = methods & {"osqp", "highs", "scip", "swap", "anneal", "tabu"}
+        solver_methods = methods & {
+            "osqp",
+            "highs",
+            "scip",
+            "qp-round",
+            "swap",
+            "anneal",
+            "tabu",
+            "memetic",
+            "ils",
+            "grasp",
+            "vns",
+            "pgd",
+        }
         if "classical-solvers" in methods or solver_methods:
             add_solver_rows(
                 rows,
@@ -242,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             add_qaoa_row(rows, trial_rows, dataset, mu, Sigma, cfg, seeds)
 
-        if "fractional-vqe" in methods:
+        if "variational-allocator" in methods:
             cfg = FractionalVQEConfig(
                 steps=args.steps,
                 stepsize=0.3,

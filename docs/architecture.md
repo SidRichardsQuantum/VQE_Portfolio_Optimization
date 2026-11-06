@@ -33,6 +33,15 @@ other. Optional market-data and classical solver dependencies load when used.
 
 ## Imports and v0.3.0 migration
 
+The descriptive allocation API is `run_variational_allocator`,
+`allocator_lambda_sweep`, `VariationalAllocatorConfig`, and
+`VariationalAllocatorResult`. Historical fractional-VQE imports are exact
+aliases. CLI aliases and old experiment method IDs remain accepted; newly
+generated labels identify the variational quantum allocator. Its cost is a
+classical function of circuit expectations, not Hamiltonian-expectation VQE.
+The corrected smoothed normalisation requires fresh experiment outputs;
+historical artifacts keep their original labels and source hashes.
+
 The package-root API remains supported:
 
 ```python

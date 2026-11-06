@@ -72,7 +72,7 @@ def main(argv=None):
     # Fail visibly for absent optional dependencies before creating a study.
     if "scip" in config.methods:
         import pyscipopt  # noqa: F401
-    if "osqp" in config.methods:
+    if {"osqp", "qp-round"} & set(config.methods):
         import cvxpy  # noqa: F401
         import osqp  # noqa: F401
     if "highs" in config.methods:

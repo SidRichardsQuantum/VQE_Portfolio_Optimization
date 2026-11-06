@@ -92,7 +92,26 @@ Output JSON includes:
 
 ---
 
-### Fractional VQE (Continuous Allocation)
+### Variational quantum allocator (Continuous Allocation)
+
+The canonical Python API is `run_variational_allocator`,
+`VariationalAllocatorConfig`, `VariationalAllocatorResult`, and
+`allocator_lambda_sweep`. The historical names `run_fractional_vqe`,
+`FractionalVQEConfig`, `FractionalVQEResult`, and `fractional_lambda_sweep` are
+exact compatibility aliases. CLI commands `allocator` and `allocator-data`
+accept `fractional` and `fractional-data` as historical aliases. New comparison
+rows use "Variational quantum allocator"; `variational-allocator` is the method
+ID, and `fractional-vqe` remains accepted by comparison, validation, and budget
+runners. Defaults include only the canonical ID so aliases do not duplicate runs.
+
+This is a circuit-based allocation model with a classical portfolio objective,
+not conventional Hamiltonian VQE. For masses `s=(1-<Z>)/2`, weights are
+`(s+epsilon/n)/(sum(s)+epsilon)`, with `epsilon=1e-12`. Zero measured mass yields
+uniform weights. The map is differentiable on physical interiors; numerical
+expectation overshoots within `1e-8` are clipped at the measurement boundaries.
+Invalid/nonfinite expectations are rejected. Finite-shot runs remain stochastic.
+The denominator-only historical normalisation is no longer used, so save new
+experiments separately and retain historical artifacts with their source hashes.
 
 Solve the long-only mean–variance problem on the simplex.
 
@@ -114,7 +133,7 @@ Create `input.json`:
 Run:
 
 ```bash
-vqe-portfolio fractional \
+vqe-portfolio allocator \
   --input input.json \
   --lam 5.0 \
   --ansatz ry \
@@ -129,7 +148,7 @@ The output JSON includes:
 - portfolio weights
 - cost trace
 
-Supported Fractional VQE ansatz values are `ry`, `ry_cz`, and `ry_rz_cz`.
+Supported Variational quantum allocator ansatz values are `ry`, `ry_cz`, and `ry_rz_cz`.
 
 ---
 
@@ -191,7 +210,7 @@ The CLI is a **thin client** over the same public API used by notebooks and scri
 
 - `vqe-portfolio binary` → `run_binary_vqe`
 - `vqe-portfolio qaoa` → `run_qaoa`
-- `vqe-portfolio fractional` → `run_fractional_vqe`
+- `vqe-portfolio allocator` → `run_variational_allocator`
 - benchmark notebooks/scripts → `vqe_portfolio.research.comparison` workflows and `vqe_portfolio.benchmark` evaluation helpers and public ansatz config options
 
 No logic is duplicated.
@@ -202,7 +221,7 @@ No logic is duplicated.
 
 ```python
 import numpy as np
-from vqe_portfolio import run_fractional_vqe, FractionalVQEConfig
+from vqe_portfolio import run_variational_allocator, VariationalAllocatorConfig
 
 mu = np.array([0.10, 0.12, 0.07])
 
@@ -212,7 +231,7 @@ Sigma = np.array([
     [0.00, 0.02, 0.03],
 ])
 
-cfg = FractionalVQEConfig(
+cfg = VariationalAllocatorConfig(
     lam=5.0,
     ansatz="ry",
     depth=1,
@@ -221,7 +240,7 @@ cfg = FractionalVQEConfig(
     shots=None,
 )
 
-res = run_fractional_vqe(mu, Sigma, cfg)
+res = run_variational_allocator(mu, Sigma, cfg)
 
 print(res.weights)
 ```
@@ -321,11 +340,11 @@ Result fields include:
 ### Fractional frontier
 
 ```python
-from vqe_portfolio import fractional_lambda_sweep
+from vqe_portfolio import allocator_lambda_sweep
 from vqe_portfolio.frontier import fractional_frontier_from_allocs
 from vqe_portfolio.types import LambdaSweepConfig
 
-cfg = FractionalVQEConfig(lam=1.0, steps=80)
+cfg = VariationalAllocatorConfig(lam=1.0, steps=80)
 
 sweep = LambdaSweepConfig(
     lambdas=[0.5, 1.0, 2.0, 5.0, 10.0],
@@ -333,7 +352,7 @@ sweep = LambdaSweepConfig(
     warm_start=True,
 )
 
-res = fractional_lambda_sweep(mu, Sigma, cfg, sweep)
+res = allocator_lambda_sweep(mu, Sigma, cfg, sweep)
 
 frontier = fractional_frontier_from_allocs(
     mu,
@@ -385,8 +404,8 @@ pip install "vqe-portfolio[data]"
 ```
 
 ```python
-from vqe_portfolio import get_stock_data, run_fractional_vqe
-from vqe_portfolio.types import FractionalVQEConfig
+from vqe_portfolio import get_stock_data, run_variational_allocator
+from vqe_portfolio.types import VariationalAllocatorConfig
 
 mu, Sigma, prices = get_stock_data(
     ["AAPL", "MSFT", "GOOGL", "AMZN"],
@@ -395,12 +414,12 @@ mu, Sigma, prices = get_stock_data(
     shrink="lw",
 )
 
-cfg = FractionalVQEConfig(
+cfg = VariationalAllocatorConfig(
     lam=5.0,
     steps=100,
 )
 
-res = run_fractional_vqe(
+res = run_variational_allocator(
     mu.values,
     Sigma.values,
     cfg,
@@ -438,7 +457,7 @@ Comparison CSVs distinguish `objective_family` from `reported_weighting`: binary
 All notebooks in `notebooks/` simply:
 
 - import the public API
-- call `run_binary_vqe`, `run_qaoa`, or `run_fractional_vqe`
+- call `run_binary_vqe`, `run_qaoa`, or `run_variational_allocator`
 - generate plots via `vqe_portfolio.plotting`
 - regenerate or display comparison CSVs from the package clients
 
@@ -507,15 +526,21 @@ The methods solve the same objectives as the existing comparison tracks:
 | Classical convex Markowitz (OSQP) | Convex quadratic objective with nonnegative weights summing to one, via CVXPY | Numerical optimum; tiny negative weights are clipped and weights renormalised before evaluation |
 | Classical mixed integer (HiGHS) | Exact-K binary selection with a sparse linearisation of pairwise products, via SciPy | Incumbent, solver status, lower bound, and relative MIP gap; a limit status does not certify optimality |
 | Classical quadratic integer (SCIP) | Exact-K binary selection with a quadratic objective epigraph, via PySCIPOpt | Incumbent, native status, numerical lower bound, and SCIP relative gap; streams feasible incumbents during solving |
+| Classical QP relaxation + rounding | Box relaxation with sum(z)=K via CVXPY/OSQP, top-K rounding, then swap refinement | Deterministic binary heuristic; numerical relaxation diagnostics are not certified bounds |
 | Classical multistart swap search | Exact-K selection, best-improvement swaps from top-return, diagonal-cost, and random starts | Seeded heuristic with no global optimality guarantee |
 | Classical simulated annealing | Exact-K selection with random swaps and Metropolis acceptance under geometric cooling | Seeded heuristic that can accept uphill moves; retains the best feasible portfolio |
 | Classical tabu search | Exact-K selection with best-admissible swaps, reverse-move memory, and aspiration for a new best objective | Seeded heuristic that can move uphill; retains the best feasible portfolio |
+| Classical memetic genetic algorithm | Exact-K population search with feasible crossover, swap mutation, elitism, immigration, and local refinement | Seeded heuristic; retains the best feasible portfolio across populations |
+| Classical iterated local search | Exact-K perturbations followed by swap refinement and improvement-only acceptance | Seeded heuristic; retains the best feasible portfolio across restarts |
+| Classical GRASP | Covariance-aware randomised greedy construction followed by swap refinement | Seeded heuristic; publishes only complete exact-K portfolios |
+| Classical variable neighborhood search | Exact-K shaking across increasing exchange sizes, followed by swap refinement | Seeded heuristic; resets to the smallest neighbourhood after improvement |
+| Classical projected gradient descent | Convex long-only simplex objective with Euclidean projection and backtracking | NumPy iterative fractional comparator; numerical first-order stopping diagnostics, no certified bound |
 
 The HiGHS formulation introduces a continuous variable `y_ij` per pair, constrained by `y_ij <= x_i`, `y_ij <= x_j`, and `y_ij >= x_i + x_j - 1`, with all variables bounded in `[0, 1]` and `x` binary. This represents both positive and negative covariance couplings exactly. Its model size grows quadratically; it is a stronger general-purpose comparator, not a claim to be the best possible classical solver.
 
-`--solver-time-limit` limits each HiGHS/SCIP solve only. Reported runtime includes the entire solver helper call, including model construction and candidate cleanup; it can exceed that limit. OSQP uses accuracy tolerances, and the three search heuristics use restart/iteration limits, not that time limit. For end-to-end deadlines use `run_budgeted` or the budget runner shown below.
+`--solver-time-limit` limits each HiGHS/SCIP solve only. Reported runtime includes the entire solver helper call, including model construction and candidate cleanup; it can exceed that limit. OSQP uses accuracy tolerances, and the NumPy heuristics use restart/generation/iteration limits, not that time limit. For end-to-end deadlines use `run_budgeted` or the budget runner shown below.
 
-`--seeds` controls independent stochastic classical runs as well as quantum runs. Each search run uses `--local-restarts` starts (minimum two when including swap search). `--k` fixes cardinality across requested sizes. Defaults remain compatible with the existing examples: `all` selects the original methods and excludes the stronger solver group. `classical-solvers` selects OSQP, HiGHS, SCIP, swap search, annealing, and tabu search. Use `--methods all,classical-solvers` to include them alongside the original small-instance references and quantum methods. Individual solver IDs `osqp`, `highs`, `scip`, `swap`, `anneal`, and `tabu` are also accepted. Avoid `classical`/`all` for large instances because the old exact references enumerate subsets.
+`--seeds` controls independent stochastic classical runs as well as quantum runs. Each search run uses `--local-restarts` starts (minimum two when including swap search); for memetic search this counts independent populations, and for GRASP it counts complete constructions. `qp-round` and `pgd` run once per instance and do not use seeds or restarts. `--k` fixes binary cardinality across requested sizes; PGD uses simplex weights. Defaults remain compatible with the existing examples: `all` selects the original methods and excludes the stronger solver group. `classical-solvers` selects OSQP, HiGHS, SCIP, QP rounding, swap search, annealing, tabu search, memetic search, ILS, GRASP, VNS, and PGD. Use `--methods all,classical-solvers` to include them alongside the original small-instance references and quantum methods. Individual solver IDs `osqp`, `pgd`, `highs`, `scip`, `qp-round`, `swap`, `anneal`, `tabu`, `memetic`, `ils`, `grasp`, and `vns` are also accepted. Avoid `classical`/`all` for large instances because the old exact references enumerate subsets.
 
 Run just annealing and tabu search with NumPy, without optional classical solver dependencies:
 
@@ -529,6 +554,27 @@ python scripts/generate_comparison_results.py \
 The CSVs add `solver_status`, `lower_bound`, and `mip_gap`; legacy methods leave them blank. Trial rows retain unsuccessful solver returns with blank objective/portfolio values and zero feasibility. Summary quality statistics include feasible returns only, while runtime, trial count, and feasibility include failures. Inspect trial rows before drawing comparisons. A reported bound is the numerical solver bound, not an independent exact-arithmetic certificate. Missing dependencies or solver exceptions stop the run visibly rather than silently substituting a weaker solver.
 
 Programmatic entry points are `convex_markowitz_baseline`, `mixed_integer_binary_baseline`, and `local_search_binary_baseline` in `vqe_portfolio.baselines`. They return a `ClassicalResult` with the candidate, recomputed original objective, termination status, and available bound metadata. The local-search helper also accepts `max_swaps` (default 1,000 per restart).
+
+`relaxation_rounding_binary_baseline` solves `min lambda*z.T@Sigma@z - mu.T@z` with `0 <= z <= 1` and `sum(z)=K`, using CVXPY/OSQP. It retains the quadratic diagonal terms and raw selection scaling, and requires a PSD covariance. It selects the largest K relaxed entries (asset-index order for exact ties), then refines with improving swaps. Its returned binary portfolio has exactly K assets and is scored on the original binary objective.
+
+```python
+from vqe_portfolio.baselines import relaxation_rounding_binary_baseline
+
+result = relaxation_rounding_binary_baseline(
+    mu, Sigma, lam=4.0, k=4, max_swaps=1000, qp_max_iter=100000,
+)
+print(result.status, result.candidate, result.objective, result.message)
+```
+
+Install `.[classical]` or `.[markowitz]` for the existing CVXPY/OSQP dependencies. Native tolerances are `eps_abs=eps_rel=1e-9`, with warm starts disabled. Both iteration limits must be positive integers. `--solver-time-limit` does not limit this QP; use the budget interface for an end-to-end deadline. K=0 and K=n return the unique selection with status `trivial` without a native solve. Fractional QP output must be finite and satisfy the relaxed constraints within `1e-8`; tiny box-bound violations are clipped before rounding. Missing output retains the native QP status with no candidate, invalid output reports `invalid_relaxation`, and solver exceptions propagate without fallback.
+
+Success reports `rounded_and_refined`, which certifies neither integer optimality nor convergence beyond the swap cap. Numerical relaxation status and recomputed fractional objective appear in the helper's `message`, comparison CSV notes, and validation's `solver_message`. `lower_bound` and `mip_gap` stay missing: a numerical primal relaxation value alone is not a certified lower bound. The optional `candidate_callback(candidate, details)` receives independent copies of improving binary incumbents after rounding and during refinement. No fractional candidate is published, so a budgeted run can have no candidate if its deadline expires before the QP returns.
+
+```bash
+python scripts/generate_comparison_results.py --methods qp-round \
+  --asset-counts 8,16,32 --k 4 \
+  --output results/qp_rounding_summary.csv --trials-output results/qp_rounding_trials.csv
+```
 
 `scip_binary_baseline` solves the same binary objective using the quadratic constraint `f(x) <= z`, minimising a continuous `z` with no lower bound and enforcing `sum(x) == k`. It uses binary diagonal identities and introduces no pairwise product variables in the Python formulation; SCIP may reformulate the problem internally. The unrestricted `z` allows negative objective values. Install `.[classical]` for the full solver group, or `.[scip]` for SCIP alone:
 
@@ -571,7 +617,69 @@ Annealing proposes 1,000 swaps per restart by default. Its automatic initial tem
 
 Tabu search takes up to 200 moves per restart by default. Reversing a swap is forbidden for the next `tabu_tenure` iterations (default seven), unless the reversal produces a new best objective across all restarts. Tenure must be a positive integer. A restart stops early if no admissible move remains. Its status is `iteration_limit` if any restart reaches the cap, otherwise `tabu_exhausted`. Annealing reports `iteration_limit` after its scheduled proposals. Both report `trivial` for `k=0` or `k=n`, where there is only one feasible portfolio. Search stopping statuses do not certify global optimality for nontrivial portfolios.
 
+The additional NumPy heuristics use the same `ClassicalResult` interface and optimise the same original binary objective. They accept `seed`, `restarts` (default 16, minimum one), `max_swaps` (default 1,000 per local refinement), and `candidate_callback(candidate, details)`. Callbacks receive independent copies only when the global best objective improves. All crossover, mutation, perturbation, and refined portfolios preserve exactly K assets. GRASP publishes only after construction has selected all K assets.
+
+```python
+from vqe_portfolio.baselines import (
+    memetic_genetic_binary_baseline,
+    iterated_local_search_binary_baseline,
+    grasp_binary_baseline,
+)
+
+memetic = memetic_genetic_binary_baseline(
+    mu, Sigma, lam=4.0, k=4, seed=0, restarts=4,
+    population_size=16, generations=25, mutation_rate=0.2,
+)
+ils = iterated_local_search_binary_baseline(
+    mu, Sigma, lam=4.0, k=4, seed=0, max_iterations=100, perturbation_size=2,
+)
+grasp = grasp_binary_baseline(mu, Sigma, lam=4.0, k=4, seed=0, rcl_alpha=0.3)
+```
+
+Memetic search refines every initial member and offspring with improving swaps. Each population starts with top returns, diagonal costs, then random subsets. Parents are chosen through tournaments of size three by default, sampled with replacement. Crossover keeps their common assets and fills remaining positions from their union. Each child mutates by one exchange with probability `mutation_rate`, which must be in [0, 1]. The best population member survives each generation. With population size at least three, one offspring per generation is a random immigrant. Population size must be at least two; duplicates are allowed so small feasible spaces cannot cause endless population-filling retries. `generations` defaults to 25 and `population_size` to 16.
+
+ILS starts from top returns, diagonal costs, then random subsets. Each restart first performs local refinement, then applies 100 perturb-and-refine iterations by default. A perturbation replaces `perturbation_size` distinct selected assets with distinct unselected assets simultaneously (default two, clamped to `min(K, n-K)`). Only improvements beyond the numerical swap tolerance replace the current state; rejected proposals cannot overwrite the best portfolio.
+
+GRASP uses the full objective's marginal insertion costs, including covariance with assets already selected. At each construction step it samples uniformly from costs no larger than `min_cost + rcl_alpha * (max_cost - min_cost)`. `rcl_alpha=0` permits minimum-cost assets, with random ties; `rcl_alpha=1` permits every remaining asset. The default is 0.3. Every completed construction receives swap refinement, and `restarts` controls the number of constructions.
+
+Memetic search reports `generation_limit`, ILS `iteration_limit`, and GRASP `restart_limit` after their configured searches. All three report `trivial` for `K=0` or `K=n`. Local refinement may stop at its `max_swaps` cap. These are heuristic stopping statuses and provide no global optimality bound. To compare them without optional classical dependencies:
+
+```bash
+python scripts/generate_comparison_results.py --methods memetic,ils,grasp \
+  --asset-counts 8,16,32 --k 4 --seeds 0,1,2 --local-restarts 4 \
+  --output results/metaheuristics_summary.csv \
+  --trials-output results/metaheuristics_trials.csv
+```
+
 Solver interfaces: [SciPy/HiGHS MILP](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.milp.html), [CVXPY solver options](https://www.cvxpy.org/tutorial/solvers/), [PySCIPOpt quadratic expressions](https://pyscipopt.readthedocs.io/en/stable/tutorials/expressions.html), [SCIP status and gap API](https://pyscipopt.readthedocs.io/en/stable/api/model.html).
+
+`variable_neighborhood_search_binary_baseline` is NumPy-only and preserves exactly K assets. Defaults are `seed=0`, `restarts=16`, `max_iterations=100`, `max_neighborhood=3`, and `max_swaps=1000`. Starts are top returns, diagonal costs, then random subsets. Each restart first refines its start, then cycles through neighbourhood sizes q from one to `min(max_neighborhood, K, n-K)`. A shake exchanges q distinct selected assets with q distinct unselected assets simultaneously, followed by single-swap refinement. Strict improvement beyond the numerical swap tolerance replaces the current state and resets q to one; otherwise q advances, wrapping to one after the largest neighbourhood. `max_iterations` counts shake-and-refine attempts per restart. All limits must be positive integers. Stopping reports `iteration_limit` or `trivial` for K=0/K=n, with no global optimality guarantee.
+
+`projected_gradient_descent_baseline` is a deterministic NumPy-only solver for the separate fractional objective, with nonnegative weights summing to one. It starts from equal weights, computes the full quadratic gradient, and applies Euclidean simplex projection. Covariance eigenvalues below `-1e-10` are rejected. The default step is `1/L`, where `L=2*lambda*largest_eigenvalue(Sigma)`; an optional positive `stepsize` overrides the initial value. Backtracking halves the step, with up to 60 trials per iteration, until quadratic majorisation and non-increase hold within floating-point slack. Zero-curvature objectives use the exact linear simplex solution. Eigenvalue calculation, projection, backtracking, and incumbent publication are included in budgeted execution.
+
+```python
+from vqe_portfolio.baselines import (
+    variable_neighborhood_search_binary_baseline,
+    projected_gradient_descent_baseline,
+)
+
+vns = variable_neighborhood_search_binary_baseline(
+    mu, Sigma, lam=4.0, k=4, seed=0, max_neighborhood=3,
+)
+pgd = projected_gradient_descent_baseline(
+    mu, Sigma, lam=4.0, max_iterations=10000, tolerance=1e-8,
+)
+```
+
+PGD reports `converged` when its returned portfolio's numerical first-order gap `gradient@weights - min(gradient)` is at most `tolerance` (default `1e-8`). `iteration_limit` and `line_search_limit` retain the best feasible incumbent; `numerical_limit` means the current iterate met the criterion but the retained best-scoring portfolio's gap remains larger due to numerical score differences. The diagnostic gap is not a certified lower bound or a relative MIP gap. Both `max_iterations` and `tolerance` must be positive, with integer iteration count and finite numerical settings. `lower_bound` and `mip_gap` remain missing. Detailed stopping information appears in the result message, comparison notes, and validation `solver_message`.
+
+Both methods accept `candidate_callback(candidate, details)` and publish independent copies only when the best objective improves, including the initial feasible portfolio. VNS runs per solver seed; PGD runs once per validation/comparison instance. Their binary and fractional objectives remain separate:
+
+```bash
+python scripts/generate_comparison_results.py --methods vns,pgd \
+  --asset-counts 8,16,32 --k 4 --seeds 0,1,2 --local-restarts 4 \
+  --output results/vns_pgd_summary.csv --trials-output results/vns_pgd_trials.csv
+```
 
 
 ## Shared Problem Definitions and Evaluation
@@ -629,7 +737,7 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
   --output-dir results/my_training_diagnostic
 ```
 
-The runner inherits settings and frozen inputs from the validation manifest. It writes paired metrics, initial/final parameters, exact distributions, a plot and a report. Add `--resume` to continue a matching interrupted run. See [the diagnostic design](experiments/README.md#before-and-after-training-diagnostic) and [saved report](results/training_diagnostic/report.md). This evaluates binary circuit distributions without sampling or Top-K repair; Fractional VQE is outside this diagnostic.
+The runner inherits settings and frozen inputs from the validation manifest. It writes paired metrics, initial/final parameters, exact distributions, a plot and a report. Add `--resume` to continue a matching interrupted run. See [the diagnostic design](experiments/README.md#before-and-after-training-diagnostic) and [saved report](results/training_diagnostic/report.md). This evaluates binary circuit distributions without sampling or Top-K repair; Variational quantum allocator is outside this diagnostic.
 
 ### Sampling Allowances
 
@@ -744,8 +852,8 @@ Use new output directories for studies after upgrading.
 ## End-to-end execution budgets (v0.3.1)
 
 `run_budgeted(problem, method, budget_seconds, config=..., seed=...)` executes
-Binary VQE, QAOA X/XY, Fractional VQE, HiGHS, SCIP, OSQP, swap search, simulated
-annealing, tabu search, or uniform exact-K sampling. An explicit quantum configuration supplies its own seed; the `seed` argument
+Binary VQE, QAOA X/XY, Variational quantum allocator, HiGHS, SCIP, OSQP, QP rounding, swap search, simulated
+annealing, tabu search, memetic search, ILS, GRASP, VNS, PGD, or uniform exact-K sampling. An explicit quantum configuration supplies its own seed; the `seed` argument
 applies to classical methods and automatically constructed quantum configurations.
 It returns a common `BudgetResult` containing the best feasible
 candidate, its independently recomputed original objective, timestamped
@@ -772,9 +880,13 @@ timing. Only independently feasible portfolios received by the parent before
 the deadline are eligible. A native solver call can be terminated even when it
 does not support callbacks. Pending native results are unavailable until they
 return; HiGHS/OSQP currently publish their final candidate only. SCIP, simulated
-annealing, and tabu search publish improving feasible incumbents. Swap search
+annealing, tabu search, memetic search, ILS, and GRASP publish improving feasible incumbents. Swap search
 publishes feasible starts and improving swaps; uniform sampling publishes
 improving exact-K samples throughout its allowance.
+
+`qp-round` publishes improving binary incumbents after its relaxation returns,
+including the rounded selection and any improving swaps. Relaxation solving,
+rounding, refinement, and publication all consume the common deadline.
 
 Quantum methods publish candidates every `log_every` updates and at the end.
 Binary candidates come from the best feasible sample, with measured-marginal
@@ -801,7 +913,7 @@ vqe-portfolio budget --method swap --budget-seconds 10 --lam 4 --k 2 \
   --mu "0.1,0.2,0.15" --sigma "0.1,0,0;0,0.2,0;0,0,0.1"
 ```
 
-Use `--method anneal` or `--method tabu` for the new heuristics, or `--method scip` for the quadratic integer solver. All three publish improving incumbents during search so a timeout can retain the best portfolio received before the deadline. The budget interface uses the heuristics' default search settings and may finish before the allowance when the iteration cap is reached.
+Use `--method anneal`, `tabu`, `memetic`, `ils`, `grasp`, `vns`, or `qp-round` for these binary heuristics, `--method scip` for the quadratic integer solver, or `--method pgd` for fractional allocation. Each publishes improving incumbents during optimisation so a timeout can retain the best portfolio received before the deadline. The budget interface uses their default settings and may finish before the allowance when configured limits or convergence criteria are reached. PGD does not require `--k`.
 
 Reproduce fixed-budget runs with frozen references and resumable manifests:
 
@@ -849,7 +961,7 @@ configuration.
 The configuration uses fresh factor-model instance seeds 707, 808, and 909 at
 4, 6, and 8 assets, two solver seeds, and independent 1/10/60-second runs. It
 compares the presets with QAOA X, HiGHS, swap search, uniform feasible sampling,
-and a separate Fractional VQE/OSQP control track. `--exclude-manifests` freezes
+and a separate Variational quantum allocator/OSQP control track. `--exclude-manifests` freezes
 the hashes and problem IDs of prior development studies; overlap is rejected
 before any solver trial. Settings are fixed before evaluating the new inputs.
 This is a small fresh-instance check, not the protocol's full held-out study.

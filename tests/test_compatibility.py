@@ -46,3 +46,16 @@ def test_classical_module_and_comparison_exports_remain_compatible():
     assert comparison.binary_objective is problem.binary_objective
     assert comparison.fractional_objective is problem.fractional_objective
     assert comparison.real_data_comparison_rows is real_data_comparison_rows
+
+
+def test_fractional_vqe_names_are_exact_allocator_aliases():
+    import vqe_portfolio as package
+    from vqe_portfolio import fractional, types
+
+    assert package.run_fractional_vqe is package.run_variational_allocator
+    assert fractional.run_fractional_vqe is fractional.run_variational_allocator
+    assert package.fractional_lambda_sweep is package.allocator_lambda_sweep
+    assert package.FractionalVQEConfig is package.VariationalAllocatorConfig
+    assert package.FractionalVQEResult is package.VariationalAllocatorResult
+    assert types.FractionalVQEConfig is types.VariationalAllocatorConfig
+    assert types.FractionalVQEResult is types.VariationalAllocatorResult

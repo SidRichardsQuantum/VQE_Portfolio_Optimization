@@ -7,6 +7,7 @@ from vqe_portfolio.baselines import (
     convex_markowitz_baseline,
     local_search_binary_baseline,
     mixed_integer_binary_baseline,
+    relaxation_rounding_binary_baseline,
     scip_binary_baseline,
     simulated_annealing_binary_baseline,
     tabu_search_binary_baseline,
@@ -62,10 +63,8 @@ def test_local_search_feasibility_reproducibility_and_local_optimum(k):
     assert result.candidate.sum() == k
     _, exact = exhaustive_binary_baseline(mu, sigma, 0.7, 100, k)
     assert result.objective >= exact - 1e-10
-    # k=0 is intentionally excluded: the legacy top-return helper uses [-k:].
-    if k:
-        _, top = top_return_baseline(mu, sigma, 0.7, 100, k)
-        assert result.objective <= top + 1e-10
+    _, top = top_return_baseline(mu, sigma, 0.7, 100, k)
+    assert result.objective <= top + 1e-10
     for i in np.flatnonzero(result.candidate):
         for j in np.flatnonzero(1 - result.candidate):
             neighbour = result.candidate.copy()
@@ -105,6 +104,7 @@ def test_invalid_cardinality(k):
     mu, sigma = problem(1)
     for solve in [
         mixed_integer_binary_baseline,
+        relaxation_rounding_binary_baseline,
         scip_binary_baseline,
         local_search_binary_baseline,
         simulated_annealing_binary_baseline,
@@ -114,10 +114,54 @@ def test_invalid_cardinality(k):
             solve(mu, sigma, 1, k)
 
 
+@pytest.mark.parametrize("k", [0, 1, 3, np.int64(2)])
+def test_top_return_handles_cardinality_boundaries(k):
+    mu, sigma = np.array([0.1, 0.3, 0.2]), np.eye(3)
+    candidate, objective = top_return_baseline(mu, sigma, 1, 5, k)
+    assert candidate.sum() == k
+    assert np.all((candidate == 0) | (candidate == 1))
+    assert objective == pytest.approx(candidate @ sigma @ candidate - mu @ candidate)
+    if k == 0:
+        np.testing.assert_array_equal(candidate, np.zeros(3))
+        assert objective == 0
+    elif k == 1:
+        np.testing.assert_array_equal(candidate, [0, 1, 0])
+
+
+@pytest.mark.parametrize("k", [-1, 4, 1.5, True, np.bool_(False)])
+def test_top_return_rejects_invalid_cardinality(k):
+    with pytest.raises(ValueError, match="k must"):
+        top_return_baseline(np.ones(3), np.eye(3), 1, 5, k)
+
+
 def test_nonconvex_qp_rejected():
     pytest.importorskip("cvxpy")
     with pytest.raises(ValueError, match="PSD"):
         convex_markowitz_baseline(np.ones(2), -np.eye(2), 1)
+
+
+@pytest.mark.parametrize("name", ["max_swaps", "qp_max_iter"])
+@pytest.mark.parametrize("value", [0, -1, 1.5, True])
+def test_qp_rounding_rejects_invalid_limits_before_optional_imports(name, value):
+    with pytest.raises(ValueError, match=name):
+        relaxation_rounding_binary_baseline(
+            np.ones(3), np.eye(3), 1, 1, **{name: value}
+        )
+
+
+def test_qp_rounding_missing_dependency_has_install_hint(monkeypatch):
+    import builtins
+
+    original_import = builtins.__import__
+
+    def blocked(name, *args, **kwargs):
+        if name == "cvxpy":
+            raise ImportError("not installed")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", blocked)
+    with pytest.raises(ImportError, match=r"vqe-portfolio\[classical\]"):
+        relaxation_rounding_binary_baseline(np.ones(3), np.eye(3), 1, 1)
 
 
 @pytest.mark.parametrize(

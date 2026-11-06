@@ -1,0 +1,25 @@
+# Quantum algorithms
+
+The package implements Hamiltonian-based Binary VQE and QAOA, plus a custom
+variational circuit allocator. All default to quantum simulation. Read the
+[shared objectives and inputs](../index.md) before running the examples.
+
+- [Binary VQE](binary-vqe.md): penalized Hamiltonian training and sampled selection.
+- [QAOA with X mixing](qaoa-x.md): cost phases and unconstrained bit flips.
+- [QAOA with XY exchange mixing](qaoa-xy.md): ideal cardinality-preserving exchanges.
+- [Variational quantum allocator](variational-allocator.md): circuit expectations
+  mapped to simplex weights, with a classically evaluated objective.
+
+Circuit ansatz choices, mixer topologies, initialization choices, and trained
+versus untrained presets are settings of these algorithms. Compatibility aliases
+do not identify additional implementations.
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+
+binary-vqe
+qaoa-x
+qaoa-xy
+variational-allocator
+```
