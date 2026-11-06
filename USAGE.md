@@ -53,6 +53,39 @@ Supported Binary VQE ansatz values are `ry_cz`, `ry_rz_cz`, and `strongly_entang
 
 ---
 
+### Filtering VQE (F-VQE)
+
+F-VQE solves the binary selection problem using filtered-state distance
+gradients. The [algorithm guide](docs/algorithms/quantum/filtering-vqe.md)
+describes its update rule, filters, normalization, and measurement costs.
+
+```python
+from vqe_portfolio import FVQEConfig, run_fvqe
+
+result = run_fvqe(mu, Sigma, FVQEConfig(k=2, lam=4, steps=25))
+```
+
+```bash
+vqe-portfolio f-vqe \
+  --mu "0.10,0.12,0.07,0.09" \
+  --sigma "0.02,0,0,0;0,0.02,0,0;0,0,0.02,0;0,0,0,0.02" \
+  --k 2 --lam 4 --alpha auto --filter inverse --steps 25 \
+  --out fvqe_result.json
+```
+
+Adaptive filter strength is the default. Use `--fixed-tau --tau 1` for a fixed
+strength, `--filter exponential` for exponential filtering, and
+`--shots-train 1024` for empirical filter moments. Adaptive search options are
+`--gradient-target`, `--tau-max`, and `--tau-search-steps`.
+`--spectrum-floor` controls the positive affine energy range (default `0.001`).
+F-VQE has its own config and update loop; it does not accept CVaR or Adam options.
+
+Use `f-vqe-data --tickers "AAPL,MSFT,NVDA" --k 2 --lam 4` for market data,
+with the same date and data options as the other solvers. Both commands support
+`--budget-seconds`. Budget and study method IDs use `f-vqe`.
+
+---
+
 ### QAOA (Binary Asset Selection)
 
 Solve the same constrained mean–variance problem using the **Quantum Approximate Optimization Algorithm (QAOA)**.
@@ -540,7 +573,7 @@ The HiGHS formulation introduces a continuous variable `y_ij` per pair, constrai
 
 `--solver-time-limit` limits each HiGHS/SCIP solve only. Reported runtime includes the entire solver helper call, including model construction and candidate cleanup; it can exceed that limit. OSQP uses accuracy tolerances, and the NumPy heuristics use restart/generation/iteration limits, not that time limit. For end-to-end deadlines use `run_budgeted` or the budget runner shown below.
 
-`--seeds` controls independent stochastic classical runs as well as quantum runs. Each search run uses `--local-restarts` starts (minimum two when including swap search); for memetic search this counts independent populations, and for GRASP it counts complete constructions. `qp-round` and `pgd` run once per instance and do not use seeds or restarts. `--k` fixes binary cardinality across requested sizes; PGD uses simplex weights. Defaults remain compatible with the existing examples: `all` selects the original methods and excludes the stronger solver group. `classical-solvers` selects OSQP, HiGHS, SCIP, QP rounding, swap search, annealing, tabu search, memetic search, ILS, GRASP, VNS, and PGD. Use `--methods all,classical-solvers` to include them alongside the original small-instance references and quantum methods. Individual solver IDs `osqp`, `pgd`, `highs`, `scip`, `qp-round`, `swap`, `anneal`, `tabu`, `memetic`, `ils`, `grasp`, and `vns` are also accepted. Avoid `classical`/`all` for large instances because the old exact references enumerate subsets.
+`--seeds` controls independent stochastic classical runs as well as quantum runs. Each search run uses `--local-restarts` starts (minimum two when including swap search); for memetic search this counts independent populations, and for GRASP it counts complete constructions. `qp-round`, `pgd`, and `frank-wolfe` run once per instance and do not use seeds or restarts. `--k` fixes binary cardinality across requested sizes; PGD and Frank–Wolfe use simplex weights. Defaults remain compatible with the existing examples: `all` selects the original methods and excludes the stronger solver group. `classical-solvers` selects OSQP, HiGHS, SCIP, QP rounding, swap search, annealing, tabu search, memetic search, ILS, GRASP, VNS, PGD, and Frank–Wolfe. Use `--methods all,classical-solvers` to include them alongside the original small-instance references and quantum methods. Individual solver IDs `osqp`, `pgd`, `frank-wolfe`, `highs`, `scip`, `qp-round`, `swap`, `anneal`, `tabu`, `memetic`, `ils`, `grasp`, and `vns` are also accepted. Avoid `classical`/`all` for large instances because the old exact references enumerate subsets.
 
 Run just annealing and tabu search with NumPy, without optional classical solver dependencies:
 
@@ -679,6 +712,37 @@ Both methods accept `candidate_callback(candidate, details)` and publish indepen
 python scripts/generate_comparison_results.py --methods vns,pgd \
   --asset-counts 8,16,32 --k 4 --seeds 0,1,2 --local-restarts 4 \
   --output results/vns_pgd_summary.csv --trials-output results/vns_pgd_trials.csv
+```
+
+
+`frank_wolfe_baseline` supplies a deterministic NumPy-only alternative for the
+same fractional objective. It implements forward and away steps with an active
+set of simplex vertices and exact bounded quadratic line search. Maximal away
+steps remove vertices; sparse iterates do not impose exact cardinality. Defaults
+are `max_iterations=10000` and `tolerance=1e-8`. It rejects covariance eigenvalues
+below `-1e-10` and supports singular PSD and linear objectives.
+
+```python
+from vqe_portfolio.baselines import frank_wolfe_baseline
+
+fw = frank_wolfe_baseline(mu, Sigma, lam=4.0, tolerance=1e-8)
+```
+
+Like PGD, it reports `converged`, `iteration_limit`, or `numerical_limit`, retains
+copied improving incumbents through `candidate_callback`, and runs once per
+comparison or validation instance. The message includes completed forward, away,
+and drop step counts, active-set size, and the returned portfolio's numerical
+`first_order_gap`. This gap is not independently certified; `lower_bound` and
+`mip_gap` remain absent. See the [algorithm guide](docs/algorithms/classical/frank-wolfe.md)
+for the update equations and stopping semantics.
+
+```bash
+python scripts/generate_comparison_results.py --methods frank-wolfe,pgd \
+  --asset-counts 4,8 --output results/fractional_summary.csv \
+  --trials-output results/fractional_trials.csv
+
+vqe-portfolio budget --method frank-wolfe --mu "0.1,0.2" \
+  --sigma "0.1,0;0,0.2" --lam 0.5 --budget-seconds 10
 ```
 
 
@@ -934,7 +998,7 @@ vqe-portfolio budget --method swap --budget-seconds 10 --lam 4 --k 2 \
   --mu "0.1,0.2,0.15" --sigma "0.1,0,0;0,0.2,0;0,0,0.1"
 ```
 
-Use `--method anneal`, `tabu`, `memetic`, `ils`, `grasp`, `vns`, or `qp-round` for these binary heuristics, `--method scip` for the quadratic integer solver, or `--method pgd` for fractional allocation. Each publishes improving incumbents during optimisation so a timeout can retain the best portfolio received before the deadline. The budget interface uses their default settings and may finish before the allowance when configured limits or convergence criteria are reached. PGD does not require `--k`.
+Use `--method anneal`, `tabu`, `memetic`, `ils`, `grasp`, `vns`, or `qp-round` for these binary heuristics, `--method scip` for the quadratic integer solver, or `--method pgd` or `--method frank-wolfe` for fractional allocation. Each publishes improving incumbents during optimisation so a timeout can retain the best portfolio received before the deadline. The budget interface uses their default settings and may finish before the allowance when configured limits or convergence criteria are reached. PGD and Frank–Wolfe do not require `--k`.
 
 Reproduce fixed-budget runs with frozen references and resumable manifests:
 

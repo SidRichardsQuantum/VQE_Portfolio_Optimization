@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.6
+
+- Add NumPy-only Frank–Wolfe with away steps for long-only fractional allocation,
+  with exact quadratic line search, active-vertex removal, first-order gap
+  diagnostics, and copied improving incumbents. Expose `frank-wolfe` in
+  comparison CSVs, small-instance validation, and the budget CLI/runner.
+- Add F-VQE's normalized filtered-state distance updates with inverse and
+  exponential filters, fixed or adaptive strength, and analytic or finite-shot
+  measurement. Reuse outcomes during strength selection and record strengths,
+  gradient norms, coefficient bounds, and training circuit counts.
+- Expose `FVQEConfig`, `FVQEResult`, and `run_fvqe`, `f-vqe`/`f-vqe-data` CLI
+  commands, independent comparison and validation adapters, and execution budgets.
+
 ## v0.3.5
 
 - Add opt-in lower-tail CVaR training to Binary VQE and both QAOA mixers,

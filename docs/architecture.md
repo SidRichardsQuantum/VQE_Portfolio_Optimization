@@ -10,7 +10,7 @@ and generate study reports.
 | --- | --- |
 | `problem.py` | Problem snapshots, original objectives, and independent feasibility evaluation |
 | `types.py` | Quantum solver configurations and results |
-| `binary.py`, `qaoa.py`, `fractional.py` | Quantum solver implementations |
+| `binary.py`, `fvqe.py`, `qaoa.py`, `fractional.py` | Quantum solver implementations |
 | `ansatz.py`, `optimize.py`, `reliability.py` | Shared circuits, optimizer loop, and reference-free reliability controls |
 | `execution.py` | Isolated-process deadlines, incumbent delivery, and common termination metadata |
 | `baselines/reference.py` | NumPy reference enumeration and simple heuristics |

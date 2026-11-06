@@ -1,10 +1,6 @@
 import importlib
 
 
-def test_base_import():
-    importlib.import_module("vqe_portfolio")
-
-
 def test_core_api_imports():
     m = importlib.import_module("vqe_portfolio")
 

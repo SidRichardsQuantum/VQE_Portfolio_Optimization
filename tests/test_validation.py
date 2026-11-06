@@ -192,7 +192,7 @@ def test_quantum_adapters_return_valid_small_portfolios():
         solver_seeds=(0,),
         steps=1,
         shots=32,
-        methods=("binary-vqe", "qaoa-x", "qaoa-xy", "fractional-vqe"),
+        methods=("binary-vqe", "f-vqe", "qaoa-x", "qaoa-xy", "fractional-vqe"),
     )
     for key, instance, method, seed in v.trial_plan(
         v.prepare_instances(config), config
@@ -283,12 +283,13 @@ def test_qp_rounding_adapter_runs_once_per_instance_and_keeps_binary_objective()
     assert row["lower_bound"] is None and row["mip_gap"] is None
 
 
-def test_pgd_adapter_runs_once_on_the_fractional_track():
+@pytest.mark.parametrize("method", ["pgd", "frank-wolfe"])
+def test_iterative_fractional_adapter_runs_once_on_the_fractional_track(method):
     config = v.ValidationConfig(
         asset_counts=(4,),
         instance_seeds=(11,),
         solver_seeds=(0, 1),
-        methods=("pgd",),
+        methods=(method,),
     )
     plan = list(v.trial_plan(v.prepare_instances(config), config))
     assert len(plan) == 1

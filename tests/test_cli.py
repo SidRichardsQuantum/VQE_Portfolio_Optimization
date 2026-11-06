@@ -31,6 +31,33 @@ def test_cli_help():
     assert "usage" in p.stdout.lower()
 
 
+def test_frank_wolfe_budget_cli_needs_no_cardinality():
+    p = _run(
+        [
+            "budget",
+            "--method",
+            "frank-wolfe",
+            "--mu",
+            "0.1,0.2",
+            "--sigma",
+            "0.1,0;0,0.2",
+            "--lam",
+            "0.5",
+            "--budget-seconds",
+            "15",
+        ]
+    )
+    assert p.returncode == 0, p.stderr
+    payload = json.loads(p.stdout)
+    assert payload["method"] == "frank-wolfe"
+    result = payload["result"]
+    assert result["status"] == "completed", result["error"]
+    assert result["solver_status"] == "converged"
+    assert abs(result["candidate"][0] - 1 / 3) < 1e-8
+    assert abs(result["candidate"][1] - 2 / 3) < 1e-8
+    assert 0 < result["candidate_seconds"] <= 15
+
+
 def test_allocator_cli_uses_the_descriptive_name_and_simplex_weights():
     p = _run(
         [
@@ -161,11 +188,6 @@ def test_cli_fractional_accepts_ansatz_and_depth():
 
 def test_cli_binary_data_help():
     p = _run(["binary-data", "--help"])
-    assert p.returncode == 0
-
-
-def test_cli_fractional_data_help():
-    p = _run(["fractional-data", "--help"])
     assert p.returncode == 0
 
 

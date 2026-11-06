@@ -39,6 +39,32 @@ class BinaryVQEConfig:
 
 
 @dataclass(frozen=True)
+class FVQEConfig:
+    """Filtering VQE (Amaro et al., Eqs. 6–7), for binary selection."""
+
+    depth: int = 2
+    ansatz: str = "ry_cz"
+    steps: int = 75
+    stepsize: float = 0.3
+    log_every: int = 5
+    lam: float = 5.0
+    alpha: float | str = "auto"
+    k: int = 2
+    device: str = "default.qubit"
+    shots_train: Optional[int] = None
+    shots_sample: int = 2000
+    seed: int = 0
+
+    filter_type: str = "inverse"  # or "exponential"
+    tau: float = 1.0
+    adapt_tau: bool = True
+    gradient_target: float = 0.1
+    tau_max: float = 64.0
+    tau_search_steps: int = 20
+    spectrum_floor: float = 0.001
+
+
+@dataclass(frozen=True)
 class QAOAConfig:
     p: int = 2
     steps: int = 75
@@ -124,6 +150,30 @@ class BinaryVQEResult:
     training_objective: str = "expectation"
     cvar_alpha: float | None = None
     training_optimizer: str = "adam"
+
+
+@dataclass(frozen=True)
+class FVQEResult:
+    params: np.ndarray
+    energy_trace: OptimizeTrace  # original penalized mean energy, including step 0
+    tau_trace: OptimizeTrace  # one entry per filtering update
+    gradient_norm_trace: OptimizeTrace
+    z_expect: np.ndarray
+    x_prob: np.ndarray
+    x_round: np.ndarray
+    x_topk: np.ndarray
+    sample_counts: dict[str, int]
+    x_mode: np.ndarray
+    x_best_feasible: np.ndarray | None
+    effective_alpha: float
+    filter_type: str
+    adapt_tau: bool
+    spectrum_lower_bound: float
+    spectrum_upper_bound: float
+    spectrum_floor: float
+    training_circuit_evaluations: int
+    training_objective: str = "filtered_state_distance"
+    training_optimizer: str = "filtering_gradient_descent"
 
 
 @dataclass(frozen=True)

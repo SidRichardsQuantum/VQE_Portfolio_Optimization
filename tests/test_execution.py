@@ -7,7 +7,12 @@ from vqe_portfolio import execution
 from vqe_portfolio.execution import CandidateSnapshot, _PhaseTimings, run_budgeted
 from vqe_portfolio.problem import PortfolioProblem
 from vqe_portfolio.research.budget import summarise_budget_trials
-from vqe_portfolio.types import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
+from vqe_portfolio.types import (
+    BinaryVQEConfig,
+    FractionalVQEConfig,
+    FVQEConfig,
+    QAOAConfig,
+)
 
 
 def worker_incumbent_then_block(
@@ -70,6 +75,7 @@ def test_error_keeps_incumbent_and_rejects_invalid_output(monkeypatch, problem):
     "method",
     [
         "binary-vqe",
+        "f-vqe",
         "qaoa-x",
         "qaoa-xy",
         "qaoa-xy-untrained",
@@ -89,6 +95,7 @@ def test_error_keeps_incumbent_and_rejects_invalid_output(monkeypatch, problem):
         "qp-round",
         "vns",
         "pgd",
+        "frank-wolfe",
     ],
 )
 def test_real_budget_workers_return_feasible_portfolios(method, problem):
@@ -104,6 +111,10 @@ def test_real_budget_workers_return_feasible_portfolios(method, problem):
         config = BinaryVQEConfig(
             k=1, lam=1, steps=1, log_every=1, shots_sample=8, alpha="auto"
         )
+    elif method == "f-vqe":
+        config = FVQEConfig(
+            k=1, lam=1, steps=1, log_every=1, shots_train=16, shots_sample=8
+        )
     elif method.startswith("qaoa-"):
         xy = method.startswith("qaoa-xy")
         config = QAOAConfig(
@@ -118,7 +129,13 @@ def test_real_budget_workers_return_feasible_portfolios(method, problem):
         )
     elif method in {"fractional-vqe", "variational-allocator"}:
         config = FractionalVQEConfig(lam=1, steps=1, log_every=1)
-    if method in {"fractional-vqe", "variational-allocator", "osqp", "pgd"}:
+    if method in {
+        "fractional-vqe",
+        "variational-allocator",
+        "osqp",
+        "pgd",
+        "frank-wolfe",
+    }:
         problem = PortfolioProblem(problem.mu, problem.Sigma, 1.0, "fractional_simplex")
     result = run_budgeted(problem, method, 15, config=config)
     assert result.status == "completed", result.error
@@ -151,6 +168,8 @@ def test_invalid_budgets(problem, seconds):
 def test_mismatched_problem_and_solver_configs_are_rejected(problem):
     with pytest.raises(ValueError, match="objective family"):
         run_budgeted(problem, "osqp", 1)
+    with pytest.raises(ValueError, match="objective family"):
+        run_budgeted(problem, "frank-wolfe", 1)
     with pytest.raises(ValueError, match="match the prepared problem"):
         run_budgeted(problem, "binary-vqe", 1, config=BinaryVQEConfig(k=2))
     with pytest.raises(ValueError, match="mixer disagree"):

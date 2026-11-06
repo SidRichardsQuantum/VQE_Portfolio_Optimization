@@ -1,10 +1,12 @@
 # Quantum algorithms
 
-The package implements Hamiltonian-based Binary VQE and QAOA, plus a custom
+The package implements Hamiltonian-based Binary VQE, Filtering VQE, and QAOA, plus a custom
 variational circuit allocator. All default to quantum simulation. Read the
 [shared objectives and inputs](../index.md) before running the examples.
 
 - [Binary VQE](binary-vqe.md): penalized Hamiltonian training and sampled selection.
+- [Filtering VQE](filtering-vqe.md): normalized filtered-state distance updates,
+  with inverse or exponential filters and analytic or finite-shot execution.
 - [QAOA with X mixing](qaoa-x.md): cost phases and unconstrained bit flips.
 - [QAOA with XY exchange mixing](qaoa-xy.md): ideal cardinality-preserving exchanges.
 - [CVaR training](cvar.md): optional lower-tail cost aggregation for Binary VQE
@@ -21,6 +23,7 @@ do not identify additional implementations.
 :maxdepth: 1
 
 binary-vqe
+filtering-vqe
 qaoa-x
 qaoa-xy
 cvar

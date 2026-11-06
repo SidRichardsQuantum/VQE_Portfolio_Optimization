@@ -3,7 +3,7 @@
 Concise descriptions of the algorithms implemented in this package, including
 reference solvers and simple comparison baselines.
 
-- [Quantum methods](quantum/index.md): Binary VQE, QAOA with X or XY mixing,
+- [Quantum methods](quantum/index.md): Binary VQE, Filtering VQE, QAOA with X or XY mixing,
   and the variational quantum allocator.
 - [Classical methods](classical/index.md): exact references, optimization
   backends, local and population searches, and allocation baselines.

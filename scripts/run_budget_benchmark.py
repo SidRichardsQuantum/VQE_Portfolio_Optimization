@@ -31,6 +31,7 @@ from vqe_portfolio.research.validation import (  # noqa: E402
 )
 from vqe_portfolio.types import (  # noqa: E402
     BinaryVQEConfig,
+    FVQEConfig,
     FractionalVQEConfig,
     QAOAConfig,
 )
@@ -139,6 +140,7 @@ def solver_config(method, instance, seed, args):
         return FractionalVQEConfig(**common)
     if method not in {
         "binary-vqe",
+        "f-vqe",
         "qaoa-x",
         "qaoa-xy",
         "qaoa-xy-untrained",
@@ -148,6 +150,8 @@ def solver_config(method, instance, seed, args):
     common.update(
         k=instance["snapshot"]["k"], alpha=args.alpha, shots_sample=args.shots
     )
+    if method == "f-vqe":
+        return FVQEConfig(**common)
     if method == "binary-vqe":
         return BinaryVQEConfig(
             **common,

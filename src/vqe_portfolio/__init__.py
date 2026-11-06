@@ -5,6 +5,7 @@ Variational Quantum Eigensolver (VQE)–based portfolio optimization.
 
 This package provides:
 - Binary VQE for asset selection with cardinality constraints
+- Filtering VQE with inverse or exponential filters
 - QAOA for binary portfolio optimization with cardinality constraints
 - Variational quantum allocation on the long-only simplex
 - Classical utilities for evaluation (efficient frontiers, metrics)
@@ -73,6 +74,7 @@ from .frontier import (
     binary_frontier_from_probs,
     fractional_frontier_from_allocs,
 )
+from .fvqe import run_fvqe
 from .problem import (
     PortfolioEvaluation,
     PortfolioProblem,
@@ -87,6 +89,8 @@ from .research.comparison import real_data_comparison_rows
 from .types import (
     BinaryVQEConfig,
     BinaryVQEResult,
+    FVQEConfig,
+    FVQEResult,
     FractionalVQEConfig,
     FractionalVQEResult,
     VariationalAllocatorConfig,
@@ -111,6 +115,8 @@ __all__ = [
     "compute_mu_sigma",
     # --- configs & results ---
     "BinaryVQEConfig",
+    "FVQEConfig",
+    "FVQEResult",
     "QAOAConfig",
     "FractionalVQEConfig",
     "VariationalAllocatorConfig",
@@ -124,6 +130,7 @@ __all__ = [
     "BudgetResult",
     "CandidateSnapshot",
     "run_binary_vqe",
+    "run_fvqe",
     "binary_lambda_sweep",
     "run_qaoa",
     "qaoa_lambda_sweep",

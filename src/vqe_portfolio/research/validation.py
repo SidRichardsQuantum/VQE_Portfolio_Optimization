@@ -9,6 +9,7 @@ import numpy as np
 
 from ..baselines import (
     convex_markowitz_baseline,
+    frank_wolfe_baseline,
     grasp_binary_baseline,
     iterated_local_search_binary_baseline,
     exact_long_only_markowitz_baseline,
@@ -27,9 +28,10 @@ from ..baselines import (
 from ..benchmark import feasible_sample_rate
 from ..binary import run_binary_vqe
 from ..fractional import run_fractional_vqe
+from ..fvqe import run_fvqe
 from ..problem import PortfolioProblem
 from ..qaoa import run_qaoa
-from ..types import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
+from ..types import BinaryVQEConfig, FractionalVQEConfig, FVQEConfig, QAOAConfig
 
 METHODS = {
     "exact-binary": ("binary_qubo", False),
@@ -46,11 +48,13 @@ METHODS = {
     "vns": ("binary_qubo", True),
     "random-k": ("binary_qubo", True),
     "binary-vqe": ("binary_qubo", True),
+    "f-vqe": ("binary_qubo", True),
     "qaoa-x": ("binary_qubo", True),
     "qaoa-xy": ("binary_qubo", True),
     "exact-fractional": ("fractional_simplex", False),
     "osqp": ("fractional_simplex", False),
     "pgd": ("fractional_simplex", False),
+    "frank-wolfe": ("fractional_simplex", False),
     "fractional-vqe": ("fractional_simplex", True),
     "variational-allocator": ("fractional_simplex", True),
 }
@@ -230,6 +234,7 @@ def solve(problem, method, seed, config):
         "grasp",
         "vns",
         "pgd",
+        "frank-wolfe",
     }:
         if method in {"highs", "scip"}:
             solver = (
@@ -242,6 +247,8 @@ def solve(problem, method, seed, config):
             result = convex_markowitz_baseline(mu, sigma, lam)
         elif method == "pgd":
             result = projected_gradient_descent_baseline(mu, sigma, lam)
+        elif method == "frank-wolfe":
+            result = frank_wolfe_baseline(mu, sigma, lam)
         elif method == "qp-round":
             result = relaxation_rounding_binary_baseline(mu, sigma, lam, k)
         else:
@@ -262,7 +269,7 @@ def solve(problem, method, seed, config):
             "lower_bound": result.lower_bound,
             "mip_gap": result.mip_gap,
         }
-        if method in {"qp-round", "pgd"}:
+        if method in {"qp-round", "pgd", "frank-wolfe"}:
             diagnostics["solver_message"] = result.message
         return result.candidate, diagnostics
     common = {
@@ -283,6 +290,8 @@ def solve(problem, method, seed, config):
             sigma,
             BinaryVQEConfig(**common, depth=config.binary_depth, stepsize=0.3),
         )
+    elif method == "f-vqe":
+        result = run_fvqe(mu, sigma, FVQEConfig(**common, depth=config.binary_depth))
     else:
         result = run_qaoa(
             mu,

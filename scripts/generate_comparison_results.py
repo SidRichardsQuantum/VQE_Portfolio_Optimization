@@ -13,7 +13,7 @@ import argparse
 import json
 from pathlib import Path
 
-from vqe_portfolio import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
+from vqe_portfolio import BinaryVQEConfig, FractionalVQEConfig, FVQEConfig, QAOAConfig
 from vqe_portfolio.comparison import (
     binary_objective,
     bitstring,
@@ -34,6 +34,7 @@ from vqe_portfolio.research.comparison import (
     add_binary_vqe_row,
     add_classical_rows,
     add_fractional_vqe_row,
+    add_fvqe_row,
     add_qaoa_row,
     add_solver_rows,
     synthetic_problem,
@@ -46,6 +47,7 @@ __all__ = [
     "add_binary_vqe_row",
     "add_classical_rows",
     "add_fractional_vqe_row",
+    "add_fvqe_row",
     "add_qaoa_row",
     "add_solver_rows",
     "binary_objective",
@@ -74,6 +76,7 @@ def parse_methods(value: str) -> set[str]:
         methods = (methods - {"all"}) | {
             "classical",
             "binary-vqe",
+            "f-vqe",
             "qaoa-x",
             "qaoa-xy",
             "variational-allocator",
@@ -108,7 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--methods",
         default="all",
-        help="Comma-separated subset: classical,classical-solvers,osqp,pgd,highs,scip,qp-round,swap,anneal,tabu,memetic,ils,grasp,vns,binary-vqe,qaoa-x,qaoa-xy,variational-allocator (legacy: fractional-vqe). all excludes classical-solvers and individual solver IDs.",
+        help="Comma-separated subset: classical,classical-solvers,osqp,pgd,frank-wolfe,highs,scip,qp-round,swap,anneal,tabu,memetic,ils,grasp,vns,binary-vqe,f-vqe,qaoa-x,qaoa-xy,variational-allocator (legacy: fractional-vqe). all excludes classical-solvers and individual solver IDs.",
     )
     parser.add_argument(
         "--solver-time-limit",
@@ -155,7 +158,9 @@ def main(argv: list[str] | None = None) -> int:
         "grasp",
         "vns",
         "pgd",
+        "frank-wolfe",
         "binary-vqe",
+        "f-vqe",
         "qaoa-x",
         "qaoa-xy",
         "variational-allocator",
@@ -203,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
             "grasp",
             "vns",
             "pgd",
+            "frank-wolfe",
         }
         if "classical-solvers" in methods or solver_methods:
             add_solver_rows(
@@ -232,6 +238,18 @@ def main(argv: list[str] | None = None) -> int:
                 shots_sample=args.shots,
             )
             add_binary_vqe_row(rows, trial_rows, dataset, mu, Sigma, cfg, seeds)
+
+        if "f-vqe" in methods:
+            cfg = FVQEConfig(
+                depth=args.binary_depth,
+                steps=args.steps,
+                log_every=max(args.steps, 1),
+                lam=args.lambda_value,
+                alpha=args.alpha,
+                k=k,
+                shots_sample=args.shots,
+            )
+            add_fvqe_row(rows, trial_rows, dataset, mu, Sigma, cfg, seeds)
 
         if "qaoa-x" in methods:
             cfg = QAOAConfig(

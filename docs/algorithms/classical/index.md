@@ -23,6 +23,7 @@ Entries without a study method ID remain available through the Python API.
 - [GRASP](grasp.md)
 - [Variable neighborhood search](variable-neighborhood-search.md)
 - [Projected gradient descent](projected-gradient-descent.md)
+- [Frank–Wolfe with away steps](frank-wolfe.md)
 
 ## Simple comparison baselines
 
@@ -52,5 +53,6 @@ iterated-local-search
 grasp
 variable-neighborhood-search
 projected-gradient-descent
+frank-wolfe
 random-k
 ```

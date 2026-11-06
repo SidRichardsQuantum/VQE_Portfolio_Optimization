@@ -124,9 +124,9 @@ def _execute(mu, sigma, cfg, solver, args):
         return solver(mu=mu, Sigma=sigma, cfg=cfg)
     from .execution import run_budgeted
     from .problem import PortfolioProblem
-    from .types import BinaryVQEConfig, QAOAConfig
+    from .types import BinaryVQEConfig, FVQEConfig, QAOAConfig
 
-    binary = isinstance(cfg, (BinaryVQEConfig, QAOAConfig))
+    binary = isinstance(cfg, (BinaryVQEConfig, FVQEConfig, QAOAConfig))
     problem = PortfolioProblem(
         mu,
         sigma,
@@ -134,19 +134,16 @@ def _execute(mu, sigma, cfg, solver, args):
         "binary_qubo" if binary else "fractional_simplex",
         cfg.k if binary else None,
     )
-    method = (
-        "binary-vqe"
-        if isinstance(cfg, BinaryVQEConfig)
-        else (
-            f"qaoa-{cfg.mixer}"
-            if isinstance(cfg, QAOAConfig)
-            else (
-                "fractional-vqe"
-                if args.cmd in {"fractional", "fractional-data"}
-                else "variational-allocator"
-            )
-        )
-    )
+    if isinstance(cfg, FVQEConfig):
+        method = "f-vqe"
+    elif isinstance(cfg, BinaryVQEConfig):
+        method = "binary-vqe"
+    elif isinstance(cfg, QAOAConfig):
+        method = f"qaoa-{cfg.mixer}"
+    elif args.cmd in {"fractional", "fractional-data"}:
+        method = "fractional-vqe"
+    else:
+        method = "variational-allocator"
     return run_budgeted(problem, method, args.budget_seconds, config=cfg)
 
 
@@ -203,6 +200,64 @@ def _cmd_binary(args: argparse.Namespace) -> int:
         "config": cfg,
         "result": res,
     }
+    _write_output(args.out, payload)
+    return 0
+
+
+def _cmd_fvqe(args: argparse.Namespace) -> int:
+    from .fvqe import run_fvqe
+    from .types import FVQEConfig
+
+    market = args.cmd == "f-vqe-data"
+    if market:
+        mu, sigma, prices, tickers = _load_mu_sigma_from_market(args)
+    else:
+        mu, sigma = _load_mu_sigma(args)
+    cfg = FVQEConfig(
+        **{
+            name: getattr(args, name)
+            for name in (
+                "depth",
+                "ansatz",
+                "steps",
+                "stepsize",
+                "log_every",
+                "lam",
+                "alpha",
+                "k",
+                "device",
+                "shots_train",
+                "shots_sample",
+                "seed",
+                "filter_type",
+                "tau",
+                "gradient_target",
+                "tau_max",
+                "tau_search_steps",
+                "spectrum_floor",
+            )
+        },
+        adapt_tau=not args.fixed_tau,
+    )
+    result = _execute(mu, sigma, cfg, run_fvqe, args)
+    payload = {"method": "f-vqe", "config": cfg, "result": result}
+    if market:
+        payload.update(
+            mode="market-data",
+            tickers=tickers,
+            start=args.start,
+            end=args.end,
+            data_options={
+                "auto_adjust": not args.no_auto_adjust,
+                "use_log": not args.simple_returns,
+                "shrink": args.shrink,
+                "scale": args.scale,
+            },
+        )
+        if args.include_mu_sigma:
+            payload.update(mu=mu, sigma=sigma)
+        if args.prices_csv:
+            prices.to_csv(args.prices_csv)
     _write_output(args.out, payload)
     return 0
 
@@ -438,7 +493,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="vqe-portfolio",
         description=(
-            "Portfolio optimization with Binary VQE, QAOA, and a variational quantum allocator."
+            "Portfolio optimization with Binary VQE, F-VQE, QAOA, and a variational quantum allocator."
         ),
     )
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -518,6 +573,44 @@ def build_parser() -> argparse.ArgumentParser:
         g.add_argument("--shots-train", type=int, default=None)
         g.add_argument("--shots-sample", type=int, default=2000)
         g.add_argument("--log-every", type=int, default=10)
+
+    def add_common_fvqe(sp: argparse.ArgumentParser) -> None:
+        from .ansatz import BINARY_ANSATZES
+        from .types import FVQEConfig
+
+        defaults = FVQEConfig()
+        g = sp.add_argument_group("filtering-vqe")
+        g.add_argument("--ansatz", choices=BINARY_ANSATZES, default=defaults.ansatz)
+        g.add_argument("--device", default=defaults.device)
+        g.add_argument(
+            "--filter",
+            dest="filter_type",
+            choices=["inverse", "exponential"],
+            default=defaults.filter_type,
+        )
+        g.add_argument(
+            "--fixed-tau",
+            action="store_true",
+            help="Disable adaptive filter-strength selection.",
+        )
+        for name in (
+            "depth",
+            "steps",
+            "log_every",
+            "shots_sample",
+            "seed",
+            "tau_search_steps",
+        ):
+            g.add_argument(
+                "--" + name.replace("_", "-"), type=int, default=getattr(defaults, name)
+            )
+        g.add_argument("--shots-train", type=int, default=None)
+        for name in ("stepsize", "tau", "gradient_target", "tau_max", "spectrum_floor"):
+            g.add_argument(
+                "--" + name.replace("_", "-"),
+                type=float,
+                default=getattr(defaults, name),
+            )
 
     def add_common_qaoa(sp: argparse.ArgumentParser) -> None:
         add_training_objective(sp)
@@ -647,6 +740,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Penalty weight (cfg.alpha).",
     )
     sp_b.set_defaults(func=_cmd_binary)
+
+    for command, market in (("f-vqe", False), ("f-vqe-data", True)):
+        sp_fv = sub.add_parser(
+            command, help="Run Filtering VQE" + (" on market data." if market else ".")
+        )
+        if market:
+            add_output_only(sp_fv)
+            add_market_data_args(sp_fv)
+        else:
+            add_common_io(sp_fv)
+        add_common_fvqe(sp_fv)
+        sp_fv.add_argument("--k", type=int, required=True)
+        sp_fv.add_argument("--lam", type=float, required=True)
+        sp_fv.add_argument("--alpha", type=_alpha, default="auto")
+        sp_fv.set_defaults(func=_cmd_fvqe)
 
     sp_q = sub.add_parser(
         "qaoa",

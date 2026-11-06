@@ -28,7 +28,7 @@ PyPI: [https://pypi.org/project/vqe-portfolio/](https://pypi.org/project/vqe-por
 
 Website: [https://sidrichardsquantum.github.io/VQE_Portfolio_Optimization/](https://sidrichardsquantum.github.io/VQE_Portfolio_Optimization/)
 
-A Python library for portfolio optimization with PennyLane. It provides Binary VQE and QAOA for selecting a fixed number of assets, and a variational quantum allocator for long-only allocation. Classical baselines and independent candidate evaluation support reproducible comparisons.
+A Python library for portfolio optimization with PennyLane. It provides Binary VQE, Filtering VQE (F-VQE), and QAOA for selecting a fixed number of assets, and a variational quantum allocator for long-only allocation. Classical baselines and independent candidate evaluation support reproducible comparisons.
 
 The allocator was historically called "Fractional VQE". It parameterises weights
 with a quantum circuit and evaluates the portfolio cost classically; it is not
@@ -40,6 +40,11 @@ The experiments use quantum simulation and do not establish quantum advantage or
 Binary VQE and QAOA support optional [CVaR training](docs/algorithms/quantum/cvar.md)
 with `training_objective="cvar", cvar_alpha=0.25`. This emphasizes the lowest-cost
 portion of circuit outcomes; mean-cost training remains the default.
+
+[Filtering VQE](docs/algorithms/quantum/filtering-vqe.md) implements normalized
+parameter-shift updates toward freshly filtered states. It supports inverse and
+exponential filters, adaptive or fixed strength, and analytic or finite-shot
+training through `run_fvqe` and `FVQEConfig`, or the `f-vqe` CLI command.
 
 ## Installation
 
@@ -89,14 +94,16 @@ simulated annealing, tabu search, memetic genetic search, iterated local search
 HiGHS linearised integer and SCIP quadratic integer optimisation. All support end-to-end execution
 budgets; see [classical baselines](USAGE.md#strong-classical-baselines).
 
-NumPy projected gradient descent supplies an iterative classical comparator for
-the separate long-only fractional allocation track, alongside optional OSQP.
+NumPy projected gradient descent and
+[Frank–Wolfe with away steps](docs/algorithms/classical/frank-wolfe.md) supply
+iterative classical comparators for the separate long-only fractional allocation
+track, alongside optional OSQP.
 
 ## Repository structure
 
 ```text
 src/vqe_portfolio/
-├── binary.py, qaoa.py, fractional.py   # Quantum solvers
+├── binary.py, fvqe.py, qaoa.py, fractional.py  # Quantum solvers
 ├── problem.py, types.py               # Problem evaluation and solver types
 ├── ansatz.py, optimize.py             # Shared circuit and optimizer code
 ├── baselines/                        # Classical references and optional solvers
@@ -122,6 +129,10 @@ retain their original methods and provenance.
 
 Version 0.3.5 adds optional CVaR training for Binary VQE and QAOA, with analytic
 Adam or finite-shot SPSA optimization and objective metadata in solver results.
+
+Version 0.3.6 adds Filtering VQE and NumPy-only Frank–Wolfe with away steps,
+including comparison, validation, and execution-budget integration. The
+[roadmap](ROADMAP.md) lists further algorithms and implementation requirements.
 
 ## Documentation and research
 

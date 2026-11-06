@@ -101,8 +101,8 @@ def test_strong_classical_benchmark(tmp_path):
         rows = list(csv.DictReader(f))
     with trials.open() as f:
         runs = list(csv.DictReader(f))
-    assert len(rows) == 12
-    assert len(runs) == 19
+    assert len(rows) == 13
+    assert len(runs) == 20
     assert rows[0]["objective_family"] == "fractional_simplex"
     assert rows[1]["solver_status"] == "optimal"
     assert float(rows[1]["mip_gap"]) < 1e-7
@@ -119,7 +119,8 @@ def test_strong_classical_benchmark(tmp_path):
         for r in runs
         if r["method"] == "Classical variable neighborhood search"
     ] == ["7", "8"]
-    assert rows[-1]["method"] == "Classical projected gradient descent"
+    assert rows[-2]["method"] == "Classical projected gradient descent"
+    assert rows[-1]["method"] == "Classical Frank-Wolfe with away steps"
     assert rows[-1]["objective_family"] == "fractional_simplex"
     assert rows[-1]["seed_count"] == "1"
     assert all(
@@ -190,9 +191,10 @@ def test_strong_classical_failures_are_preserved(monkeypatch):
         benchmark, "variable_neighborhood_search_binary_baseline", failed
     )
     monkeypatch.setattr(benchmark, "projected_gradient_descent_baseline", failed)
+    monkeypatch.setattr(benchmark, "frank_wolfe_baseline", failed)
     rows, trials = [], []
     benchmark.add_solver_rows(rows, trials, "test", np.ones(3), np.eye(3), 1, 2, [0, 1])
-    assert len(rows) == 12 and len(trials) == 19
+    assert len(rows) == 13 and len(trials) == 20
     assert all(r["feasible_rate"] == "0.000000" for r in rows)
     assert all(r["best_objective"] == "" for r in rows)
     assert all(r["objective"] == "" for r in trials)
@@ -218,7 +220,7 @@ def test_numpy_search_methods_can_run_without_optional_solvers(tmp_path, monkeyp
         _load_script_main()(
             [
                 "--methods",
-                "anneal,tabu,memetic,ils,grasp,vns,pgd",
+                "anneal,tabu,memetic,ils,grasp,vns,pgd,frank-wolfe",
                 "--asset-counts",
                 "4",
                 "--k",
@@ -247,11 +249,12 @@ def test_numpy_search_methods_can_run_without_optional_solvers(tmp_path, monkeyp
         "Classical GRASP",
         "Classical variable neighborhood search",
         "Classical projected gradient descent",
+        "Classical Frank-Wolfe with away steps",
     ]
-    assert all(row["type"] == "classical heuristic" for row in rows[:-1])
-    assert rows[-1]["type"] == "classical"
+    assert all(row["type"] == "classical heuristic" for row in rows[:-2])
+    assert all(row["type"] == "classical" for row in rows[-2:])
     assert all(row["feasible_rate"] == "1.000000" for row in rows)
-    assert [run["seed"] for run in runs] == ["7", "8"] * 6 + ["-"]
+    assert [run["seed"] for run in runs] == ["7", "8"] * 6 + ["-", "-"]
     assert all(
         run["selection_or_weights"].count("1") == 2
         for run in runs

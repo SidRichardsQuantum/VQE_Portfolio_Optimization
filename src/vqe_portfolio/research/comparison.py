@@ -10,6 +10,7 @@ import numpy as np
 
 from ..baselines import (
     convex_markowitz_baseline,
+    frank_wolfe_baseline,
     equal_weight_baseline,
     exact_long_only_markowitz_baseline,
     exhaustive_binary_baseline,
@@ -36,8 +37,10 @@ from ..benchmark import (
 from ..binary import run_binary_vqe
 from ..data import get_stock_data
 from ..fractional import run_fractional_vqe
+from ..fvqe import run_fvqe
 from ..problem import PortfolioProblem
 from ..qaoa import run_qaoa
+from ..reliability import resolve_penalty
 from ..types import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
 
 FIELDNAMES = [
@@ -289,6 +292,13 @@ def add_solver_rows(
             ["-"],
             lambda p, seed: projected_gradient_descent_baseline(p.mu, p.Sigma, p.lam),
         ),
+        (
+            "frank-wolfe",
+            "Classical Frank-Wolfe with away steps",
+            fractional,
+            ["-"],
+            lambda p, seed: frank_wolfe_baseline(p.mu, p.Sigma, p.lam),
+        ),
     ]:
         if methods is not None and method_id not in methods:
             continue
@@ -374,7 +384,7 @@ def _add_quantum_row(
         dataset,
         method,
         "quantum",
-        cfg.alpha if binary else None,
+        resolve_penalty(mu, Sigma, cfg.lam, cfg.k, cfg.alpha) if binary else None,
     )
 
 
@@ -404,6 +414,21 @@ def add_qaoa_row(rows, trial_rows, dataset, mu, Sigma, base_cfg, seeds):
         seeds,
         run_qaoa,
         f"QAOA {base_cfg.mixer.upper()} best feasible",
+        True,
+    )
+
+
+def add_fvqe_row(rows, trial_rows, dataset, mu, Sigma, base_cfg, seeds):
+    _add_quantum_row(
+        rows,
+        trial_rows,
+        dataset,
+        mu,
+        Sigma,
+        base_cfg,
+        seeds,
+        run_fvqe,
+        f"F-VQE {base_cfg.filter_type} best feasible",
         True,
     )
 

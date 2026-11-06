@@ -13,11 +13,12 @@ from math import comb
 import numpy as np
 
 from .problem import PortfolioProblem
-from .types import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
+from .types import BinaryVQEConfig, FractionalVQEConfig, FVQEConfig, QAOAConfig
 
 
 BUDGET_METHODS = {
     "binary-vqe": "binary_qubo",
+    "f-vqe": "binary_qubo",
     "qaoa-x": "binary_qubo",
     "qaoa-xy": "binary_qubo",
     "qaoa-xy-untrained": "binary_qubo",
@@ -37,6 +38,7 @@ BUDGET_METHODS = {
     "variational-allocator": "fractional_simplex",
     "osqp": "fractional_simplex",
     "pgd": "fractional_simplex",
+    "frank-wolfe": "fractional_simplex",
 }
 
 
@@ -102,6 +104,7 @@ class _PhaseTimings:
 def _configuration(problem, method, config, seed):
     expected = {
         "binary-vqe": BinaryVQEConfig,
+        "f-vqe": FVQEConfig,
         "qaoa-x": QAOAConfig,
         "qaoa-xy": QAOAConfig,
         "qaoa-xy-untrained": QAOAConfig,
@@ -143,6 +146,10 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
         run_binary_vqe(
             mu, sigma, config, candidate_callback=publish, phase_callback=phase
         )
+    elif method == "f-vqe":
+        from .fvqe import run_fvqe
+
+        run_fvqe(mu, sigma, config, candidate_callback=publish, phase_callback=phase)
     elif method == "qaoa-xy-untrained":
         from .qaoa import _sample_initial_qaoa
 
@@ -181,6 +188,7 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
     else:
         from .baselines.solvers import (
             convex_markowitz_baseline,
+            frank_wolfe_baseline,
             grasp_binary_baseline,
             iterated_local_search_binary_baseline,
             local_search_binary_baseline,
@@ -213,6 +221,8 @@ def _solve(problem, method, config, seed, deadline, publish, phase):
             result = projected_gradient_descent_baseline(
                 mu, sigma, lam, candidate_callback=publish
             )
+        elif method == "frank-wolfe":
+            result = frank_wolfe_baseline(mu, sigma, lam, candidate_callback=publish)
         elif method == "qp-round":
             result = relaxation_rounding_binary_baseline(
                 mu, sigma, lam, k, candidate_callback=publish

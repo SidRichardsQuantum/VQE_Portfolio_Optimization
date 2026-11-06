@@ -1,6 +1,7 @@
 """Classical portfolio solvers with explicit constraints and solver metadata.
 
-Swap search, annealing, tabu, memetic GA, ILS, GRASP, VNS, and PGD need only NumPy. Optional
+Swap search, annealing, tabu, memetic GA, ILS, GRASP, VNS, PGD, and Frank-Wolfe
+need only NumPy. Optional
 solvers are imported only when called. Install ``.[classical]`` for OSQP/CVXPY
 and SciPy's HiGHS MILP interface, plus PySCIPOpt's quadratic integer solver.
 """
@@ -1031,4 +1032,135 @@ def projected_gradient_descent_baseline(
         best_obj,
         status,
         message=f"iterations={iteration}; max_iterations={max_iterations}; tolerance={tolerance}; initial_stepsize={stepsize}; final_stepsize={step}; first_order_gap={best_gap}; no certified bound",
+    )
+
+
+def frank_wolfe_baseline(
+    mu,
+    Sigma,
+    lam,
+    *,
+    max_iterations=10000,
+    tolerance=1e-8,
+    candidate_callback=None,
+) -> ClassicalResult:
+    """Away-steps Frank-Wolfe for the long-only convex simplex QP.
+
+    Implements Algorithm 1 of Lacoste-Julien and Jaggi (2015): compare the
+    forward and away directional gaps, then minimize the quadratic along the
+    selected direction within its feasible step bound. Simplex coordinates are
+    the active vertices' coefficients. Start at the largest-return vertex;
+    ties in vertex selection use the lowest index. No projection is used.
+
+    Covariance eigenvalues below -1e-10 are rejected. Stop on the numerical
+    Frank-Wolfe gap grad(f)@w - min(grad(f)), not an independently certified
+    bound. Retain and publish copied strictly improving feasible incumbents.
+    Callbacks include the chosen atom, step type, step size, and feasible bound.
+    """
+    mu, Sigma = _problem(mu, Sigma, lam)
+    _positive_integer("max_iterations", max_iterations)
+    if not np.isfinite(tolerance) or tolerance <= 0:
+        raise ValueError("tolerance must be finite and positive.")
+    if np.linalg.eigvalsh(Sigma)[0] < -1e-10:
+        raise ValueError("Frank-Wolfe requires a PSD covariance.")
+    Q = lam * Sigma
+    current = np.zeros(len(mu))
+    current[np.argmax(mu)] = 1
+    best, best_obj = current.copy(), _objective(current, mu, Sigma, lam)
+    objective = best_obj
+    forward_steps = away_steps = drop_steps = 0
+    if candidate_callback is not None:
+        candidate_callback(
+            best.copy(),
+            {"source": "frank-wolfe", "iteration": 0, "step_type": "initial"},
+        )
+
+    status = "iteration_limit"
+    for iteration in range(max_iterations + 1):
+        gradient = 2 * Q @ current - mu
+        if not np.all(np.isfinite(gradient)):
+            status = "numerical_limit"
+            break
+        forward_atom = int(np.argmin(gradient))
+        # Center before averaging to reduce cancellation from constant offsets.
+        centered = gradient - gradient[forward_atom]
+        forward_gap = float(centered @ current)
+        if forward_gap <= tolerance:
+            status = "converged"
+            break
+        if iteration == max_iterations:
+            break
+        active = np.flatnonzero(current > 0)
+        away_atom = int(active[np.argmax(centered[active])])
+        away_gap = float(centered[away_atom] - forward_gap)
+        if len(active) > 1 and away_gap > forward_gap:
+            atom, step_type, directional_gap = away_atom, "away", away_gap
+            direction = current.copy()
+            direction[atom] -= 1
+            max_step = float(current[atom] / (1 - current[atom]))
+        else:
+            atom, step_type, directional_gap = forward_atom, "forward", forward_gap
+            direction = -current
+            direction[atom] += 1
+            max_step = 1.0
+        curvature = float(direction @ Q @ direction)
+        if not np.isfinite(curvature):
+            status = "numerical_limit"
+            break
+        step = (
+            min(max_step, directional_gap / (2 * curvature))
+            if curvature > 0
+            else max_step
+        )
+        if step_type == "forward":
+            candidate = (1 - step) * current
+            candidate[atom] += step
+        else:
+            candidate = (1 + step) * current
+            # A maximal away step removes the atom exactly, without leaving
+            # cancellation-sized coefficients in the active set.
+            candidate[atom] = (
+                0.0 if step == max_step else current[atom] - step * (1 - current[atom])
+            )
+        # Correct only floating-point drift in the convex coefficients.
+        candidate /= candidate.sum()
+        candidate_obj = _objective(candidate, mu, Sigma, lam)
+        slack = 1e-14 * max(1.0, abs(objective))
+        if (
+            not np.all(np.isfinite(candidate))
+            or np.any(candidate < 0)
+            or not np.isfinite(candidate_obj)
+            or candidate_obj > objective + slack
+            or np.array_equal(candidate, current)
+        ):
+            status = "numerical_limit"
+            break
+        forward_steps += step_type == "forward"
+        away_steps += step_type == "away"
+        drop_steps += step_type == "away" and step == max_step
+        current, objective = candidate, candidate_obj
+        if objective < best_obj:
+            best, best_obj = current.copy(), objective
+            if candidate_callback is not None:
+                candidate_callback(
+                    best.copy(),
+                    {
+                        "source": "frank-wolfe",
+                        "iteration": iteration + 1,
+                        "step_type": step_type,
+                        "atom": atom,
+                        "step_size": step,
+                        "max_step_size": max_step,
+                    },
+                )
+
+    gradient = 2 * Q @ best - mu
+    best_gap = float((gradient - gradient.min()) @ best)
+    if status == "converged" and best_gap > tolerance:
+        status = "numerical_limit"
+    return ClassicalResult(
+        best,
+        best_obj,
+        status,
+        message=f"iterations={forward_steps + away_steps}; max_iterations={max_iterations}; tolerance={tolerance}; forward_steps={forward_steps}; away_steps={away_steps}; drop_steps={drop_steps}; active_set_size={np.count_nonzero(best)}; first_order_gap={best_gap}; no certified bound",
     )

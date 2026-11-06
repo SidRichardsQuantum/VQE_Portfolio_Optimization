@@ -39,8 +39,9 @@ def test_reliability_runner_freezes_settings_and_resumes_without_retraining(
         runner.main(args)
 
 
+@pytest.mark.parametrize("method", ["swap", "frank-wolfe"])
 def test_budget_runner_saves_incumbents_and_refuses_changed_settings(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, method
 ):
     from scripts import run_budget_benchmark as runner
 
@@ -52,7 +53,7 @@ def test_budget_runner_saves_incumbents_and_refuses_changed_settings(
         "--seeds",
         "0",
         "--methods",
-        "swap",
+        method,
         "--budgets",
         "10",
         "--output-dir",

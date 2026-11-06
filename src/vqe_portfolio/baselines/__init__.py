@@ -13,6 +13,7 @@ from .reference import (
 from .solvers import (
     ClassicalResult,
     convex_markowitz_baseline,
+    frank_wolfe_baseline,
     grasp_binary_baseline,
     iterated_local_search_binary_baseline,
     local_search_binary_baseline,
@@ -34,6 +35,7 @@ __all__ = [
     "top_return_baseline",
     "ClassicalResult",
     "convex_markowitz_baseline",
+    "frank_wolfe_baseline",
     "grasp_binary_baseline",
     "iterated_local_search_binary_baseline",
     "local_search_binary_baseline",

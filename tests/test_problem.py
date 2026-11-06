@@ -155,6 +155,7 @@ def test_all_adapters_share_problem_and_ignore_solver_scores(monkeypatch, toy_pr
         benchmark, "projected_gradient_descent_baseline", strong_fractional
     )
     monkeypatch.setattr(benchmark, "convex_markowitz_baseline", strong_fractional)
+    monkeypatch.setattr(benchmark, "frank_wolfe_baseline", strong_fractional)
 
     def quantum_binary(mu_input, sigma_input, cfg):
         assert not mu_input.flags.writeable and not sigma_input.flags.writeable
