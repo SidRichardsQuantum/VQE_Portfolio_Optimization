@@ -37,6 +37,10 @@ Hamiltonian-expectation VQE. Use `run_variational_allocator` and
 
 The experiments use quantum simulation and do not establish quantum advantage or production readiness.
 
+Binary VQE and QAOA support optional [CVaR training](docs/algorithms/quantum/cvar.md)
+with `training_objective="cvar", cvar_alpha=0.25`. This emphasizes the lowest-cost
+portion of circuit outcomes; mean-cost training remains the default.
+
 ## Installation
 
 ```bash
@@ -115,6 +119,9 @@ memetic genetic search, ILS, GRASP, QP rounding, VNS, and projected gradient
 descent; fixes selection and allocator boundaries; and introduces the canonical
 allocator names and individual algorithm guides. Archived research results
 retain their original methods and provenance.
+
+Version 0.3.5 adds optional CVaR training for Binary VQE and QAOA, with analytic
+Adam or finite-shot SPSA optimization and objective metadata in solver results.
 
 ## Documentation and research
 

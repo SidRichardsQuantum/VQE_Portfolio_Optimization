@@ -817,7 +817,7 @@ Binary VQE adds these controls:
 | `stepsize_decay=0.03` | Use `stepsize / (1 + 0.03*t)` at zero-based update `t` |
 
 `steps` is **per restart**, so total updates are `steps * restarts`. Best-iterate
-selection and restart selection use training energy, never a reference optimum
+selection and restart selection use the configured training cost, never a reference optimum
 or target-quality score. On finite-shot training these are noisy observations.
 `effective_alpha`, `energy_scale`, and `restart_energies` record the resolved
 settings and restart scores. The energy trace describes the selected restart's
@@ -848,6 +848,27 @@ snapshot, including the final step even when it is not a logging multiple.
 Logging requires an additional cost evaluation. This changes runtime and can
 change finite-shot random streams; historical traces and timings are preserved.
 Use new output directories for studies after upgrading.
+
+## CVaR training
+
+Binary VQE and QAOA accept `training_objective="cvar"` and
+`cvar_alpha=0.25` in their Python configs, or `--training-objective cvar
+--cvar-alpha 0.25` on their CLI commands, including market-data commands.
+The default remains expectation training. The tail fraction must be finite
+and in `(0, 1]`.
+
+CVaR averages the best-cost fraction of circuit outcomes, including fractional
+weight at the quantile boundary and penalties on infeasible bitstrings. It is
+an optimization training objective, not financial downside-risk CVaR.
+Analytic training uses differentiable probabilities and Adam; finite-shot
+training with a tail below 1 uses SPSA. A tail fraction of 1 follows the
+existing expectation/Adam path. CVaR also applies to lambda sweeps, Binary
+VQE restart and best-iterate selection, and budgeted execution.
+
+Traces and `restart_energies` report the configured cost in original units.
+Results include `training_objective`, `cvar_alpha`, and `training_optimizer`.
+See [CVaR training](docs/algorithms/quantum/cvar.md) for examples, SPSA schedules,
+shot costs and simulator limits.
 
 ## End-to-end execution budgets (v0.3.1)
 

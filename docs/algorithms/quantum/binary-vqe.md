@@ -4,6 +4,9 @@
 
 Trains a parameterized circuit with Adam to minimize the expectation of the Ising Hamiltonian encoding the binary mean–variance objective plus alpha * (sum(x) - K)^2. Final measurements provide sampled selections, marginal probabilities, and a top-K projection.
 
+Optional [CVaR training](cvar.md) minimizes a lower tail of penalized costs;
+finite-shot CVaR uses SPSA instead of Adam.
+
 **Dependencies and execution:** PennyLane and the package's core dependencies.
 The default device is the `default.qubit` simulator. Analytic training is the
 default; finite-shot training can be requested. Device selection alone does not

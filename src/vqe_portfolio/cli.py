@@ -185,6 +185,8 @@ def _cmd_binary(args: argparse.Namespace) -> int:
         steps=args.steps,
         stepsize=args.stepsize,
         shots_train=args.shots_train,
+        training_objective=args.training_objective,
+        cvar_alpha=args.cvar_alpha,
         shots_sample=args.shots_sample,
         seed=args.seed,
         device=args.device,
@@ -218,6 +220,8 @@ def _cmd_qaoa(args: argparse.Namespace) -> int:
         steps=args.steps,
         stepsize=args.stepsize,
         shots_train=args.shots_train,
+        training_objective=args.training_objective,
+        cvar_alpha=args.cvar_alpha,
         shots_sample=args.shots_sample,
         seed=args.seed,
         device=args.device,
@@ -289,6 +293,8 @@ def _cmd_binary_data(args: argparse.Namespace) -> int:
         k=args.k,
         device=args.device,
         shots_train=args.shots_train,
+        training_objective=args.training_objective,
+        cvar_alpha=args.cvar_alpha,
         shots_sample=args.shots_sample,
         seed=args.seed,
     )
@@ -342,6 +348,8 @@ def _cmd_qaoa_data(args: argparse.Namespace) -> int:
         mixer=args.mixer,
         device=args.device,
         shots_train=args.shots_train,
+        training_objective=args.training_objective,
+        cvar_alpha=args.cvar_alpha,
         shots_sample=args.shots_sample,
         seed=args.seed,
     )
@@ -472,9 +480,24 @@ def build_parser() -> argparse.ArgumentParser:
         )
         add_output_only(sp)
 
+    def add_training_objective(sp: argparse.ArgumentParser) -> None:
+        g = sp.add_argument_group("training objective")
+        g.add_argument(
+            "--training-objective",
+            choices=["expectation", "cvar"],
+            default="expectation",
+        )
+        g.add_argument(
+            "--cvar-alpha",
+            type=float,
+            default=0.25,
+            help="Lower-tail probability mass in (0, 1]; used with --training-objective cvar.",
+        )
+
     def add_common_binary_vqe(sp: argparse.ArgumentParser) -> None:
         from vqe_portfolio.ansatz import BINARY_ANSATZES
 
+        add_training_objective(sp)
         g = sp.add_argument_group("binary-vqe")
         g.add_argument("--restarts", type=int, default=1)
         g.add_argument("--normalize-energy", action="store_true")
@@ -497,6 +520,7 @@ def build_parser() -> argparse.ArgumentParser:
         g.add_argument("--log-every", type=int, default=10)
 
     def add_common_qaoa(sp: argparse.ArgumentParser) -> None:
+        add_training_objective(sp)
         g = sp.add_argument_group("qaoa")
         g.add_argument(
             "--xy-initial-state", choices=["basis", "dicke"], default="basis"

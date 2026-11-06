@@ -33,6 +33,10 @@ class BinaryVQEConfig:
     keep_best: bool = False
     stepsize_decay: float = 0.0
 
+    # Lower-tail aggregation of penalized portfolio costs (not financial risk).
+    training_objective: str = "expectation"  # or "cvar"
+    cvar_alpha: float = 0.25  # probability mass in (0, 1]
+
 
 @dataclass(frozen=True)
 class QAOAConfig:
@@ -58,6 +62,9 @@ class QAOAConfig:
     seed: int = 0
     xy_initial_state: str = "basis"  # "dicke": uniform exact-K superposition
     xy_topology: str = "ring"  # or "complete"
+
+    training_objective: str = "expectation"  # or "cvar"
+    cvar_alpha: float = 0.25
 
 
 @dataclass(frozen=True)
@@ -114,6 +121,9 @@ class BinaryVQEResult:
     effective_alpha: float | None = None
     energy_scale: float = 1.0
     restart_energies: Sequence[float] = ()
+    training_objective: str = "expectation"
+    cvar_alpha: float | None = None
+    training_optimizer: str = "adam"
 
 
 @dataclass(frozen=True)
@@ -135,6 +145,9 @@ class QAOAResult:
     # Lambda sweep
     lambdas: np.ndarray | None = None
     probs_by_lambda: np.ndarray | None = None  # shape (L, n)
+    training_objective: str = "expectation"
+    cvar_alpha: float | None = None
+    training_optimizer: str = "adam"
 
 
 @dataclass(frozen=True)

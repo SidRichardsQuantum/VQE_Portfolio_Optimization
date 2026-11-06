@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.5
+
+- Add opt-in lower-tail CVaR training to Binary VQE and both QAOA mixers,
+  including lambda sweeps, restart selection, normalization, best-iterate
+  selection and solver CLI/data commands. Preserve expectation defaults and
+  the expectation path at a full tail fraction of 1.
+- Use differentiable state probabilities with Adam for analytic CVaR, and
+  empirical fractional-boundary tails with seeded SPSA for finite-shot CVaR.
+  Record the objective, tail fraction and optimizer in solver results.
+
 ## v0.3.4
 
 - Add individual quantum and classical algorithm pages, shared examples, and

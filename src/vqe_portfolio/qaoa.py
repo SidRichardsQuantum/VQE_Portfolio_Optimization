@@ -10,8 +10,14 @@ import pennylane as qml
 from pennylane import numpy as np
 
 from .binary import build_ising_hamiltonian
+from .cvar import (
+    make_training_cost,
+    optimize_training,
+    training_metadata,
+    validate_training_objective,
+)
 from .metrics import symmetrize
-from .optimize import adam_optimize, report_phase
+from .optimize import report_phase
 from .types import LambdaSweepConfig, OptimizeTrace, QAOAConfig, QAOAResult
 from .utils import set_global_seed
 from .utils import topk_onehot
@@ -173,6 +179,7 @@ def _random_init(p: int, mixer: str) -> np.ndarray:
 def _validate_inputs(
     mu: np.ndarray, Sigma: np.ndarray, cfg: QAOAConfig
 ) -> tuple[np.ndarray, np.ndarray, int]:
+    validate_training_objective(cfg)
     mu = np.array(mu, requires_grad=False)
     Sigma = np.array(Sigma, requires_grad=False)
     Sigma = symmetrize(Sigma)
@@ -308,6 +315,7 @@ def run_qaoa(
     candidate_callback=None,
     phase_callback=None,
 ) -> QAOAResult:
+    """Train QAOA with mean cost or lower-tail CVaR, then sample portfolios."""
     set_global_seed(cfg.seed)
 
     mu, Sigma, n = _validate_inputs(mu, Sigma, cfg)
@@ -329,6 +337,13 @@ def run_qaoa(
         return qml.expval(H_cost)
 
     energy = qml.set_shots(energy, cfg.shots_train)
+
+    def ansatz(params):
+        _qaoa_ansatz(
+            params, H_cost, n, cfg.k, cfg.mixer, cfg.xy_initial_state, cfg.xy_topology
+        )
+
+    objective = make_training_cost(energy, ansatz, dev_train, cfg, mu, Sigma, cfg.lam)
 
     init = _random_init(cfg.p, cfg.mixer)
 
@@ -374,9 +389,10 @@ def run_qaoa(
             report_phase(phase_callback, "optimization")
 
     report_phase(phase_callback, "optimization")
-    opt_res = adam_optimize(
-        energy,
+    opt_res = optimize_training(
+        objective,
         init,
+        cfg,
         steps=cfg.steps,
         stepsize=cfg.stepsize,
         log_every=cfg.log_every,
@@ -437,6 +453,7 @@ def run_qaoa(
         sample_counts=_ordered_sample_counts(counts),
         x_mode=np.array(x_mode, requires_grad=False),
         x_best_feasible=x_best_feasible,
+        **training_metadata(cfg),
     )
 
 
@@ -476,14 +493,30 @@ def qaoa_lambda_sweep(
 
         energy = qml.set_shots(energy, cfg.shots_train)
 
+        def ansatz(theta):
+            _qaoa_ansatz(
+                theta,
+                H_cost,
+                n,
+                cfg.k,
+                cfg.mixer,
+                cfg.xy_initial_state,
+                cfg.xy_topology,
+            )
+
+        objective = make_training_cost(
+            energy, ansatz, dev, cfg, mu, Sigma, float(lam_val)
+        )
+
         if idx == 0 or not sweep.warm_start or params is None:
             init = _random_init(cfg.p, cfg.mixer)
         else:
             init = np.array(params, requires_grad=True)
 
-        opt_res = adam_optimize(
-            energy,
+        opt_res = optimize_training(
+            objective,
             init,
+            cfg,
             steps=sweep.steps_per_lambda,
             stepsize=sweep.stepsize,
             log_every=max(sweep.steps_per_lambda, 1),

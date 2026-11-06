@@ -4,6 +4,9 @@
 
 Alternates diagonal cost phases with an ordered sequence of paired IsingXX and IsingYY gates on ring or complete-graph edges. It starts from a fixed exact-K basis state or a uniform exact-K Dicke state and optimizes the layer angles using Adam.
 
+Optional [CVaR training](cvar.md) minimizes a lower tail of penalized costs;
+finite-shot CVaR uses SPSA instead of Adam.
+
 **Dependencies and execution:** PennyLane and the package's core dependencies.
 The default device is the `default.qubit` simulator. Analytic training is the
 default; finite-shot training can be requested. Device selection alone does not

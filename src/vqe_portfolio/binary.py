@@ -6,9 +6,15 @@ import pennylane as qml
 from pennylane import numpy as np
 
 from .ansatz import apply_binary_ansatz, binary_ansatz_shape
+from .cvar import (
+    make_training_cost,
+    optimize_training,
+    training_metadata,
+    validate_training_objective,
+)
 from .metrics import symmetrize
 from .reliability import resolve_penalty, energy_scale
-from .optimize import adam_optimize, report_phase
+from .optimize import report_phase
 from .types import BinaryVQEConfig, BinaryVQEResult, LambdaSweepConfig, OptimizeTrace
 from .utils import topk_onehot
 from .utils import set_global_seed
@@ -111,12 +117,13 @@ def run_binary_vqe(
     candidate_callback=None,
     phase_callback=None,
 ) -> BinaryVQEResult:
-    """Train and sample Binary VQE, with optional feasible-candidate reporting.
+    """Train and sample Binary VQE, with optional lower-tail CVaR training.
 
     Each callback checkpoint includes marginal measurement, sampling, and Top-K
     fallback when no sampled portfolio is feasible. Their overhead is part of
-    execution. Restarts select by penalized training energy, without references.
+    execution. Restarts select by the configured penalized cost, without references.
     """
+    validate_training_objective(cfg)
     set_global_seed(cfg.seed)
     mu = np.array(mu, requires_grad=False)
     Sigma = symmetrize(np.array(Sigma, requires_grad=False))
@@ -144,9 +151,10 @@ def run_binary_vqe(
         return qml.expval(H)
 
     energy = qml.set_shots(energy, cfg.shots_train)
+    objective = make_training_cost(energy, ansatz, dev_train, cfg, mu, Sigma, cfg.lam)
 
     def training_cost(params):
-        return energy(params) / scale
+        return objective(params) / scale
 
     # Preserve the historical first initialization before sampling-device setup.
     first_init = np.array(
@@ -215,9 +223,10 @@ def run_binary_vqe(
                 report_phase(phase_callback, "optimization")
 
         report_phase(phase_callback, "optimization")
-        opt = adam_optimize(
+        opt = optimize_training(
             training_cost,
             init,
+            cfg,
             steps=cfg.steps,
             stepsize=cfg.stepsize,
             log_every=cfg.log_every,
@@ -225,7 +234,7 @@ def run_binary_vqe(
             keep_best=cfg.keep_best,
             stepsize_decay=cfg.stepsize_decay,
         )
-        value = float(energy(opt.params))
+        value = float(objective(opt.params))
         restart_energies.append(value)
         if value < selected_value:
             selected, selected_value = opt, value
@@ -257,6 +266,7 @@ def run_binary_vqe(
         effective_alpha=alpha,
         energy_scale=scale,
         restart_energies=tuple(restart_energies),
+        **training_metadata(cfg),
     )
 
 
@@ -270,6 +280,7 @@ def binary_lambda_sweep(
     Re-optimize for each lambda and return probs_by_lambda.
     Matches notebook behavior (fresh init each lambda).
     """
+    validate_training_objective(cfg)
     set_global_seed(cfg.seed)
 
     mu = np.array(mu, requires_grad=False)
@@ -299,6 +310,9 @@ def binary_lambda_sweep(
             return qml.expval(H)
 
         energy = qml.set_shots(energy, cfg.shots_train)
+        objective = make_training_cost(
+            energy, ansatz, dev, cfg, mu, Sigma, float(lam_val)
+        )
 
         scale = energy_scale(H) if cfg.normalize_energy else 1.0
         best_value, opt_res = float("inf"), None
@@ -308,16 +322,17 @@ def binary_lambda_sweep(
             init = np.array(
                 np.random.uniform(0, np.pi, size=param_shape), requires_grad=True
             )
-            result = adam_optimize(
-                lambda params: energy(params) / scale,
+            result = optimize_training(
+                lambda params: objective(params) / scale,
                 init,
+                cfg,
                 steps=sweep.steps_per_lambda,
                 stepsize=sweep.stepsize,
                 log_every=max(sweep.steps_per_lambda, 1),
                 keep_best=cfg.keep_best,
                 stepsize_decay=cfg.stepsize_decay,
             )
-            value = float(energy(result.params))
+            value = float(objective(result.params))
             if value < best_value:
                 best_value, opt_res = value, result
 

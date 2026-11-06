@@ -4,6 +4,9 @@
 
 Alternates diagonal cost-phase layers with single-qubit X mixing, starting from a uniform superposition of all bitstrings. Adam optimizes the p pairs of cost and mixer angles using the penalized Ising objective.
 
+Optional [CVaR training](cvar.md) minimizes a lower tail of penalized costs;
+finite-shot CVaR uses SPSA instead of Adam.
+
 **Dependencies and execution:** PennyLane and the package's core dependencies.
 The default device is the `default.qubit` simulator. Analytic training is the
 default; finite-shot training can be requested. Device selection alone does not
