@@ -14,6 +14,7 @@
 Usage <USAGE>
 Theory <THEORY>
 Algorithms <algorithms/index>
+Roadmap <ROADMAP>
 Architecture and development <architecture>
 Results <results>
 Quantum advantage research <QUANTUM_ADVANTAGE>

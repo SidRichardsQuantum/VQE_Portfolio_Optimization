@@ -145,6 +145,7 @@ with comparison, validation, execution budgets, and acceptance/work diagnostics.
 | [Usage](USAGE.md) | Installation, API, CLI, benchmarks, and reproduction commands |
 | [Theory](THEORY.md) | Portfolio formulations, circuit mappings, and derivations |
 | [Algorithms](docs/algorithms/index.md) | Concise descriptions of quantum and classical methods |
+| [Roadmap](ROADMAP.md) | Planned algorithms, completed additions, and implementation requirements |
 | [Results](RESULTS.md) | Committed benchmark and diagnostic findings |
 | [Research protocol](QUANTUM_ADVANTAGE.md) | Evaluation design and limits on advantage claims |
 | [Experiments](experiments/README.md) | Validation, training, sampling, and failure diagnostics |

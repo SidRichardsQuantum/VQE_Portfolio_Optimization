@@ -2,9 +2,9 @@
 
 Planned algorithm implementations for reproducible portfolio optimization and
 classical–quantum comparisons. This is a development list, without release or
-date commitments. Checked entries are implemented;
-unchecked entries are planned work, not available features.
-See the [algorithm guides](docs/algorithms/index.md) for current implementations.
+date commitments. Checked entries are implemented; unchecked entries are planned
+work, not available features. See the [algorithm guides](docs/algorithms/index.md)
+for current implementations.
 
 ## Scope and implementation requirements
 
@@ -43,24 +43,25 @@ For every addition:
 - [x] **Frank–Wolfe with away steps — fractional allocation**
   - Implemented as `frank_wolfe_baseline` with method ID `frank-wolfe`.
     See the [algorithm guide](docs/algorithms/classical/frank-wolfe.md).
-  - Implement the simplex linear minimization oracle, active-set maintenance,
+  - Implements the simplex linear minimization oracle, active-set maintenance,
     forward and away directions, feasible step bounds, and quadratic line search.
-  - Report a first-order gap and explicit stopping conditions. Compare with PGD
-    and OSQP, including boundary solutions and singular PSD covariance matrices.
-  - Keep the core implementation NumPy-only. Sparse intermediate allocations do
-    not constitute an exact-cardinality guarantee.
+  - Reports a first-order gap and explicit stopping conditions. Tests compare
+    with PGD and OSQP, including boundary solutions and singular PSD covariance.
+  - Uses NumPy only. Sparse intermediate allocations do not constitute an
+    exact-cardinality guarantee.
   - Reference: [Lacoste-Julien and Jaggi, Frank–Wolfe variants](https://papers.neurips.cc/paper_files/paper/2015/hash/c058f544c737782deacefa532d9add4c-Abstract.html).
 
 - [x] **Parallel tempering / replica exchange — binary selection**
   - Implemented as `parallel_tempering_binary_baseline` with method ID
     `parallel-tempering`. See the [algorithm guide](docs/algorithms/classical/parallel-tempering.md).
-  - Maintain replicas at distinct temperatures, use exact-`K` swap proposals
-    within replicas, and implement temperature-dependent Metropolis acceptance.
-  - Exchange configurations between replicas using the replica-exchange
-    acceptance rule; retain the best feasible portfolio across all replicas.
-  - Reuse existing quadratic swap calculations where appropriate. Record the
-    temperature ladder, local and exchange acceptance statistics, and total work.
-    Compare against the existing simulated annealing implementation.
+  - Maintains replicas at distinct temperatures, uses exact-`K` swap proposals
+    within replicas, and implements temperature-dependent Metropolis acceptance.
+  - Exchanges complete replica states using the replica-exchange acceptance
+    rule and retains the best feasible portfolio across all replicas.
+  - Uses quadratic swap calculations and records the temperature ladder, local
+    and exchange acceptance statistics, and total work.
+    Tests include detailed balance, cache consistency, and a comparison with
+    simulated annealing on a swap-local-minimum instance.
   - Reference: [Hukushima and Nemoto, exchange Monte Carlo](https://arxiv.org/abs/cond-mat/9512035).
 
 - [ ] **Cross-entropy method / estimation of distribution — binary selection**
@@ -141,8 +142,7 @@ For every addition:
 ## Suggested implementation order
 
 Frank–Wolfe and parallel tempering are implemented. Continue with VarQITE and
-ADAPT-QAOA.
-Follow with cross-entropy search and digitized annealing. SDP relaxation and
-Grover adaptive search require additional solver or arithmetic infrastructure
+ADAPT-QAOA. Follow with cross-entropy search and digitized annealing. SDP
+relaxation and Grover adaptive search require additional solver or arithmetic infrastructure
 and are larger projects. This ordering is a priority suggestion, not a release
 schedule.

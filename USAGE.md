@@ -569,12 +569,29 @@ The methods solve the same objectives as the existing comparison tracks:
 | Classical GRASP | Covariance-aware randomised greedy construction followed by swap refinement | Seeded heuristic; publishes only complete exact-K portfolios |
 | Classical variable neighborhood search | Exact-K shaking across increasing exchange sizes, followed by swap refinement | Seeded heuristic; resets to the smallest neighbourhood after improvement |
 | Classical projected gradient descent | Convex long-only simplex objective with Euclidean projection and backtracking | NumPy iterative fractional comparator; numerical first-order stopping diagnostics, no certified bound |
+| Classical Frank–Wolfe with away steps | Convex long-only simplex objective with active vertices and bounded quadratic line search | NumPy fractional solver; forward/away/drop counts and numerical first-order gap, no certified bound |
 
 The HiGHS formulation introduces a continuous variable `y_ij` per pair, constrained by `y_ij <= x_i`, `y_ij <= x_j`, and `y_ij >= x_i + x_j - 1`, with all variables bounded in `[0, 1]` and `x` binary. This represents both positive and negative covariance couplings exactly. Its model size grows quadratically; it is a stronger general-purpose comparator, not a claim to be the best possible classical solver.
 
 `--solver-time-limit` limits each HiGHS/SCIP solve only. Reported runtime includes the entire solver helper call, including model construction and candidate cleanup; it can exceed that limit. OSQP uses accuracy tolerances, and the NumPy heuristics use restart/generation/iteration limits, not that time limit. For end-to-end deadlines use `run_budgeted` or the budget runner shown below.
 
-`--seeds` controls independent stochastic classical runs as well as quantum runs. Each search run uses `--local-restarts` starts (minimum two when including swap search); for memetic search this counts independent populations, and for GRASP it counts complete constructions. `qp-round`, `pgd`, and `frank-wolfe` run once per instance and do not use seeds or restarts. `--k` fixes binary cardinality across requested sizes; PGD and Frank–Wolfe use simplex weights. Defaults remain compatible with the existing examples: `all` selects the original methods and excludes the stronger solver group. `classical-solvers` selects OSQP, HiGHS, SCIP, QP rounding, swap search, annealing, tabu search, memetic search, ILS, GRASP, VNS, PGD, Frank–Wolfe, and parallel tempering. Use `--methods all,classical-solvers` to include them alongside the original small-instance references and quantum methods. Individual solver IDs `osqp`, `pgd`, `frank-wolfe`, `highs`, `scip`, `qp-round`, `swap`, `anneal`, `parallel-tempering`, `tabu`, `memetic`, `ils`, `grasp`, and `vns` are also accepted. Avoid `classical`/`all` for large instances because the old exact references enumerate subsets.
+`--seeds` controls independent stochastic classical runs as well as quantum runs.
+`--local-restarts` counts starts for single-trajectory searches, populations for
+memetic search, constructions for GRASP, and groups of replica states for parallel
+tempering. Swap search requires at least two starts. The validation runner
+requires `local_restarts >= 2` for every configuration; individual Python helpers
+may accept one. `qp-round`, `pgd`, and `frank-wolfe` run once per comparison or
+validation instance and do not use seeds or restarts. `--k` fixes binary
+cardinality across requested sizes; PGD and Frank–Wolfe use simplex weights.
+
+`all` selects the reference group and supported quantum methods, including
+F-VQE, and excludes `classical-solvers`. The latter selects OSQP, HiGHS, SCIP,
+QP rounding, swap search, annealing, tabu search, memetic search, ILS, GRASP, VNS,
+PGD, Frank–Wolfe, and parallel tempering. Use `--methods all,classical-solvers`
+to include both groups. Individual solver IDs `osqp`, `pgd`, `frank-wolfe`,
+`highs`, `scip`, `qp-round`, `swap`, `anneal`, `parallel-tempering`, `tabu`,
+`memetic`, `ils`, `grasp`, and `vns` are also accepted. Avoid `classical`/`all`
+for large instances because the reference solvers enumerate subsets.
 
 Run just annealing and tabu search with NumPy, without optional classical solver dependencies:
 
@@ -985,12 +1002,17 @@ shot costs and simulator limits.
 ## End-to-end execution budgets (v0.3.1)
 
 `run_budgeted(problem, method, budget_seconds, config=..., seed=...)` executes
-Binary VQE, QAOA X/XY, Variational quantum allocator, HiGHS, SCIP, OSQP, QP rounding, swap search, simulated
-annealing, parallel tempering, tabu search, memetic search, ILS, GRASP, VNS, PGD, Frank–Wolfe, or uniform exact-K sampling. An explicit quantum configuration supplies its own seed; the `seed` argument
+Binary VQE, F-VQE, QAOA X/XY, the variational quantum allocator, HiGHS, SCIP,
+OSQP, QP rounding, swap search, simulated annealing, parallel tempering, tabu
+search, memetic search, ILS, GRASP, VNS, PGD, Frank–Wolfe, or uniform exact-K
+sampling. An explicit quantum configuration supplies its own seed; the `seed` argument
 applies to classical methods and automatically constructed quantum configurations.
 It returns a common `BudgetResult` containing the best feasible
 candidate, its independently recomputed original objective, timestamped
 incumbents, termination status, native solver status, error, and runtime.
+Parallel tempering also returns `solver_diagnostics` when final statistics
+arrive before the deadline; interrupted runs retain partial snapshots in
+delivered incumbents instead of final totals.
 
 ```python
 from vqe_portfolio import PortfolioProblem, BinaryVQEConfig, run_budgeted
@@ -1013,7 +1035,8 @@ timing. Only independently feasible portfolios received by the parent before
 the deadline are eligible. A native solver call can be terminated even when it
 does not support callbacks. Pending native results are unavailable until they
 return; HiGHS/OSQP currently publish their final candidate only. SCIP, simulated
-annealing, parallel tempering, tabu search, memetic search, ILS, and GRASP publish improving feasible incumbents. Swap search
+annealing, parallel tempering, tabu search, memetic search, ILS, GRASP, VNS, PGD,
+and Frank–Wolfe publish improving feasible incumbents. Swap search
 publishes feasible starts and improving swaps; uniform sampling publishes
 improving exact-K samples throughout its allowance.
 

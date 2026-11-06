@@ -7,6 +7,12 @@ It also describes a custom variational quantum allocator whose portfolio cost
 is a classical function of measured expectations, rather than a Hamiltonian
 expectation.
 
+[Filtering VQE](docs/algorithms/quantum/filtering-vqe.md) uses the same binary
+portfolio Hamiltonian with filtered-state distance updates. Binary VQE and
+QAOA also support [CVaR training](docs/algorithms/quantum/cvar.md). The
+[classical algorithm guides](docs/algorithms/classical/index.md) describe
+constrained searches and fractional solvers for the same two portfolio tracks.
+
 ---
 
 ## 1. Classical Mean–Variance Portfolio Optimization
@@ -20,12 +26,12 @@ Let:
 The classical mean–variance objective is:
 
 $$
-\min_w ; -\mu^\top w + \lambda, w^\top \Sigma w
+\min_w \left(\lambda w^\top \Sigma w - \mu^\top w\right)
 $$
 
 where:
 
-- $ \lambda > 0 $ controls risk aversion
+- $ \lambda \ge 0 $ controls risk aversion
 
 Typical constraints include:
 
@@ -44,10 +50,14 @@ $$
 #### Cardinality constraint
 
 $$
-|w|_0 = K
+\|w\|_0 = K
 $$
 
 Cardinality constraints introduce **combinatorial structure**, motivating discrete encodings.
+
+The package implements exact-K binary asset selection and long-only fractional
+simplex allocation as separate models. It does not jointly optimize variable
+fractional weights under an exact-cardinality constraint.
 
 ---
 
@@ -56,7 +66,7 @@ Cardinality constraints introduce **combinatorial structure**, motivating discre
 VQE solves optimization problems of the form:
 
 $$
-\min_\theta ;
+\min_\theta
 \langle \psi(\theta) | H | \psi(\theta) \rangle
 $$
 
@@ -80,6 +90,20 @@ VQE is particularly useful when:
 - gradients can be estimated efficiently
 
 In this project, the portfolio objective is encoded directly into $ H $.
+
+### 2.1 Alternative training procedures
+
+Mean-energy training is the default for Binary VQE and QAOA. Their optional
+CVaR objective averages the lowest-cost probability mass, including fractional
+weight at the quantile boundary. This is a training objective over penalized
+bitstring costs, rather than financial downside-risk CVaR.
+
+F-VQE instead updates circuit parameters toward a freshly filtered version of
+the current state, using the implemented normalized state-distance gradient.
+Inverse and exponential filters use an affine positive energy scale derived
+from QUBO coefficient bounds, without consulting a reference optimum. Its
+reported energy trace remains in original penalized units. See the linked
+algorithm guides for the precise update and supported analytic/finite-shot paths.
 
 ---
 
@@ -134,7 +158,7 @@ $$
 H_C = \sum_i h_i Z_i + \sum_{i<j} J_{ij} Z_i Z_j + \text{const}
 $$
 
-This Hamiltonian is shared with Binary VQE.
+This Hamiltonian is shared with Binary VQE and F-VQE.
 
 ---
 
@@ -238,7 +262,7 @@ indicate asset inclusion.
 Objective:
 
 $$
-\min_{x \in {0,1}^n}
+\min_{x \in \{0,1\}^n}
 \lambda x^\top \Sigma x
 -
 \mu^\top x
@@ -274,20 +298,22 @@ $$
 This Hamiltonian is minimized via:
 
 - VQE
+- Filtering VQE
 - QAOA
 
 ---
 
 ### 4.3 Expectation vs bitstrings
 
-Variational algorithms optimize expectation values:
+Default Binary VQE and QAOA training minimizes the energy expectation:
 
 $$
 \min_\theta
 \langle H \rangle
 $$
 
-but practical portfolios require discrete solutions.
+Optional CVaR training and F-VQE use the alternative procedures described above.
+All binary solvers still require discrete candidate extraction for a portfolio.
 
 Post-processing extracts:
 
@@ -388,7 +414,7 @@ guaranteed convergence to the best classical allocation.
 
 ## Summary
 
-This project demonstrates three complementary quantum approaches:
+This project implements the following quantum and hybrid approaches:
 
 #### Binary VQE
 
@@ -401,6 +427,12 @@ This project demonstrates three complementary quantum approaches:
 - structured alternating operators
 - natural fit for QUBO problems
 - interpretable circuit depth parameter
+
+#### Filtering VQE
+
+- normalized filtered-state distance updates using the binary Hamiltonian
+- inverse or exponential filters with fixed or adaptive strength
+- analytic or finite-shot filter moments and discrete candidate sampling
 
 #### Variational quantum allocator (legacy name: Fractional VQE)
 

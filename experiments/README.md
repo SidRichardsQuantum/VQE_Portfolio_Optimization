@@ -7,19 +7,21 @@ while copied historical configurations with `fractional-vqe` remain accepted.
 New default method sets include the allocator once. Historical reports below
 retain the old labels and original parameterisation.
 
-To repeat the correctness comparison after the normalisation and naming fixes:
+To run the allocator-correction comparison's declared configuration with the
+current package, choose a fresh output directory:
 
 ```bash
 python scripts/run_small_instance_validation.py \
   --config experiments/allocator_validation.json \
-  --output-dir results/allocator_validation
+  --output-dir results/my_allocator_validation
 ```
 
 This uses 4 and 6 assets, two independent instance seeds and two solver seeds,
 15 quantum optimisation steps, and 256 binary extraction samples. It includes
-the corrected top-return control, the current quantum methods, and all added
-classical comparators. Binary and fractional references remain separate. Unit
-tests cover K=0 and zero/near-zero measured mass; this study exercises normal
+the corrected top-return control and the quantum/classical methods explicitly
+listed in that configuration. It predates F-VQE, Frank–Wolfe, and parallel
+tempering, so those methods are absent. Binary and fractional references remain
+separate. Unit tests cover K=0 and zero/near-zero measured mass; this study exercises normal
 instances with the corrected map. It is a descriptive validation, with no
 matched-time, scaling, statistical-significance, or quantum-advantage claim.
 
@@ -29,6 +31,8 @@ and no reference contradictions. Numerical quality is reported separately;
 the allocator hit its fractional target in 2 of 8 trials. The saved manifest,
 JSON checkpoint, and CSV exports retain frozen inputs and source/environment
 provenance. Earlier study artifacts remain unchanged.
+Exact reproduction of archived outputs requires their recorded implementation
+and environment; running the same configuration after an upgrade is a new study.
 
 Study implementations live in `vqe_portfolio.research`. The executable scripts use shared provenance, atomic checkpoint writing, and CSV exports from `vqe_portfolio.research.infrastructure`; no runner imports another runner. Classical reference and optional solver implementations live in `vqe_portfolio.baselines`, and independent candidate reporting lives in `vqe_portfolio.benchmark`.
 
@@ -73,6 +77,28 @@ Version 0.3.4 adds `memetic`, `ils`, and `grasp` to both runners. Each is a seed
 
 NumPy-only `vns` and `pgd` are also available. VNS is an exact-K binary heuristic run per solver seed, with `local_restarts` controlling its starts. PGD is a deterministic fractional simplex solver run once per validation instance; its first-order stopping diagnostic is saved in `solver_message`. Both publish improving feasible incumbents in budgeted runs, use their documented public defaults, and report no certified bound or MIP gap. Keep their objective tracks separate and use a fresh output directory. Neither is included in the archived pilot.
 
+Additional methods supported by the validation and budget runners are:
+
+| Method ID | Track | Validation scheduling and controls |
+| --- | --- | --- |
+| `f-vqe` | Binary exact-K selection | Each solver seed; shared quantum steps, depth, penalty, and extraction shots, with the F-VQE adapter's filtering defaults |
+| `frank-wolfe` | Fractional simplex allocation | Once per instance; public defaults for away steps, line search, and stopping tolerance |
+| `parallel-tempering` | Binary exact-K selection | Each solver seed; `local_restarts` counts groups of replica states, with public defaults for the temperature ladder and exchanges |
+
+These additions are absent from both the saved 198-trial pilot and the
+128-trial allocator-correction study. Add their IDs to `methods` in a copied
+JSON validation configuration. The validation runner requires `local_restarts`
+to be at least two, even when a selected helper accepts one restart. Algorithm
+controls beyond `ValidationConfig` are available through the ordinary Python
+APIs and relevant solver CLI commands; the budget interface uses classical
+helper defaults. See the [algorithm guides](../docs/algorithms/index.md).
+
+Parallel tempering records acceptance and work counts in `solver_diagnostics`.
+Validation and completed budget trials preserve the dictionary in JSON and as a
+JSON-encoded CSV field; interrupted budget runs retain any partial snapshots
+attached to delivered incumbents. Replica iterations contain multiple local
+proposals, so equal iteration counts do not match simulated annealing work.
+
 To run without optional classical solver dependencies, remove `highs`, `osqp`, and (if added) `scip` and `qp-round` from a copied configuration. Keep the exact references for validation. Higher step counts, circuit depths, shots, risk aversions and penalties should be separate declared sensitivity experiments, rather than tuned on the reported evaluation instances.
 
 ## Outputs and interpretation
@@ -83,7 +109,7 @@ Each experiment directory contains:
 | --- | --- |
 | `manifest.json` | Resolved settings; data snapshots and hashes; reference portfolios, objectives and preparation runtimes; Python and solver versions; platform and thread settings; source SHA-256 hashes; creation time and Git HEAD |
 | `trials.json` | Authoritative resumable checkpoint, including raw candidates, exceptions and validation failures |
-| `trials.csv` | Trial-level analysis table, including feasibility, original objective, absolute/normalised gap, runtime, sample feasibility and fallback use |
+| `trials.csv` | Trial-level analysis table, including feasibility, original objective, absolute/normalised gap, runtime, sample feasibility, fallback use, and method-specific diagnostics where available |
 | `summary.csv` | Results grouped by size, cardinality, objective family and method, averaging instances equally |
 | `report.md` | Human-readable descriptive results and limitations |
 

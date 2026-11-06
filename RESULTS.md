@@ -18,7 +18,9 @@ The fresh [128-trial report](results/allocator_validation/report.md) uses the
 4 and 6 assets, two instance seeds and two solver seeds, 15 quantum training
 steps, and 256 binary extraction samples. It compares 20 methods across eight
 frozen binary/fractional problem instances, including the corrected top-return
-control, variational allocator, and current classical solvers.
+control, variational allocator, and the classical solvers listed in that
+study's configuration. F-VQE, Frank–Wolfe, and parallel tempering were added
+later and are absent from this saved study.
 
 All 128 returned portfolios passed independent feasibility checks. There were
 zero solver errors and zero reference contradictions. Saved candidates were
@@ -65,12 +67,31 @@ Machine-readable copies of the historical comparison tables are committed under 
 For repeatable synthetic benchmark summaries, regenerate a compact comparison CSV with:
 
 ```bash
-python scripts/generate_comparison_results.py
+python scripts/generate_comparison_results.py \
+  --output results/my_generated_comparison_summary.csv \
+  --trials-output results/my_generated_repeatability_trials.csv
 ```
 
-By default this writes `results/generated_comparison_summary.csv` with classical baselines, multi-seed quantum summaries, feasibility rates, objectives, risk/return metrics, and runtimes. It also writes `results/generated_repeatability_trials.csv` with one row per method/seed trial. Use `--asset-counts`, `--seeds`, `--steps`, and `--methods` to expand or tighten the run.
+This writes a fresh summary with classical references, multi-seed quantum
+results, feasibility rates, objectives, risk/return metrics, and runtimes, plus
+one trial row per method/seed. The script's default output paths are the committed
+historical filenames; keep explicit new paths to preserve those artifacts. Use
+`--asset-counts`, `--seeds`, `--steps`, and `--methods` to configure the new run.
 
-Stronger baselines (OSQP, HiGHS, SCIP, QP relaxation with rounding, multistart swap search, simulated annealing, tabu search, memetic genetic search, ILS, GRASP, VNS, and fractional PGD) are available through `--methods classical-solvers`; see [usage](USAGE.md#strong-classical-baselines). The historical tables listed above are not regenerated automatically. The separate small-instance validation pilot below includes OSQP, HiGHS, and swap search. SCIP, annealing, and tabu search were added in v0.3.3; QP rounding, memetic search, ILS, GRASP, VNS, and PGD are subsequent additions. None of these later methods have been added to those archived experiments.
+Stronger binary baselines include HiGHS, SCIP, QP relaxation with rounding,
+multistart swap search, simulated annealing, parallel tempering, tabu search,
+memetic genetic search, ILS, GRASP, and VNS. Fractional comparators include OSQP,
+PGD, and Frank–Wolfe with away steps. Select them with
+`--methods classical-solvers` or individual method IDs; see
+[usage](USAGE.md#strong-classical-baselines). F-VQE is also available as `f-vqe`.
+
+Availability in the package does not imply coverage in saved studies. The
+original 198-trial pilot includes OSQP, HiGHS, and swap search but excludes the
+later classical additions. The allocator-correction study includes the methods
+in its frozen configuration. Neither study includes F-VQE, Frank–Wolfe, or
+parallel tempering, and the historical comparison tables above have not been
+regenerated with those methods. Unit and integration tests check implementation
+correctness; new performance comparisons require fresh study runs.
 
 ## How to Read the Tables
 

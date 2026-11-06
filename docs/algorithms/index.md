@@ -6,7 +6,10 @@ reference solvers and simple comparison baselines.
 - [Quantum methods](quantum/index.md): Binary VQE, Filtering VQE, QAOA with X or XY mixing,
   and the variational quantum allocator.
 - [Classical methods](classical/index.md): exact references, optimization
-  backends, local and population searches, and allocation baselines.
+  backends, local and population searches, replica exchange, and fractional
+  solvers including PGD and Frank–Wolfe with away steps.
+
+The [roadmap](../ROADMAP.md) separates implemented additions from planned work.
 
 ## Portfolio objectives
 
@@ -41,6 +44,9 @@ The examples use risk aversion `lam=4.0` and binary cardinality `k=2`.
 Reference functions return `(candidate, objective)`; classical solver wrappers
 return `ClassicalResult`, whose candidate can be absent on failure.
 Quantum functions return their method-specific result objects.
+Parallel tempering also reports acceptance and work counts in
+`ClassicalResult.diagnostics`; other classical methods leave this dictionary
+empty unless they supply structured diagnostics.
 
 Inspect solver status and independently check feasibility before comparing
 objectives. Native solver time limits exclude some Python overhead; the common

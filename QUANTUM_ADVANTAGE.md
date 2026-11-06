@@ -4,7 +4,16 @@ Status: prospective protocol. The existing results are exploratory examples, not
 
 ## Research question
 
-For a specified portfolio problem family, can Binary VQE, QAOA, or Fractional VQE return a feasible portfolio of a specified quality faster than strong classical methods, or return better quality within the same computational budget?
+For a specified portfolio problem family, can the implemented quantum or hybrid
+methods return a feasible portfolio of a specified quality faster than strong
+classical methods, or return better quality within the same computational budget?
+
+The binary track supports Binary VQE, Filtering VQE, and QAOA. The fractional
+track uses the variational quantum allocator, historically called Fractional
+VQE; its portfolio cost is evaluated classically from circuit-derived weights.
+Use the [algorithm guides](docs/algorithms/index.md) for current implementations
+and the [roadmap](ROADMAP.md) for planned methods. A roadmap entry is not an
+implemented comparator or experimental evidence.
 
 An advantage claim must name the formulation, instance distribution, size range, solvers, hardware, and resource budget tested. Failure to find an advantage does not prove that no future quantum algorithm could have one.
 

@@ -14,7 +14,7 @@ and generate study reports.
 | `ansatz.py`, `optimize.py`, `reliability.py` | Shared circuits, optimizer loop, and reference-free reliability controls |
 | `execution.py` | Isolated-process deadlines, incumbent delivery, and common termination metadata |
 | `baselines/reference.py` | NumPy reference enumeration and simple heuristics |
-| `baselines/solvers.py` | NumPy search heuristics, optional classical solvers, and termination metadata |
+| `baselines/solvers.py` | NumPy exact-K searches and fractional solvers, optional optimization backends, and solver diagnostics |
 | `benchmark.py` | Candidate trial records, independent evaluation, and common reporting helpers |
 | `research/comparison.py` | Synthetic and market-data comparison orchestration |
 | `research/validation.py` | Small-instance preparation, trial planning, and validation |
@@ -30,6 +30,20 @@ Baseline implementations depend on problem definitions, rather than experiment
 orchestration. Research workflows compose solvers and evaluation helpers. Shared
 comparison functions belong in the library so scripts do not depend on each
 other. Optional market-data and classical solver dependencies load when used.
+
+The NumPy fractional solvers are projected gradient descent and Frank–Wolfe
+with away steps. Parallel tempering is an exact-K binary search with complete
+replica states exchanged between fixed temperature slots; it executes serially.
+All three use the shared problem objective and publish copied improving
+incumbents for deadline handling.
+
+`ClassicalResult.diagnostics` optionally carries structured solver statistics.
+Parallel tempering uses it for ladder configuration, acceptance rates, and work
+counts. Validation preserves these under `solver_diagnostics`; comparison notes
+include them in the solver message. Completed budget runs also return
+`BudgetResult.solver_diagnostics` when the completion metadata arrives before
+the deadline. Interrupted runs retain partial snapshots in delivered incumbents.
+Validation and budget CSV exporters encode these dictionaries as JSON.
 
 ## Imports and v0.3.0 migration
 
@@ -96,11 +110,11 @@ requires a tag matching the package version, including manually triggered runs.
 
 ## Documentation sources
 
-The root `README.md`, `USAGE.md`, `THEORY.md`, `RESULTS.md`, and
+The root `README.md`, `ROADMAP.md`, `USAGE.md`, `THEORY.md`, `RESULTS.md`, and
 `QUANTUM_ADVANTAGE.md` are the guide sources. Sphinx includes each guide once;
-its navigation uses `index`, `USAGE`, `THEORY`, `results`, and
-`QUANTUM_ADVANTAGE`. This page documents package organization and contributor
-checks directly in Sphinx.
+its navigation uses `index`, `ROADMAP`, `USAGE`, `THEORY`, `results`, and
+`QUANTUM_ADVANTAGE`, alongside the algorithm guides. This page documents package
+organization and contributor checks directly in Sphinx.
 
 ## v0.3.1 execution and reliability
 
@@ -118,9 +132,10 @@ always include the last update. Historical evidence is preserved; changed costs
 and finite-shot random streams require fresh study output directories.
 
 Budget results also record worker phase durations and overlapping delivery and
-parent-validation diagnostics. Solvers accept an optional `phase_callback` for
-this instrumentation; the ordinary optimizer and candidate APIs retain their
-defaults. Untrained XY dispatch executes production sampling circuits repeatedly
+parent-validation diagnostics. Quantum solvers accept an optional `phase_callback`
+for this instrumentation; classical dispatch is instrumented by the execution
+wrapper. The ordinary optimizer and candidate APIs retain their defaults.
+Untrained XY dispatch executes production sampling circuits repeatedly
 at the original random parameters. QAOA permits zero training updates for initial
 state inspection. The fresh-instance runner resolves named presets, rejects
 development-instance overlap, and keeps variants separate in summaries and

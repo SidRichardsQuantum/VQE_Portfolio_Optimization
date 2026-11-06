@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Refresh usage, theory, architecture, and research guides for F-VQE,
+  Frank–Wolfe, and parallel tempering; distinguish current solver availability
+  from archived study coverage and include the roadmap in Sphinx navigation.
+
 ## v0.3.7
 
 - Add NumPy-only parallel tempering for exact-K binary selection, with fixed
