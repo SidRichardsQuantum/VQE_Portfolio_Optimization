@@ -189,7 +189,7 @@ def test_run_qaoa_rejects_bad_steps():
 
     cfg = QAOAConfig(
         p=1,
-        steps=0,
+        steps=-1,
         stepsize=0.1,
         k=2,
         lam=1.0,

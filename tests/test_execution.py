@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from vqe_portfolio import execution
-from vqe_portfolio.execution import CandidateSnapshot, run_budgeted
+from vqe_portfolio.execution import CandidateSnapshot, _PhaseTimings, run_budgeted
 from vqe_portfolio.problem import PortfolioProblem
 from vqe_portfolio.research.budget import summarise_budget_trials
 from vqe_portfolio.types import BinaryVQEConfig, FractionalVQEConfig, QAOAConfig
@@ -68,7 +68,18 @@ def test_error_keeps_incumbent_and_rejects_invalid_output(monkeypatch, problem):
 
 @pytest.mark.parametrize(
     "method",
-    ["binary-vqe", "qaoa-x", "qaoa-xy", "fractional-vqe", "swap", "highs", "osqp"],
+    [
+        "binary-vqe",
+        "qaoa-x",
+        "qaoa-xy",
+        "qaoa-xy-untrained",
+        "qaoa-xy-trained",
+        "random-k",
+        "fractional-vqe",
+        "swap",
+        "highs",
+        "osqp",
+    ],
 )
 def test_real_budget_workers_return_feasible_portfolios(method, problem):
     if method in {"highs", "swap"}:
@@ -82,12 +93,12 @@ def test_real_budget_workers_return_feasible_portfolios(method, problem):
             k=1, lam=1, steps=1, log_every=1, shots_sample=8, alpha="auto"
         )
     elif method.startswith("qaoa-"):
-        xy = method == "qaoa-xy"
+        xy = method.startswith("qaoa-xy")
         config = QAOAConfig(
             k=1,
             lam=1,
             p=1,
-            steps=1,
+            steps=0 if method.endswith("-untrained") else 1,
             log_every=1,
             shots_sample=8,
             mixer="xy" if xy else "x",
@@ -99,6 +110,15 @@ def test_real_budget_workers_return_feasible_portfolios(method, problem):
         problem = PortfolioProblem(problem.mu, problem.Sigma, 1.0, "fractional_simplex")
     result = run_budgeted(problem, method, 15, config=config)
     assert result.status == "completed", result.error
+    assert result.timings["startup_seconds"] > 0
+    assert result.timings["setup_seconds"] > 0
+    assert result.timings["parent_evaluation_seconds"] > 0
+    assert result.timings["mean_delivery_seconds"] >= 0
+    if method.endswith("-untrained"):
+        assert result.timings["optimization_seconds"] == 0
+        assert result.solver_status == "exhausted_feasible_space"
+    if method == "random-k":
+        assert result.solver_status == "exhausted_feasible_space"
     assert problem.evaluate(result.candidate).feasible
     assert result.objective == pytest.approx(
         problem.evaluate(result.candidate).objective
@@ -123,6 +143,46 @@ def test_mismatched_problem_and_solver_configs_are_rejected(problem):
         run_budgeted(problem, "binary-vqe", 1, config=BinaryVQEConfig(k=2))
     with pytest.raises(ValueError, match="mixer disagree"):
         run_budgeted(problem, "qaoa-xy", 1, config=QAOAConfig(k=1, lam=1))
+    with pytest.raises(ValueError, match="steps=0"):
+        run_budgeted(
+            problem, "qaoa-xy-untrained", 1, config=QAOAConfig(k=1, lam=1, mixer="xy")
+        )
+
+
+def test_phase_accounting_retains_interrupted_work_and_excludes_shutdown():
+    timer = _PhaseTimings()
+    timer.mark("setup", 0.2)
+    timer.mark("optimization", 0.5)
+    timer.mark("candidate_processing", 1.0)
+    timer.mark("optimization", 1.3)
+    totals = timer.finish(2.0)
+    assert totals == pytest.approx(
+        {
+            "startup_seconds": 0.2,
+            "setup_seconds": 0.3,
+            "optimization_seconds": 1.2,
+            "candidate_processing_seconds": 0.3,
+        }
+    )
+    timer.mark("finished", 2.0)
+    assert timer.finish(5.0) == pytest.approx(totals)
+    with pytest.raises(ValueError, match="Nonmonotonic"):
+        timer.mark("setup", 1.0)
+
+
+def test_parent_validation_must_finish_before_deadline(monkeypatch, problem):
+    monkeypatch.setattr(execution, "_budget_worker", worker_invalid_then_error)
+    evaluate = PortfolioProblem.evaluate
+
+    def slow_evaluation(self, candidate):
+        time.sleep(5)
+        return evaluate(self, candidate)
+
+    monkeypatch.setattr(PortfolioProblem, "evaluate", slow_evaluation)
+    result = run_budgeted(problem, "random-k", 5)
+    assert result.candidate is None
+    assert result.late_candidates == 1
+    assert result.timings["parent_evaluation_seconds"] >= 5
 
 
 def test_t90_includes_failures_instead_of_success_only_timing():

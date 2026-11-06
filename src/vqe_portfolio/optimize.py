@@ -7,6 +7,12 @@ import pennylane as qml
 from pennylane import numpy as np
 
 
+def report_phase(callback, phase):
+    """Notify an optional execution timer without changing optimizer state."""
+    if callback is not None:
+        callback(phase)
+
+
 @dataclass(frozen=True)
 class OptimizeResult:
     params: np.ndarray

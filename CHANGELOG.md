@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.3.2
+
+- Add fresh-instance deadline comparisons of trained and untrained Dicke-ring
+  XY QAOA, legacy and improved Binary VQE, and classical comparators. Freeze
+  named presets and reject overlap with declared development manifests.
+- Record startup, setup, optimization, candidate processing, delivery,
+  parent validation, and cleanup timing diagnostics. Parent validation must
+  finish before the startup-inclusive deadline.
+- Add repeated sampling at initial and trained parameters, and reference-free stopping
+  after every feasible exact-K portfolio has actually been sampled. QAOA also
+  accepts zero training steps for initial-state inspection.
+- Require PennyLane 0.42.3 or newer for the solver shot-setting API and
+  setuptools 77 or newer for SPDX license metadata. Test minimum core
+  dependencies alongside current dependencies on Python 3.10–3.12.
+- Gate PyPI publishing on the complete CI workflow and require a release tag
+  matching the package version. Check built artifact metadata before upload.
+
 ## v0.3.1
 
 - Add opt-in uniform exact-K initialization and complete exchange networks for

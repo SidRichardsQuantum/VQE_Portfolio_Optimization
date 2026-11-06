@@ -79,6 +79,11 @@ python -m twine check dist/*
 Base-install tests should also pass without optional classical and data
 dependencies. CI checks Python 3.10, 3.11, and 3.12, builds the documentation,
 executes a notebook smoke test, and validates the wheel and source distribution.
+It also runs the suite with NumPy 1.26.0, Matplotlib 3.8.0, and PennyLane 0.42.3
+on each supported Python version. PennyLane 0.42.3 is the minimum supported
+release for the solver shot-setting API and its dependency compatibility fixes.
+PyPI publishing reuses the complete CI workflow before building artifacts and
+requires a tag matching the package version, including manually triggered runs.
 
 ## Documentation sources
 
@@ -102,3 +107,12 @@ boundaries, callback overhead, and spawn entry-point requirements.
 Optimizer logs now evaluate the post-update cost matching each snapshot and
 always include the last update. Historical evidence is preserved; changed costs
 and finite-shot random streams require fresh study output directories.
+
+Budget results also record worker phase durations and overlapping delivery and
+parent-validation diagnostics. Solvers accept an optional `phase_callback` for
+this instrumentation; the ordinary optimizer and candidate APIs retain their
+defaults. Untrained XY dispatch executes production sampling circuits repeatedly
+at the original random parameters. QAOA permits zero training updates for initial
+state inspection. The fresh-instance runner resolves named presets, rejects
+development-instance overlap, and keeps variants separate in summaries and
+descriptive pairs. Historical manifests and reports remain unchanged.

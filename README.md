@@ -38,6 +38,9 @@ The experiments use quantum simulation and do not establish quantum advantage or
 pip install vqe-portfolio
 ```
 
+Requires Python 3.10+ and PennyLane 0.42.3+. CI tests the minimum core
+dependencies and current compatible dependencies on Python 3.10–3.12.
+
 Optional dependencies:
 
 ```bash
@@ -112,6 +115,7 @@ Saved study reports:
 - [Failure diagnostics](results/failure_diagnostics/report.md)
 - [Solver reliability controls](results/solver_reliability/report.md)
 - [Fixed-deadline simulator pilot](results/budget_benchmark/report.md)
+- [Fresh-instance deadline comparison](results/fresh_instance_budget/report.md)
 
 ## Author and support
 

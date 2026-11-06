@@ -8,7 +8,7 @@ from pennylane import numpy as np
 from .ansatz import apply_binary_ansatz, binary_ansatz_shape
 from .metrics import symmetrize
 from .reliability import resolve_penalty, energy_scale
-from .optimize import adam_optimize
+from .optimize import adam_optimize, report_phase
 from .types import BinaryVQEConfig, BinaryVQEResult, LambdaSweepConfig, OptimizeTrace
 from .utils import topk_onehot
 from .utils import set_global_seed
@@ -109,6 +109,7 @@ def run_binary_vqe(
     cfg: BinaryVQEConfig = BinaryVQEConfig(),
     *,
     candidate_callback=None,
+    phase_callback=None,
 ) -> BinaryVQEResult:
     """Train and sample Binary VQE, with optional feasible-candidate reporting.
 
@@ -201,6 +202,7 @@ def run_binary_vqe(
 
         def report(step, value, params):
             if candidate_callback is not None:
+                report_phase(phase_callback, "candidate_processing")
                 _, _, topk, _, best = measure(params)
                 candidate_callback(
                     topk if best is None else best,
@@ -210,7 +212,9 @@ def run_binary_vqe(
                         "source": "topk_fallback" if best is None else "sample",
                     },
                 )
+                report_phase(phase_callback, "optimization")
 
+        report_phase(phase_callback, "optimization")
         opt = adam_optimize(
             training_cost,
             init,
@@ -226,6 +230,7 @@ def run_binary_vqe(
         if value < selected_value:
             selected, selected_value = opt, value
     opt_res = selected
+    report_phase(phase_callback, "candidate_processing")
     z, x_prob, x_topk, counts, best = measure(opt_res.params)
     x_mode = np.array(max(counts, key=counts.get), dtype=int)
     if candidate_callback is not None:

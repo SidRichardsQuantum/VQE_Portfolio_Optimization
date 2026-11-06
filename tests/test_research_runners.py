@@ -73,3 +73,61 @@ def test_budget_runner_saves_incumbents_and_refuses_changed_settings(
     (tmp_path / "trials.json").write_text(json.dumps(rows * 2))
     with pytest.raises(ValueError, match="Duplicate"):
         runner.main(args + ["--resume"])
+
+
+def test_fresh_budget_config_pairs_initialization_and_refuses_overlap(tmp_path):
+    from scripts import run_budget_benchmark as runner
+
+    config = tmp_path / "settings.json"
+    config.write_text(
+        json.dumps(
+            {
+                "asset_counts": "3",
+                "instance_seeds": "404",
+                "seeds": "0",
+                "variants": "xy-dicke-ring-trained,xy-dicke-ring-untrained",
+                "steps": 3,
+                "shots": 8,
+                "checkpoint_every": 1,
+                "budgets": "10",
+            }
+        )
+    )
+    output = tmp_path / "fresh"
+    args = ["--config", str(config), "--output-dir", str(output)]
+    assert runner.main(args) == 0
+    manifest = json.loads((output / "manifest.json").read_text())
+    trials = json.loads((output / "trials.json").read_text())
+    assert len(trials) == 2
+    trained, untrained = trials
+    assert trained["problem_id"] == untrained["problem_id"]
+    assert trained["solver_config"]["seed"] == untrained["solver_config"]["seed"]
+    assert untrained["solver_config"]["steps"] == 0
+    assert untrained["timings"]["optimization_seconds"] == 0
+    assert untrained["solver_status"] == "exhausted_feasible_space"
+    assert (output / "pairs.csv").exists()
+    assert (output / "timings.csv").exists()
+    assert manifest["settings"]["config_document"] == json.loads(config.read_text())
+    assert runner.main(args + ["--resume"]) == 0
+
+    # Identical generated snapshots must not masquerade as fresh instances.
+    with pytest.raises(ValueError, match="overlaps"):
+        runner.main(
+            [
+                "--config",
+                str(config),
+                "--output-dir",
+                str(tmp_path / "overlap"),
+                "--exclude-manifests",
+                str(output / "manifest.json"),
+            ]
+        )
+
+
+def test_budget_config_rejects_unknown_settings(tmp_path):
+    from scripts import run_budget_benchmark as runner
+
+    config = tmp_path / "settings.json"
+    config.write_text('{"shotz": 64}')
+    with pytest.raises(SystemExit):
+        runner.main(["--config", str(config)])

@@ -9,8 +9,17 @@ from ..execution import run_budgeted
 from ..problem import PortfolioProblem
 
 
+BUDGET_VARIANTS = {
+    "binary-legacy": "binary-vqe",
+    "binary-improved": "binary-vqe",
+    "xy-basis-ring": "qaoa-xy",
+    "xy-dicke-ring-trained": "qaoa-xy-trained",
+    "xy-dicke-ring-untrained": "qaoa-xy-untrained",
+}
+
+
 def evaluate_budget_trial(
-    instance, method, seed, seconds, config=None, target_gap=1e-3
+    instance, method, seed, seconds, config=None, target_gap=1e-3, *, variant=None
 ):
     problem = PortfolioProblem.from_dict(instance["snapshot"])
     if problem.problem_id != instance["problem_id"]:
@@ -28,7 +37,8 @@ def evaluate_budget_trial(
     ]
     return {
         **row,
-        "trial_id": f"{problem.problem_id}:{method}:{seed}:{seconds:g}",
+        "trial_id": f"{problem.problem_id}:{variant or method}:{seed}:{seconds:g}",
+        "variant": variant or method,
         "seed": seed,
         "instance_seed": instance["instance_seed"],
         "n_assets": len(problem.mu),
@@ -51,11 +61,17 @@ def evaluate_budget_trial(
 def summarise_budget_trials(trials):
     groups = defaultdict(lambda: defaultdict(list))
     for row in trials:
-        groups[(row["n_assets"], row["k"], row["method"], row["budget_seconds"])][
-            row["problem_id"]
-        ].append(row)
+        groups[
+            (
+                row["n_assets"],
+                row["k"],
+                row.get("variant", row["method"]),
+                row["method"],
+                row["budget_seconds"],
+            )
+        ][row["problem_id"]].append(row)
     summaries, reliability = [], []
-    for (n, k, method, seconds), instances in groups.items():
+    for (n, k, variant, method, seconds), instances in groups.items():
         rows = [r for runs in instances.values() for r in runs]
         quality = [
             mean(r["normalised_gap"] for r in runs if r["normalised_gap"] is not None)
@@ -75,6 +91,7 @@ def summarise_budget_trials(trials):
                     "n_assets": n,
                     "k": k,
                     "method": method,
+                    "variant": variant,
                     "budget_seconds": seconds,
                     "trial_count": len(runs),
                     "target_hit_rate": mean(r["target_hit"] for r in runs),
@@ -86,6 +103,7 @@ def summarise_budget_trials(trials):
                 "n_assets": n,
                 "k": k,
                 "method": method,
+                "variant": variant,
                 "budget_seconds": seconds,
                 "instance_count": len(instances),
                 "trial_count": len(rows),
@@ -107,3 +125,45 @@ def summarise_budget_trials(trials):
             }
         )
     return summaries, reliability
+
+
+def paired_budget_trials(trials, trained="xy-dicke-ring-trained"):
+    """Descriptive seed/instance pairs; missing and failed returns stay explicit."""
+    grouped = defaultdict(dict)
+    for row in trials:
+        key = (row["problem_id"], row["seed"], row["budget_seconds"])
+        variant = row.get("variant", row["method"])
+        if variant in grouped[key]:
+            raise ValueError("Duplicate paired trial")
+        grouped[key][variant] = row
+    pairs = []
+    for (problem_id, seed, seconds), variants in grouped.items():
+        if trained not in variants:
+            continue
+        first = variants[trained]
+        for comparator, second in variants.items():
+            if comparator == trained:
+                continue
+            both = first["feasible"] and second["feasible"]
+            pairs.append(
+                {
+                    "problem_id": problem_id,
+                    "n_assets": first["n_assets"],
+                    "k": first["k"],
+                    "seed": seed,
+                    "budget_seconds": seconds,
+                    "trained_variant": trained,
+                    "comparator": comparator,
+                    "trained_feasible": first["feasible"],
+                    "comparator_feasible": second["feasible"],
+                    "trained_target_hit": first["target_hit"],
+                    "comparator_target_hit": second["target_hit"],
+                    "both_feasible": both,
+                    "normalised_improvement": (
+                        second["normalised_gap"] - first["normalised_gap"]
+                        if both
+                        else None
+                    ),
+                }
+            )
+    return pairs

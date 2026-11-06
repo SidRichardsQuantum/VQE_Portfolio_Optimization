@@ -5,7 +5,7 @@ from pennylane import numpy as np
 
 from .ansatz import apply_fractional_ansatz, fractional_ansatz_shape
 from .metrics import symmetrize
-from .optimize import adam_optimize
+from .optimize import adam_optimize, report_phase
 from .types import (
     FractionalVQEConfig,
     FractionalVQEResult,
@@ -33,6 +33,7 @@ def run_fractional_vqe(
     cfg: FractionalVQEConfig = FractionalVQEConfig(),
     *,
     candidate_callback=None,
+    phase_callback=None,
 ) -> FractionalVQEResult:
     set_global_seed(cfg.seed)
 
@@ -62,12 +63,15 @@ def run_fractional_vqe(
 
     def report(step, value, params):
         if candidate_callback is not None:
+            report_phase(phase_callback, "candidate_processing")
             candidate_callback(
                 angles_to_weights(np.array(expvals_z(params))),
                 {"step": step, "source": "allocation"},
             )
+            report_phase(phase_callback, "optimization")
 
     init = np.array(np.random.uniform(0, np.pi, size=param_shape), requires_grad=True)
+    report_phase(phase_callback, "optimization")
     opt_res = adam_optimize(
         objective,
         init,
@@ -77,6 +81,7 @@ def run_fractional_vqe(
         callback=report,
     )
 
+    report_phase(phase_callback, "candidate_processing")
     z = np.array(expvals_z(opt_res.params))
     w = angles_to_weights(z)
 

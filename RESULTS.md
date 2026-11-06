@@ -169,12 +169,80 @@ their numerical status. These development pilots provide no held-out statistical
 or quantum-advantage claim; historical reports above are unchanged.
 
 The committed deadline pilot uses one four-asset instance and one run per method
-and allowance to check execution behavior. Reproduce its frozen settings with:
+and allowance to check execution behavior. Re-run its settings with the current
+runner in a new directory (exact historical reproduction requires v0.3.1 sources):
 
 ```bash
 python scripts/run_budget_benchmark.py --asset-counts 4 --instance-seeds 101 \
-  --seeds 0 --steps 24 --checkpoint-every 4 --budgets 1,10,60
+  --seeds 0 --steps 24 --checkpoint-every 4 --budgets 1,10,60 \
+  --methods binary-vqe,qaoa-x,qaoa-xy,highs,swap,random-k,fractional-vqe,osqp \
+  --output-dir results/my_budget_pilot
 ```
+
+## Fresh-instance deadline comparison
+
+The [fresh-instance report](results/fresh_instance_budget/report.md) contains
+594 completed trials across 4, 6, and 8 assets, three fresh factor-model instances
+per size (seeds 707, 808, and 909), two run seeds, and independent 1/10/60-second
+allowances. Settings were fixed before evaluating these inputs. The runner rejects
+overlap with the declared development manifests and saves their hashes. See the
+[frozen configuration](experiments/fresh_instance_budget.json) and
+[reproduction instructions](experiments/README.md#fresh-instance-deadline-comparison).
+
+The central comparison uses identical production parameter initializations for
+trained and untrained Dicke-ring XY QAOA. The trained variant publishes candidates
+during 24 Adam updates, then repeatedly samples the final parameters for its
+remaining allowance. The untrained control repeatedly samples its initial
+parameters with zero updates. Both execute actual 64-shot circuit batches.
+Sampling can stop once every feasible portfolio has actually been observed,
+using only the domain size rather than a reference target. Other trained
+comparators retain their declared finite update caps and ordinary final sampling.
+
+At the primary **10-second allowance**, binary target-hit rates are:
+
+| Binary method/variant | 4 assets | 6 assets | 8 assets |
+| --- | ---: | ---: | ---: |
+| Binary VQE, legacy | 50.0% | 33.3% | 16.7% |
+| Binary VQE, improved | 83.3% | 100.0% | 33.3% |
+| QAOA X | 100.0% | 100.0% | 100.0% |
+| XY QAOA, basis/ring | 33.3% | 0.0% | 66.7% |
+| XY QAOA, Dicke/ring, trained | 100.0% | 100.0% | 100.0% |
+| XY QAOA, Dicke/ring, untrained | 100.0% | 100.0% | 100.0% |
+| HiGHS, swap search, uniform exact-K (each) | 100.0% | 100.0% | 100.0% |
+
+Each cell contains six runs, with instances weighted equally. Trained and
+untrained Dicke-ring circuits and all three classical controls return the exact
+binary optimum in every 10-second run. This endpoint therefore shows no quality
+or target-hit benefit from training at these sizes. These are elapsed-time
+outcomes, distinct from the historical analytical success probabilities at a
+fixed 64-draw allowance. Across the 18 primary-budget runs per method, mean
+observed first-target times are 2.01 seconds for trained Dicke-ring, 1.87 seconds
+for untrained Dicke-ring, and between 1.74 and 1.83 seconds for the three classical
+controls. These are descriptive implementation timings, without uncertainty
+estimates or a hardware speed claim.
+
+In the separate fractional control track, Fractional VQE hits its own target in
+50.0%, 16.7%, and 33.3% of 10-second runs at 4, 6, and 8 assets, respectively;
+OSQP reaches 100.0% at each size. Binary and fractional objectives are not pooled.
+
+All 198 one-second runs time out during startup, before worker setup is observed.
+Where worker entry is observed, startup averages 1.77 seconds on this environment
+(range 1.47 to 3.63 seconds). Every 10/60-second run returns a feasible portfolio.
+Four runs reach their deadline after returning an incumbent; these remain in the
+denominators with their delivered portfolios. No solver errors or reference
+contradictions occur. Maximum observed cleanup overrun is 0.0344 seconds and does
+not extend candidate eligibility. Parent validation must finish before the
+deadline for a portfolio to count.
+
+[Timing records](results/fresh_instance_budget/timings.csv) separate startup,
+setup, optimization, candidate processing, delivery, parent validation, cleanup,
+and interrupted phases. Delivery and validation overlap worker work and must not
+be added to the worker phase totals. [Paired records](results/fresh_instance_budget/pairs.csv)
+retain matched instance/seed/budget outcomes and failed returns; conditional
+quality differences require two feasible outputs. The saved empirical T90 uses
+only two repeats per instance and is a coarse descriptive statistic. This small
+fresh-instance check has no confidence intervals, formal held-out tuning study,
+scaling conclusion, or quantum-advantage claim. Historical evidence is preserved.
 
 ## Synthetic Results
 

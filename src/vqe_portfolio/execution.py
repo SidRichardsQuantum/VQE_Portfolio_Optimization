@@ -8,6 +8,7 @@ evaluation all consume the budget. No reference optimum is sent to a worker.
 import multiprocessing as mp
 import time
 from dataclasses import dataclass, field
+from math import comb
 
 import numpy as np
 
@@ -19,6 +20,8 @@ BUDGET_METHODS = {
     "binary-vqe": "binary_qubo",
     "qaoa-x": "binary_qubo",
     "qaoa-xy": "binary_qubo",
+    "qaoa-xy-untrained": "binary_qubo",
+    "qaoa-xy-trained": "binary_qubo",
     "highs": "binary_qubo",
     "swap": "binary_qubo",
     "random-k": "binary_qubo",
@@ -51,6 +54,7 @@ class BudgetResult:
     invalid_candidates: int = 0
     late_candidates: int = 0
     worker_exitcode: int | None = None
+    timings: dict = field(default_factory=dict)
     overrun_seconds: float = field(init=False)
 
     def __post_init__(self):
@@ -61,11 +65,37 @@ class BudgetResult:
         )
 
 
+class _PhaseTimings:
+    """Worker-clock phase totals, including a censored active phase on timeout."""
+
+    phases = ("startup", "setup", "optimization", "candidate_processing")
+
+    def __init__(self):
+        self.totals = {name: 0.0 for name in self.phases}
+        self.active = "startup"
+        self.last = 0.0
+
+    def mark(self, phase, elapsed):
+        if phase not in (*self.phases, "finished"):
+            raise ValueError("Unknown worker timing phase")
+        if not np.isfinite(elapsed) or elapsed < self.last:
+            raise ValueError("Nonmonotonic worker timing")
+        if self.active != "finished":
+            self.totals[self.active] += elapsed - self.last
+        self.active, self.last = phase, elapsed
+
+    def finish(self, elapsed):
+        self.mark(self.active, max(self.last, elapsed))
+        return {f"{key}_seconds": value for key, value in self.totals.items()}
+
+
 def _configuration(problem, method, config, seed):
     expected = {
         "binary-vqe": BinaryVQEConfig,
         "qaoa-x": QAOAConfig,
         "qaoa-xy": QAOAConfig,
+        "qaoa-xy-untrained": QAOAConfig,
+        "qaoa-xy-trained": QAOAConfig,
         "fractional-vqe": FractionalVQEConfig,
     }.get(method)
     if expected is None:
@@ -77,38 +107,66 @@ def _configuration(problem, method, config, seed):
         if problem.k is not None:
             common["k"] = problem.k
         if method.startswith("qaoa-"):
-            common["mixer"] = method.removeprefix("qaoa-")
+            common["mixer"] = "x" if method == "qaoa-x" else "xy"
+        if method == "qaoa-xy-untrained":
+            common["steps"] = 0
         config = expected(**common)
     if not isinstance(config, expected):
         raise ValueError(f"{method} requires {expected.__name__}")
     if config.lam != problem.lam or (problem.k is not None and config.k != problem.k):
         raise ValueError("Solver configuration must match the prepared problem")
-    if method.startswith("qaoa-") and config.mixer != method.removeprefix("qaoa-"):
+    mixer = "x" if method == "qaoa-x" else "xy"
+    if method.startswith("qaoa-") and config.mixer != mixer:
         raise ValueError("Method and configured mixer disagree")
+    if method == "qaoa-xy-untrained" and config.steps != 0:
+        raise ValueError("Untrained QAOA requires steps=0")
     return config
 
 
-def _solve(problem, method, config, seed, deadline, publish):
+def _solve(problem, method, config, seed, deadline, publish, phase):
     """Worker-side dispatch; all method-specific preparation is inside timing."""
     mu, sigma, lam, k = problem.mu, problem.Sigma, problem.lam, problem.k
     if method == "binary-vqe":
         from .binary import run_binary_vqe
 
-        run_binary_vqe(mu, sigma, config, candidate_callback=publish)
-    elif method.startswith("qaoa-"):
-        from .qaoa import run_qaoa
+        run_binary_vqe(
+            mu, sigma, config, candidate_callback=publish, phase_callback=phase
+        )
+    elif method == "qaoa-xy-untrained":
+        from .qaoa import _sample_initial_qaoa
 
-        run_qaoa(mu, sigma, config, candidate_callback=publish)
+        return _sample_initial_qaoa(mu, sigma, config, deadline, publish, phase)
+    elif method.startswith("qaoa-"):
+        from .qaoa import _sample_qaoa_parameters, run_qaoa
+
+        result = run_qaoa(
+            mu, sigma, config, candidate_callback=publish, phase_callback=phase
+        )
+        if method == "qaoa-xy-trained":
+            phase("setup")
+            return _sample_qaoa_parameters(
+                mu, sigma, config, result.params, deadline, publish, phase
+            )
     elif method == "fractional-vqe":
         from .fractional import run_fractional_vqe
 
-        run_fractional_vqe(mu, sigma, config, candidate_callback=publish)
+        run_fractional_vqe(
+            mu, sigma, config, candidate_callback=publish, phase_callback=phase
+        )
     elif method == "random-k":
         rng = np.random.default_rng(seed)
+        phase("candidate_processing")
+        seen = set()
         while time.perf_counter() < deadline:
             candidate = np.zeros(len(mu), dtype=int)
             candidate[rng.choice(len(mu), k, replace=False)] = 1
-            publish(candidate, {"source": "uniform_exact_k"})
+            seen.add(tuple(candidate))
+            publish(
+                candidate,
+                {"source": "uniform_exact_k", "unique_feasible_samples": len(seen)},
+            )
+            if len(seen) == comb(len(mu), k):
+                return "exhausted_feasible_space"
     else:
         from .baselines.solvers import (
             convex_markowitz_baseline,
@@ -116,6 +174,7 @@ def _solve(problem, method, config, seed, deadline, publish):
             mixed_integer_binary_baseline,
         )
 
+        phase("optimization")
         if method == "highs":
             remaining = deadline - time.perf_counter()
             if remaining <= 0:
@@ -135,12 +194,23 @@ def _solve(problem, method, config, seed, deadline, publish):
 
 
 def _budget_worker(connection, snapshot, method, config, seed, started, budget):
+    active_phase = None
+
+    def phase(name):
+        nonlocal active_phase
+        if name != active_phase:
+            connection.send(("phase", (name, time.perf_counter() - started)))
+            active_phase = name
+
     try:
+        phase("setup")
         problem = PortfolioProblem.from_dict(snapshot)
         best = float("inf")
 
         def publish(candidate, details):
             nonlocal best
+            previous_phase = active_phase
+            phase("candidate_processing")
             evaluated = problem.evaluate(candidate)
             elapsed = time.perf_counter() - started
             if not evaluated.feasible:
@@ -160,10 +230,13 @@ def _budget_worker(connection, snapshot, method, config, seed, started, budget):
                         ),
                     )
                 )
+            phase(previous_phase)
 
-        status = _solve(problem, method, config, seed, started + budget, publish)
+        status = _solve(problem, method, config, seed, started + budget, publish, phase)
+        phase("finished")
         connection.send(("done", (status, "")))
     except Exception as exc:
+        phase("finished")
         connection.send(("done", ("error", f"{type(exc).__name__}: {exc}")))
     finally:
         connection.close()
@@ -201,6 +274,9 @@ def run_budgeted(
     incumbents = []
     invalid, late = 0, 0
     status, solver_status, error = "time_limit", "", ""
+    timing = _PhaseTimings()
+    delivery_times = []
+    parent_evaluation_seconds = 0.0
     started = time.perf_counter()
     worker = context.Process(
         target=_budget_worker,
@@ -239,18 +315,30 @@ def run_budgeted(
                     late += 1
                     continue
                 # Independently rescore the raw worker output; never trust its score.
+                evaluation_started = time.perf_counter()
                 evaluation = problem.evaluate(payload.candidate)
+                parent_evaluation_seconds += time.perf_counter() - evaluation_started
+                # Parent validation is part of producing a usable candidate.
+                validated = time.perf_counter() - started
+                if validated > budget_seconds:
+                    late += 1
+                    continue
                 if not evaluation.feasible:
                     invalid += 1
                 elif not incumbents or evaluation.objective < incumbents[-1].objective:
                     incumbents.append(
                         CandidateSnapshot(
-                            received,
+                            validated,
                             payload.candidate,
                             evaluation.objective,
                             payload.details,
                         )
                     )
+                    delivery_times.append(max(0.0, received - payload.elapsed_seconds))
+            elif kind == "phase":
+                phase_name, phase_elapsed = payload
+                if received <= budget_seconds and phase_elapsed <= received:
+                    timing.mark(phase_name, phase_elapsed)
             elif kind == "invalid":
                 invalid += 1
             elif kind == "done":
@@ -265,6 +353,10 @@ def run_budgeted(
             f"{type(exc).__name__}: {exc}",
         )
     finally:
+        timing_end = min(time.perf_counter() - started, budget_seconds)
+        timings = timing.finish(timing_end)
+        timings["interrupted_phase"] = timing.active if status == "time_limit" else ""
+        cleanup_started = time.perf_counter()
         if worker.pid is not None:
             if status != "time_limit":
                 worker.join(timeout=0.05)
@@ -277,6 +369,14 @@ def run_budgeted(
                 worker.join(timeout=0.25)
         receive.close()
         send.close()
+        timings.update(
+            cleanup_seconds=time.perf_counter() - cleanup_started,
+            parent_evaluation_seconds=parent_evaluation_seconds,
+            mean_delivery_seconds=(
+                sum(delivery_times) / len(delivery_times) if delivery_times else None
+            ),
+            delivery_count=len(delivery_times),
+        )
     elapsed = time.perf_counter() - started
     best = incumbents[-1] if incumbents else None
     result = BudgetResult(
@@ -294,6 +394,7 @@ def run_budgeted(
         invalid,
         late,
         worker.exitcode,
+        timings,
     )
     worker.close()
     return result

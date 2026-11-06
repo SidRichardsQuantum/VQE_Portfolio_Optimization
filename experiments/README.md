@@ -201,3 +201,42 @@ late output is excluded and failures remain in the denominators. Independent
 1/10/60-second runs retain incumbent trajectories and per-instance censored T90.
 These are small development studies, not the full held-out research protocol.
 See [usage](../USAGE.md) and [changelog](../CHANGELOG.md) for details.
+
+## Fresh-instance deadline comparison
+
+```bash
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/run_budget_benchmark.py \
+  --config experiments/fresh_instance_budget.json \
+  --output-dir results/fresh_instance_budget
+```
+
+The frozen configuration evaluates three fresh factor-model instances per size
+(4, 6, and 8 assets), two run seeds, eleven named methods/variants across the two
+objective tracks, and independent 1/10/60-second allowances: 594 trials total.
+It rejects any problem ID present in the declared development manifests and
+records their hashes. Settings are inherited from the development studies and
+fixed before evaluating these fresh inputs; no tuning on the new results occurs.
+
+The central binary comparison is trained versus untrained Dicke-ring XY QAOA
+using the same production parameter initialization per seed. The untrained
+control repeatedly executes actual finite-shot circuit batches without Adam
+updates. Its trained counterpart publishes training checkpoints and samples its
+final parameters for the remaining allowance after 24 updates. All three
+sampling loops can stop after observing every feasible portfolio,
+using the domain size rather than a reference optimum. Legacy XY and Binary VQE,
+improved Binary VQE, QAOA X, HiGHS, swap search, and uniform feasible sampling
+remain visible. Fractional VQE and OSQP form a separate allocation control.
+
+Raw trials include independently validated incumbents and all failures.
+`timings.csv` separates worker startup, setup, optimization, candidate processing,
+delivery, validation, cleanup, and interrupted phases; delivery and validation
+overlap worker phases. `pairs.csv` retains per-instance/seed/budget trained versus
+comparator outcomes, including failed returns. The report shows descriptive
+paired quality and target-hit results at the primary 10-second allowance.
+
+Use `--resume` only with matching sources, environment, and settings. Historical
+studies retain their original artifacts. This fresh-instance check has no
+confidence intervals, formal tuning split, scaling claim, or advantage claim.
+See [usage](../USAGE.md#fresh-instance-comparison-and-timing-diagnostics) for preset
+semantics and [the saved report](../results/fresh_instance_budget/report.md).

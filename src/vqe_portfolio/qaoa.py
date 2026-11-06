@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from itertools import combinations
 from math import comb
+import time
 from typing import Optional
 
 import pennylane as qml
@@ -10,7 +11,7 @@ from pennylane import numpy as np
 
 from .binary import build_ising_hamiltonian
 from .metrics import symmetrize
-from .optimize import adam_optimize
+from .optimize import adam_optimize, report_phase
 from .types import LambdaSweepConfig, OptimizeTrace, QAOAConfig, QAOAResult
 from .utils import set_global_seed
 from .utils import topk_onehot
@@ -186,8 +187,8 @@ def _validate_inputs(
         raise ValueError(f"cfg.k must be in [1, {n}] but got {cfg.k}")
     if cfg.p <= 0:
         raise ValueError(f"cfg.p must be positive; got {cfg.p}")
-    if cfg.steps <= 0:
-        raise ValueError(f"cfg.steps must be positive; got {cfg.steps}")
+    if type(cfg.steps) is not int or cfg.steps < 0:
+        raise ValueError(f"cfg.steps must be a nonnegative integer; got {cfg.steps}")
     if cfg.stepsize <= 0:
         raise ValueError(f"cfg.stepsize must be positive; got {cfg.stepsize}")
     if cfg.mixer not in {"x", "xy"}:
@@ -206,12 +207,101 @@ def _validate_inputs(
     return mu, Sigma, n
 
 
+def _sampling_qnode(H_cost, n, cfg):
+    dev = qml.device(cfg.device, wires=n)
+
+    @qml.qnode(dev)
+    def sample_bits(params):
+        _qaoa_ansatz(
+            params, H_cost, n, cfg.k, cfg.mixer, cfg.xy_initial_state, cfg.xy_topology
+        )
+        return qml.sample(wires=range(n))
+
+    return qml.set_shots(sample_bits, cfg.shots_sample)
+
+
+def _sample_initial_qaoa(
+    mu, Sigma, cfg, deadline, candidate_callback, phase_callback=None
+):
+    """Repeated circuit batches at the production random initialization.
+
+    No training, reference scores, exact probabilities, or classical sampling
+    shortcuts are used. Setup and every circuit batch consume the allowance.
+    """
+    if cfg.steps != 0:
+        raise ValueError("Untrained sampling requires steps=0")
+    set_global_seed(cfg.seed)
+    mu, Sigma, n = _validate_inputs(mu, Sigma, cfg)
+    h = build_ising_hamiltonian(mu, Sigma, cfg.lam, cfg.alpha, cfg.k)
+    # Match production device creation before random parameter initialization.
+    qml.device(cfg.device, wires=n)
+    params = _random_init(cfg.p, cfg.mixer)
+    return _sample_qaoa_parameters(
+        mu,
+        Sigma,
+        cfg,
+        params,
+        deadline,
+        candidate_callback,
+        phase_callback,
+        source="untrained_sample",
+        h=h,
+    )
+
+
+def _sample_qaoa_parameters(
+    mu,
+    Sigma,
+    cfg,
+    params,
+    deadline,
+    candidate_callback,
+    phase_callback=None,
+    *,
+    source="trained_sample",
+    h=None,
+):
+    """Spend remaining time on actual circuit batches at frozen parameters."""
+    n = len(mu)
+    if h is None:
+        h = build_ising_hamiltonian(mu, Sigma, cfg.lam, cfg.alpha, cfg.k)
+    sample_bits = _sampling_qnode(h, n, cfg)
+    report_phase(phase_callback, "candidate_processing")
+    batches = 0
+    seen = set()
+    while time.perf_counter() < deadline:
+        counts = _sample_counts_to_counter(sample_bits(params), n)
+        feasible = [bs for bs in counts if sum(bs) == cfg.k]
+        seen.update(feasible)
+        batches += 1
+        if feasible:
+            best = min(
+                feasible,
+                key=lambda bs: _objective_value(
+                    np.array(bs), mu, Sigma, cfg.lam, 0.0, cfg.k
+                ),
+            )
+            candidate_callback(
+                np.array(best),
+                {
+                    "step": cfg.steps,
+                    "batch": batches,
+                    "source": source,
+                    "unique_feasible_samples": len(seen),
+                },
+            )
+        if len(seen) == comb(n, cfg.k):
+            return "exhausted_feasible_space"
+    return "time_limit"
+
+
 def run_qaoa(
     mu: np.ndarray,
     Sigma: np.ndarray,
     cfg: QAOAConfig = QAOAConfig(),
     *,
     candidate_callback=None,
+    phase_callback=None,
 ) -> QAOAResult:
     set_global_seed(cfg.seed)
 
@@ -252,25 +342,11 @@ def run_qaoa(
         )
         return qml.probs(wires=range(n))
 
-    dev_samp = qml.device(cfg.device, wires=n)
-
-    @qml.qnode(dev_samp)
-    def sample_bits(params: np.ndarray):
-        _qaoa_ansatz(
-            params,
-            H_cost=H_cost,
-            n=n,
-            k=cfg.k,
-            mixer=cfg.mixer,
-            xy_initial_state=cfg.xy_initial_state,
-            xy_topology=cfg.xy_topology,
-        )
-        return qml.sample(wires=range(n))
-
-    sample_bits = qml.set_shots(sample_bits, cfg.shots_sample)
+    sample_bits = _sampling_qnode(H_cost, n, cfg)
 
     def report(step, value, params):
         if candidate_callback is not None:
+            report_phase(phase_callback, "candidate_processing")
             checkpoint_probs = np.array(state_probs(params), requires_grad=False)
             counts = _sample_counts_to_counter(sample_bits(params), n)
             feasible = [bs for bs in counts if sum(bs) == cfg.k]
@@ -290,7 +366,9 @@ def run_qaoa(
                 np.array(candidate),
                 {"step": step, "source": "sample" if feasible else "topk_fallback"},
             )
+            report_phase(phase_callback, "optimization")
 
+    report_phase(phase_callback, "optimization")
     opt_res = adam_optimize(
         energy,
         init,
@@ -300,6 +378,7 @@ def run_qaoa(
         callback=report,
     )
 
+    report_phase(phase_callback, "candidate_processing")
     best_params = np.array(opt_res.params, requires_grad=False)
     gammas = np.array(best_params[:, 0], requires_grad=False)
     betas = np.array(best_params[:, 1], requires_grad=False)

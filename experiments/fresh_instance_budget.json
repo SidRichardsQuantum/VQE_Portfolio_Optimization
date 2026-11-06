@@ -1,0 +1,13 @@
+{
+  "asset_counts": "4,6,8",
+  "instance_seeds": "707,808,909",
+  "seeds": "0,1",
+  "variants": "binary-legacy,binary-improved,qaoa-x,xy-basis-ring,xy-dicke-ring-trained,xy-dicke-ring-untrained,highs,swap,random-k,fractional-vqe,osqp",
+  "budgets": "1,10,60",
+  "steps": 24,
+  "checkpoint_every": 4,
+  "shots": 64,
+  "lam": 4.0,
+  "target_gap": 0.001,
+  "exclude_manifests": "results/small_instance_validation/manifest.json,results/solver_reliability/manifest.json,results/budget_benchmark/manifest.json"
+}

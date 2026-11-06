@@ -761,3 +761,63 @@ per instance, including censored failures; blank T90 means fewer than 90% reach
 the target within that allowance. Numerical fractional references retain their
 numerical status. These small development pilots do not satisfy the held-out
 sample sizes and uncertainty analysis in the full research protocol.
+
+### Fresh-instance comparison and timing diagnostics
+
+Run the frozen fresh-instance configuration in a new output directory:
+
+```bash
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/run_budget_benchmark.py \
+  --config experiments/fresh_instance_budget.json \
+  --output-dir results/fresh_instance_budget
+```
+
+Add `--resume` to continue with matching sources, settings, and environment.
+CLI arguments override JSON defaults. `--variants` selects named presets and/or
+ordinary method names; it takes precedence over `--methods` when nonempty.
+Named presets inherit the v0.3.1 reliability-study settings, independently of
+the generic solver flags: `binary-legacy`, `binary-improved`, `xy-basis-ring`,
+`xy-dicke-ring-trained`, and `xy-dicke-ring-untrained`. The improved Binary VQE
+preset divides the declared total update count among three restarts; its total
+must be a positive multiple of three. Trial rows save every resolved solver
+configuration.
+
+The configuration uses fresh factor-model instance seeds 707, 808, and 909 at
+4, 6, and 8 assets, two solver seeds, and independent 1/10/60-second runs. It
+compares the presets with QAOA X, HiGHS, swap search, uniform feasible sampling,
+and a separate Fractional VQE/OSQP control track. `--exclude-manifests` freezes
+the hashes and problem IDs of prior development studies; overlap is rejected
+before any solver trial. Settings are fixed before evaluating the new inputs.
+This is a small fresh-instance check, not the protocol's full held-out study.
+
+The untrained XY variant repeatedly executes finite-shot batches at the same
+production random parameters used to initialize its trained counterpart. It
+uses zero Adam updates and no exact probability vector. Both have the same
+startup-inclusive allowance and 64-shot batch size; the untrained control can
+spend more of that allowance sampling. The trained Dicke-ring variant publishes
+candidates during its 24 updates, then repeatedly samples the final trained
+parameters for the remaining time. Other trained presets retain their finite
+update caps and ordinary final sampling. Uniform sampling and both Dicke-ring
+sampling loops stop early if they have actually
+sampled all `binomial(n, K)` feasible portfolios. This stopping condition uses
+only the feasible-domain size, with no reference target; the best portfolio
+cannot improve after full coverage. Otherwise sampling continues to the deadline.
+
+`run_budgeted` results now include `timings`: worker phase durations for startup
+(spawn/imports), setup, optimization, and candidate processing; mean delivery
+delay among accepted incumbents; total parent validation time; and cleanup time.
+The last observed active phase is charged through a timeout and identified by
+`interrupted_phase`. Startup censored at the deadline is not a completed startup
+measurement. Delivery and parent validation overlap worker work, so they must
+not be added to the phase totals. Parent validation must complete within the
+allowance for a candidate to count. Logging these diagnostics consumes time too.
+Phases follow execution boundaries: lazy circuit compilation belongs to the
+first phase executing that circuit, and a classical baseline's optimization
+phase includes model construction and optional imports inside its solver call.
+These are end-to-end implementation diagnostics, not native kernel timings.
+
+The runner exports `timings.csv`, descriptive trained/comparator pairs in
+`pairs.csv`, and the existing raw trials, summaries, incumbent histories, and T90
+records. Paired quality differences require two feasible returns; failure flags
+and target-hit outcomes remain explicit. Historical reports are preserved.
